@@ -134,3 +134,34 @@ Preferred communication style: Simple, everyday language.
 - PostgreSQL session store via connect-pg-simple
 - HTTP-only secure cookies for session tokens
 - 7-day session TTL with automatic cleanup
+
+## Recent Changes
+
+**November 30, 2025**
+- Fixed critical routing bug: TopicPage.tsx now correctly uses `params.slug` (was `params.id`)
+- Added progress tracking: users can mark principles as complete
+- Progress persists to database via POST /api/progress/:topicId
+- Dashboard now fetches topics from both created topics AND topics with progress
+- Added unique constraint on progress table (userId, topicId) for proper upsert
+- Fixed TanStack Query caching with 5-minute staleTime and retry enabled
+
+## API Routes
+
+**Topics**
+- GET `/api/topics/:slug` - Fetch topic by slug
+- GET `/api/topics/:topicId/principles` - Fetch principles for topic
+- POST `/api/topics/generate` - Generate new topic via AI
+
+**Progress**
+- GET `/api/user/progress` - Get all progress records for authenticated user
+- GET `/api/user/topics` - Get topics user created OR has progress on
+- POST `/api/progress/:topicId` - Save/update progress for topic
+
+**Quizzes**
+- GET `/api/topics/:topicId/quizzes` - Get quizzes for topic
+- POST `/api/topics/:topicId/quiz/generate` - Generate quiz via AI
+
+## Known Limitations
+
+1. **Sequential Progress**: Progress tracking stores count of completed principles (not specific IDs). This assumes sequential learning where principles build on each other.
+2. **Payment Processing**: Stripe integration is prepared but not fully implemented. Currently all users get free access.
