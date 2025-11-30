@@ -1,137 +1,71 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Clock, Users, Star, Filter } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Search, Clock, Sparkles, Plus, Loader2 } from "lucide-react";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import type { Topic } from "@shared/schema";
 import Footer from "@/components/Footer";
 
-interface Topic {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  difficulty: "Beginner" | "Intermediate" | "Advanced";
-  duration: string;
-  learners: number;
-  rating: number;
-}
+const categories = ["All", "Physics", "Technology", "Business", "Philosophy", "Psychology", "Economics", "Biology", "Mathematics"];
 
-// todo: remove mock functionality
-const allTopics: Topic[] = [
-  {
-    id: "quantum-mechanics",
-    title: "Quantum Mechanics",
-    description: "Understand the bizarre world of particles, waves, and probability from absolute scratch.",
-    category: "Physics",
-    difficulty: "Intermediate",
-    duration: "4 hours",
-    learners: 12400,
-    rating: 4.9,
-  },
-  {
-    id: "machine-learning",
-    title: "Machine Learning Basics",
-    description: "Learn how computers learn patterns from data, starting with simple math concepts.",
-    category: "Technology",
-    difficulty: "Beginner",
-    duration: "3 hours",
-    learners: 28900,
-    rating: 4.8,
-  },
-  {
-    id: "starting-a-business",
-    title: "Starting a Business",
-    description: "From idea validation to first customers—the fundamental principles of entrepreneurship.",
-    category: "Business",
-    difficulty: "Beginner",
-    duration: "2.5 hours",
-    learners: 45200,
-    rating: 4.7,
-  },
-  {
-    id: "philosophy-of-mind",
-    title: "Philosophy of Mind",
-    description: "Explore consciousness, free will, and what it means to think—from first principles.",
-    category: "Philosophy",
-    difficulty: "Advanced",
-    duration: "5 hours",
-    learners: 8700,
-    rating: 4.9,
-  },
-  {
-    id: "blockchain",
-    title: "Blockchain Technology",
-    description: "Demystify crypto and distributed systems by understanding their mathematical foundations.",
-    category: "Technology",
-    difficulty: "Intermediate",
-    duration: "3.5 hours",
-    learners: 19800,
-    rating: 4.6,
-  },
-  {
-    id: "cognitive-behavioral-therapy",
-    title: "Cognitive Behavioral Therapy",
-    description: "Learn the principles of CBT to understand thought patterns and emotional responses.",
-    category: "Psychology",
-    difficulty: "Beginner",
-    duration: "2 hours",
-    learners: 31500,
-    rating: 4.8,
-  },
-  {
-    id: "special-relativity",
-    title: "Special Relativity",
-    description: "Einstein's revolutionary theory explained from its core postulates.",
-    category: "Physics",
-    difficulty: "Advanced",
-    duration: "4.5 hours",
-    learners: 9200,
-    rating: 4.9,
-  },
-  {
-    id: "microeconomics",
-    title: "Microeconomics Fundamentals",
-    description: "Supply, demand, and market dynamics explained from first principles.",
-    category: "Economics",
-    difficulty: "Beginner",
-    duration: "3 hours",
-    learners: 22400,
-    rating: 4.7,
-  },
-  {
-    id: "evolutionary-biology",
-    title: "Evolutionary Biology",
-    description: "Understand natural selection and the origin of species from Darwin's original insights.",
-    category: "Biology",
-    difficulty: "Intermediate",
-    duration: "3.5 hours",
-    learners: 15600,
-    rating: 4.8,
-  },
-];
-
-const categories = ["All", "Physics", "Technology", "Business", "Philosophy", "Psychology", "Economics", "Biology"];
-
-const difficultyColors = {
-  Beginner: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-  Intermediate: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-  Advanced: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+const difficultyColors: Record<string, string> = {
+  beginner: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+  intermediate: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+  advanced: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
 };
 
 export default function TopicsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [newTopicTitle, setNewTopicTitle] = useState("");
   const [, setLocation] = useLocation();
 
-  const filteredTopics = allTopics.filter((topic) => {
+  const { data: topics = [], isLoading } = useQuery<Topic[]>({
+    queryKey: ['/api/topics'],
+  });
+
+  const generateTopicMutation = useMutation({
+    mutationFn: async (title: string) => {
+      const response = await apiRequest("POST", "/api/topics/generate", { title });
+      return response.json();
+    },
+    onSuccess: (newTopic) => {
+      // Invalidate and refetch topic lists
+      queryClient.invalidateQueries({ queryKey: ['/api/topics'] });
+      // Pre-populate the topic cache so it's available immediately
+      queryClient.setQueryData(['/api/topics', newTopic.slug], newTopic);
+      setNewTopicTitle("");
+      setLocation(`/topic/${newTopic.slug}`);
+    },
+  });
+
+  const filteredTopics = topics.filter((topic) => {
     const matchesSearch = topic.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      topic.description.toLowerCase().includes(searchQuery.toLowerCase());
+      (topic.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
     const matchesCategory = selectedCategory === "All" || topic.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  const formatTime = (minutes: number | null) => {
+    if (!minutes) return "~30 min";
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+  };
+
+  const handleGenerateTopic = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newTopicTitle.trim()) {
+      generateTopicMutation.mutate(newTopicTitle.trim());
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -143,6 +77,53 @@ export default function TopicsPage() {
           <p className="text-lg text-muted-foreground text-center mb-8">
             Choose any topic and learn it from its fundamental building blocks.
           </p>
+
+          <Card className="border-card-border mb-8">
+            <CardContent className="p-6">
+              <form onSubmit={handleGenerateTopic} className="space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  <h3 className="font-semibold">Generate a New Topic</h3>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Enter any topic you want to learn, and our AI will break it down into first principles.
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    placeholder="e.g., Quantum Computing, Game Theory, Stoic Philosophy..."
+                    value={newTopicTitle}
+                    onChange={(e) => setNewTopicTitle(e.target.value)}
+                    className="flex-1"
+                    data-testid="input-new-topic"
+                    disabled={generateTopicMutation.isPending}
+                  />
+                  <Button 
+                    type="submit" 
+                    disabled={!newTopicTitle.trim() || generateTopicMutation.isPending}
+                    data-testid="button-generate-topic"
+                  >
+                    {generateTopicMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Generate
+                      </>
+                    )}
+                  </Button>
+                </div>
+                {generateTopicMutation.isError && (
+                  <p className="text-sm text-destructive">
+                    Please sign in to generate topics, or try again later.
+                  </p>
+                )}
+              </form>
+            </CardContent>
+          </Card>
 
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -172,56 +153,76 @@ export default function TopicsPage() {
           </TabsList>
         </Tabs>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-          {filteredTopics.map((topic) => (
-            <Card
-              key={topic.id}
-              className="group hover-elevate cursor-pointer border-card-border"
-              onClick={() => setLocation(`/topic/${topic.id}`)}
-              data-testid={`card-topic-${topic.id}`}
-            >
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between gap-2 mb-4">
-                  <Badge variant="secondary" className="text-xs">
-                    {topic.category}
-                  </Badge>
-                  <Badge className={`text-xs ${difficultyColors[topic.difficulty]}`}>
-                    {topic.difficulty}
-                  </Badge>
-                </div>
-
-                <h3 className="text-xl font-semibold mb-2 group-hover:text-primary transition-colors">
-                  {topic.title}
-                </h3>
-                <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                  {topic.description}
-                </p>
-
-                <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5" />
-                    <span>{topic.duration}</span>
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <Card key={i} className="border-card-border">
+                <CardContent className="p-6">
+                  <Skeleton className="h-6 w-24 mb-4" />
+                  <Skeleton className="h-6 w-3/4 mb-2" />
+                  <Skeleton className="h-4 w-full mb-4" />
+                  <Skeleton className="h-4 w-32" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+            {filteredTopics.map((topic) => (
+              <Card
+                key={topic.id}
+                className="group hover-elevate cursor-pointer border-card-border"
+                onClick={() => setLocation(`/topic/${topic.slug}`)}
+                data-testid={`card-topic-${topic.slug}`}
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between gap-2 mb-4">
+                    <Badge variant="secondary" className="text-xs">
+                      {topic.category}
+                    </Badge>
+                    {topic.difficulty && (
+                      <Badge className={`text-xs ${difficultyColors[topic.difficulty.toLowerCase()] || ""}`}>
+                        {topic.difficulty}
+                      </Badge>
+                    )}
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Users className="h-3.5 w-3.5" />
-                    <span>{topic.learners.toLocaleString()}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-                    <span>{topic.rating}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
 
-        {filteredTopics.length === 0 && (
+                  <h3 className="text-xl font-semibold mb-2 group-hover:text-primary transition-colors">
+                    {topic.title}
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                    {topic.description}
+                  </p>
+
+                  <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" />
+                      <span>{formatTime(topic.estimatedMinutes)}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Sparkles className="h-3.5 w-3.5 text-primary" />
+                      <span>AI-generated</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {!isLoading && filteredTopics.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-lg text-muted-foreground mb-4">No topics found matching your search.</p>
-            <Button variant="outline" onClick={() => { setSearchQuery(""); setSelectedCategory("All"); }}>
-              Clear filters
-            </Button>
+            <p className="text-lg text-muted-foreground mb-4">
+              {topics.length === 0 
+                ? "No topics yet. Generate your first topic above!"
+                : "No topics found matching your search."
+              }
+            </p>
+            {topics.length > 0 && (
+              <Button variant="outline" onClick={() => { setSearchQuery(""); setSelectedCategory("All"); }}>
+                Clear filters
+              </Button>
+            )}
           </div>
         )}
       </div>

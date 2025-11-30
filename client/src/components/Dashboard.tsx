@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
   BookOpen, 
   Trophy, 
@@ -15,118 +18,76 @@ import {
   Settings,
   CreditCard,
   Bell,
-  LogOut
+  LogOut,
+  Sparkles
 } from "lucide-react";
-
-interface LearningStats {
-  topicsCompleted: number;
-  quizScore: number;
-  streakDays: number;
-  hoursLearned: number;
-}
-
-interface TopicProgress {
-  id: string;
-  title: string;
-  category: string;
-  progress: number;
-  lastAccessed: string;
-}
-
-// todo: remove mock functionality
-const mockStats: LearningStats = {
-  topicsCompleted: 12,
-  quizScore: 87,
-  streakDays: 14,
-  hoursLearned: 28,
-};
-
-// todo: remove mock functionality
-const mockTopicsInProgress: TopicProgress[] = [
-  {
-    id: "1",
-    title: "Quantum Mechanics",
-    category: "Physics",
-    progress: 65,
-    lastAccessed: "2 hours ago",
-  },
-  {
-    id: "2",
-    title: "Machine Learning Basics",
-    category: "Technology",
-    progress: 40,
-    lastAccessed: "Yesterday",
-  },
-  {
-    id: "3",
-    title: "Philosophy of Mind",
-    category: "Philosophy",
-    progress: 15,
-    lastAccessed: "3 days ago",
-  },
-];
-
-// todo: remove mock functionality
-const mockCompletedTopics: TopicProgress[] = [
-  {
-    id: "4",
-    title: "Starting a Business",
-    category: "Business",
-    progress: 100,
-    lastAccessed: "1 week ago",
-  },
-  {
-    id: "5",
-    title: "Blockchain Technology",
-    category: "Technology",
-    progress: 100,
-    lastAccessed: "2 weeks ago",
-  },
-];
+import type { Topic, Progress as ProgressType, User } from "@shared/schema";
 
 interface DashboardProps {
-  userName?: string;
-  userEmail?: string;
-  subscriptionTier?: "free" | "pro";
+  user?: User;
+  onLogout?: () => void;
 }
 
-export default function Dashboard({ 
-  userName = "Alex Johnson",
-  userEmail = "alex@example.com", 
-  subscriptionTier = "pro" 
-}: DashboardProps) {
+export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [activeTab, setActiveTab] = useState("overview");
+  const [, setLocation] = useLocation();
+
+  const { data: topics = [], isLoading: topicsLoading } = useQuery<Topic[]>({
+    queryKey: ['/api/user/topics'],
+  });
+
+  const { data: progressList = [], isLoading: progressLoading } = useQuery<ProgressType[]>({
+    queryKey: ['/api/user/progress'],
+  });
+
+  const userName = user?.firstName 
+    ? `${user.firstName}${user.lastName ? ' ' + user.lastName : ''}`
+    : user?.email?.split('@')[0] || 'Learner';
+
+  const inProgressTopics = progressList.filter(p => p.completedAt === null);
+  const completedTopics = progressList.filter(p => p.completedAt !== null);
+  
+  const stats = {
+    topicsCompleted: completedTopics.length,
+    topicsInProgress: inProgressTopics.length,
+    totalTopics: topics.length,
+    bestScore: Math.max(...progressList.map(p => p.bestScore || 0), 0),
+  };
 
   const statCards = [
     {
-      title: "Topics Completed",
-      value: mockStats.topicsCompleted,
+      title: "Topics Started",
+      value: stats.totalTopics,
       icon: BookOpen,
       color: "text-blue-500",
       bgColor: "bg-blue-100 dark:bg-blue-900/30",
     },
     {
-      title: "Average Quiz Score",
-      value: `${mockStats.quizScore}%`,
+      title: "Completed",
+      value: stats.topicsCompleted,
       icon: Trophy,
       color: "text-yellow-500",
       bgColor: "bg-yellow-100 dark:bg-yellow-900/30",
     },
     {
-      title: "Learning Streak",
-      value: `${mockStats.streakDays} days`,
+      title: "In Progress",
+      value: stats.topicsInProgress,
       icon: Flame,
       color: "text-orange-500",
       bgColor: "bg-orange-100 dark:bg-orange-900/30",
     },
     {
-      title: "Hours Learned",
-      value: mockStats.hoursLearned,
-      icon: Clock,
+      title: "Best Quiz Score",
+      value: `${stats.bestScore}%`,
+      icon: Star,
       color: "text-green-500",
       bgColor: "bg-green-100 dark:bg-green-900/30",
     },
   ];
+
+  const isLoading = topicsLoading || progressLoading;
+
+  const getTopicById = (topicId: string) => topics.find(t => t.id === topicId);
 
   return (
     <div className="min-h-screen bg-background">
@@ -137,15 +98,15 @@ export default function Dashboard({
               <CardContent className="p-6">
                 <div className="flex flex-col items-center text-center mb-6">
                   <Avatar className="h-20 w-20 mb-4">
-                    <AvatarImage src="" alt={userName} />
+                    <AvatarImage src={user?.profileImageUrl || ""} alt={userName} style={{ objectFit: 'cover' }} />
                     <AvatarFallback className="text-lg bg-primary/10 text-primary">
-                      {userName.split(" ").map(n => n[0]).join("")}
+                      {userName.split(" ").map(n => n[0]).join("").toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <h2 className="font-semibold" data-testid="text-user-name">{userName}</h2>
-                  <p className="text-sm text-muted-foreground">{userEmail}</p>
-                  <Badge className="mt-2" variant={subscriptionTier === "pro" ? "default" : "secondary"}>
-                    {subscriptionTier === "pro" ? "Pro Learner" : "Free Plan"}
+                  <p className="text-sm text-muted-foreground">{user?.email}</p>
+                  <Badge className="mt-2" variant={user?.plan === "pro" ? "default" : "secondary"}>
+                    {user?.plan === "pro" ? "Pro Learner" : "Free Plan"}
                   </Badge>
                 </div>
 
@@ -154,7 +115,6 @@ export default function Dashboard({
                     { icon: BookOpen, label: "Overview", value: "overview" },
                     { icon: Star, label: "My Topics", value: "topics" },
                     { icon: CreditCard, label: "Subscription", value: "subscription" },
-                    { icon: Bell, label: "Notifications", value: "notifications" },
                     { icon: Settings, label: "Settings", value: "settings" },
                   ].map((item) => (
                     <button
@@ -173,7 +133,7 @@ export default function Dashboard({
                   ))}
                   <button
                     className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-muted-foreground hover-elevate"
-                    onClick={() => console.log("Logout clicked")}
+                    onClick={onLogout}
                     data-testid="button-logout"
                   >
                     <LogOut className="h-4 w-4" />
@@ -190,23 +150,39 @@ export default function Dashboard({
                 Welcome back, {userName.split(" ")[0]}!
               </h1>
               <p className="text-muted-foreground">
-                Continue your learning journey. You're on a {mockStats.streakDays}-day streak!
+                {stats.topicsCompleted > 0 
+                  ? `You've completed ${stats.topicsCompleted} topic${stats.topicsCompleted > 1 ? 's' : ''}. Keep learning!`
+                  : "Start your learning journey by exploring topics."}
               </p>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              {statCards.map((stat) => (
-                <Card key={stat.title} className="border-card-border" data-testid={`card-stat-${stat.title.toLowerCase().replace(/\s+/g, "-")}`}>
-                  <CardContent className="p-4">
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${stat.bgColor} mb-3`}>
-                      <stat.icon className={`h-5 w-5 ${stat.color}`} />
-                    </div>
-                    <p className="text-2xl font-bold">{stat.value}</p>
-                    <p className="text-xs text-muted-foreground">{stat.title}</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            {isLoading ? (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                {[1, 2, 3, 4].map((i) => (
+                  <Card key={i} className="border-card-border">
+                    <CardContent className="p-4">
+                      <Skeleton className="h-10 w-10 rounded-lg mb-3" />
+                      <Skeleton className="h-8 w-16 mb-2" />
+                      <Skeleton className="h-4 w-24" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                {statCards.map((stat) => (
+                  <Card key={stat.title} className="border-card-border" data-testid={`card-stat-${stat.title.toLowerCase().replace(/\s+/g, "-")}`}>
+                    <CardContent className="p-4">
+                      <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${stat.bgColor} mb-3`}>
+                        <stat.icon className={`h-5 w-5 ${stat.color}`} />
+                      </div>
+                      <p className="text-2xl font-bold">{stat.value}</p>
+                      <p className="text-xs text-muted-foreground">{stat.title}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
 
             <Tabs defaultValue="in-progress" className="space-y-6">
               <TabsList>
@@ -215,66 +191,129 @@ export default function Dashboard({
               </TabsList>
 
               <TabsContent value="in-progress" className="space-y-4">
-                {mockTopicsInProgress.map((topic) => (
-                  <Card 
-                    key={topic.id}
-                    className="border-card-border hover-elevate cursor-pointer"
-                    onClick={() => console.log("Navigate to topic:", topic.id)}
-                    data-testid={`card-topic-progress-${topic.id}`}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="secondary" className="text-xs">{topic.category}</Badge>
-                            <span className="text-xs text-muted-foreground">{topic.lastAccessed}</span>
-                          </div>
-                          <h3 className="font-semibold truncate">{topic.title}</h3>
-                          <div className="flex items-center gap-3 mt-2">
-                            <Progress value={topic.progress} className="flex-1 h-2" />
-                            <span className="text-sm font-medium text-muted-foreground">{topic.progress}%</span>
-                          </div>
-                        </div>
-                        <Button variant="ghost" size="icon">
-                          <ChevronRight className="h-5 w-5" />
-                        </Button>
+                {isLoading ? (
+                  [1, 2, 3].map((i) => (
+                    <Card key={i} className="border-card-border">
+                      <CardContent className="p-4">
+                        <Skeleton className="h-6 w-full" />
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : inProgressTopics.length === 0 ? (
+                  <Card className="border-card-border">
+                    <CardContent className="p-8 text-center">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mx-auto mb-4">
+                        <Sparkles className="h-8 w-8 text-primary" />
                       </div>
+                      <h3 className="text-lg font-semibold mb-2">Start Learning</h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Browse topics and start your first principles learning journey.
+                      </p>
+                      <Button onClick={() => setLocation('/topics')} data-testid="button-explore-topics">
+                        Explore Topics
+                      </Button>
                     </CardContent>
                   </Card>
-                ))}
+                ) : (
+                  inProgressTopics.map((progress) => {
+                    const topic = getTopicById(progress.topicId);
+                    if (!topic) return null;
+                    const total = progress.totalPrinciples || 0;
+                    const completed = progress.principlesCompleted || 0;
+                    const progressPercent = total > 0
+                      ? Math.round((completed / total) * 100)
+                      : 0;
 
-                <Button variant="outline" className="w-full" data-testid="button-explore-topics">
-                  Explore More Topics
-                </Button>
+                    return (
+                      <Card 
+                        key={progress.id}
+                        className="border-card-border hover-elevate cursor-pointer"
+                        onClick={() => setLocation(`/topic/${topic.slug}`)}
+                        data-testid={`card-topic-progress-${topic.id}`}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Badge variant="secondary" className="text-xs">{topic.category}</Badge>
+                              </div>
+                              <h3 className="font-semibold truncate">{topic.title}</h3>
+                              <div className="flex items-center gap-3 mt-2">
+                                <Progress value={progressPercent} className="flex-1 h-2" />
+                                <span className="text-sm font-medium text-muted-foreground">{progressPercent}%</span>
+                              </div>
+                            </div>
+                            <Button variant="ghost" size="icon">
+                              <ChevronRight className="h-5 w-5" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+                )}
+
+                {inProgressTopics.length > 0 && (
+                  <Button variant="outline" className="w-full" onClick={() => setLocation('/topics')} data-testid="button-explore-more">
+                    Explore More Topics
+                  </Button>
+                )}
               </TabsContent>
 
               <TabsContent value="completed" className="space-y-4">
-                {mockCompletedTopics.map((topic) => (
-                  <Card 
-                    key={topic.id}
-                    className="border-card-border hover-elevate cursor-pointer"
-                    onClick={() => console.log("Navigate to topic:", topic.id)}
-                    data-testid={`card-topic-completed-${topic.id}`}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-4">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
-                          <Trophy className="h-5 w-5 text-green-500" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="secondary" className="text-xs">{topic.category}</Badge>
-                            <span className="text-xs text-muted-foreground">Completed {topic.lastAccessed}</span>
-                          </div>
-                          <h3 className="font-semibold truncate">{topic.title}</h3>
-                        </div>
-                        <Button variant="ghost" size="sm">
-                          Review
-                        </Button>
-                      </div>
+                {isLoading ? (
+                  [1, 2].map((i) => (
+                    <Card key={i} className="border-card-border">
+                      <CardContent className="p-4">
+                        <Skeleton className="h-6 w-full" />
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : completedTopics.length === 0 ? (
+                  <Card className="border-card-border">
+                    <CardContent className="p-8 text-center">
+                      <p className="text-muted-foreground">
+                        Complete a topic quiz to see it here!
+                      </p>
                     </CardContent>
                   </Card>
-                ))}
+                ) : (
+                  completedTopics.map((progress) => {
+                    const topic = getTopicById(progress.topicId);
+                    if (!topic) return null;
+
+                    return (
+                      <Card 
+                        key={progress.id}
+                        className="border-card-border hover-elevate cursor-pointer"
+                        onClick={() => setLocation(`/topic/${topic.slug}`)}
+                        data-testid={`card-topic-completed-${topic.id}`}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-4">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
+                              <Trophy className="h-5 w-5 text-green-500" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Badge variant="secondary" className="text-xs">{topic.category}</Badge>
+                                {progress.bestScore && (
+                                  <span className="text-xs text-muted-foreground">
+                                    Best score: {progress.bestScore}%
+                                  </span>
+                                )}
+                              </div>
+                              <h3 className="font-semibold truncate">{topic.title}</h3>
+                            </div>
+                            <Button variant="ghost" size="sm">
+                              Review
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+                )}
               </TabsContent>
             </Tabs>
           </main>

@@ -2,31 +2,20 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "./ThemeProvider";
-import {
-  Menu,
-  X,
-  Sun,
-  Moon,
-  BookOpen,
-} from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import AuthModal from "./AuthModal";
+import { Menu, X, Sun, Moon, BookOpen } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import type { User } from "@shared/schema";
 
 interface HeaderProps {
   isLoggedIn?: boolean;
   onLogin?: () => void;
   onLogout?: () => void;
+  user?: User;
+  isLoading?: boolean;
 }
 
-export default function Header({ isLoggedIn = false, onLogin, onLogout }: HeaderProps) {
+export default function Header({ isLoggedIn = false, onLogin, onLogout, user, isLoading }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
   const [location] = useLocation();
 
@@ -85,31 +74,24 @@ export default function Header({ isLoggedIn = false, onLogin, onLogout }: Header
                   Dashboard
                 </Button>
               </Link>
+              {user && (
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={user.profileImageUrl || undefined} style={{ objectFit: 'cover' }} />
+                  <AvatarFallback className="text-xs">
+                    {user.firstName?.[0] || user.email?.[0]?.toUpperCase() || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+              )}
               <Button variant="outline" size="sm" className="rounded-full" onClick={onLogout} data-testid="button-logout">
                 Sign out
               </Button>
             </div>
           ) : (
             <div className="hidden md:flex items-center gap-3">
-              <Dialog open={isAuthOpen} onOpenChange={setIsAuthOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="ghost" size="sm" className="rounded-full" data-testid="button-login">
-                    Sign in
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md rounded-2xl">
-                  <DialogHeader>
-                    <DialogTitle className="text-center text-2xl">Welcome back</DialogTitle>
-                  </DialogHeader>
-                  <AuthModal
-                    onSuccess={() => {
-                      setIsAuthOpen(false);
-                      onLogin?.();
-                    }}
-                  />
-                </DialogContent>
-              </Dialog>
-              <Button size="sm" className="rounded-full" data-testid="button-get-started">
+              <Button variant="ghost" size="sm" className="rounded-full" onClick={onLogin} data-testid="button-login">
+                Sign in
+              </Button>
+              <Button size="sm" className="rounded-full" onClick={onLogin} data-testid="button-get-started">
                 Get started
               </Button>
             </div>
@@ -160,10 +142,10 @@ export default function Header({ isLoggedIn = false, onLogin, onLogout }: Header
                 </>
               ) : (
                 <>
-                  <Button variant="ghost" className="rounded-xl" onClick={() => setIsAuthOpen(true)} data-testid="button-mobile-login">
+                  <Button variant="ghost" className="rounded-xl" onClick={onLogin} data-testid="button-mobile-login">
                     Sign in
                   </Button>
-                  <Button className="rounded-xl" data-testid="button-mobile-get-started">
+                  <Button className="rounded-xl" onClick={onLogin} data-testid="button-mobile-get-started">
                     Get started
                   </Button>
                 </>

@@ -1,103 +1,119 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, XCircle, ArrowRight, RotateCcw } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { CheckCircle2, XCircle, ArrowRight, RotateCcw, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { apiRequest } from "@/lib/queryClient";
 
 interface QuizQuestion {
   id: string;
-  question: string;
+  questionText: string;
   options: string[];
-  correctIndex: number;
+  correctAnswer: number;
   explanation: string;
+  userAnswer?: number | null;
+  isCorrect?: boolean | null;
 }
 
-// todo: remove mock functionality
-const mockQuestions: QuizQuestion[] = [
-  {
-    id: "q1",
-    question: "What is wave-particle duality?",
-    options: [
-      "Particles can only behave as waves",
-      "Matter and energy exhibit both particle and wave behavior",
-      "Waves can only behave as particles",
-      "Energy has no particle properties",
-    ],
-    correctIndex: 1,
-    explanation: "Wave-particle duality means that at the quantum level, matter and energy can behave both as particles and as waves, depending on how we observe them.",
-  },
-  {
-    id: "q2",
-    question: "What happens when we observe a quantum particle?",
-    options: [
-      "Nothing changes",
-      "The particle disappears",
-      "The superposition collapses into a single state",
-      "The particle splits into two",
-    ],
-    correctIndex: 2,
-    explanation: "Before observation, particles exist in a superposition of all possible states. Measurement causes this superposition to 'collapse' into one definite state.",
-  },
-  {
-    id: "q3",
-    question: "What is quantum entanglement?",
-    options: [
-      "Particles moving at the same speed",
-      "Particles being in the same location",
-      "Particles connected such that measuring one affects the other instantly",
-      "Particles having identical colors",
-    ],
-    correctIndex: 2,
-    explanation: "Entanglement is a quantum phenomenon where particles become correlated so that the state of one instantly influences the other, regardless of distance.",
-  },
-  {
-    id: "q4",
-    question: "Why are energy levels in atoms described as 'quantized'?",
-    options: [
-      "Energy flows continuously",
-      "Energy comes in discrete packets or 'quanta'",
-      "Atoms have unlimited energy",
-      "Energy cannot be measured",
-    ],
-    correctIndex: 1,
-    explanation: "Energy is quantized, meaning it comes in discrete units. Electrons in atoms can only exist at specific energy levels, jumping between them rather than moving smoothly.",
-  },
-];
+interface QuizData {
+  quiz: {
+    id: string;
+    topicId: string;
+    totalQuestions: number;
+  };
+  questions: QuizQuestion[];
+}
 
 interface QuizProps {
+  topicId?: string;
+  topicTitle?: string;
   onComplete?: () => void;
 }
 
-export default function Quiz({ onComplete }: QuizProps) {
+export default function Quiz({ topicId, topicTitle, onComplete }: QuizProps) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
   const [score, setScore] = useState(0);
   const [showResults, setShowResults] = useState(false);
+  const [quizData, setQuizData] = useState<QuizData | null>(null);
+  const [currentExplanation, setCurrentExplanation] = useState<string>("");
 
-  const question = mockQuestions[currentQuestion];
-  const progress = ((currentQuestion + (isAnswered ? 1 : 0)) / mockQuestions.length) * 100;
+  const createQuizMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/topics/${topicId}/quiz`);
+      return response.json();
+    },
+    onSuccess: (data: QuizData) => {
+      setQuizData(data);
+    },
+  });
 
-  const handleSelectAnswer = (index: number) => {
-    if (isAnswered) return;
+  const submitAnswerMutation = useMutation({
+    mutationFn: async ({ questionId, answer }: { questionId: string; answer: number }) => {
+      const response = await apiRequest("POST", `/api/quiz/${quizData?.quiz.id}/answer`, {
+        questionId,
+        answer,
+      });
+      return response.json();
+    },
+  });
+
+  const completeQuizMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/quiz/${quizData?.quiz.id}/complete`);
+      return response.json();
+    },
+  });
+
+  useEffect(() => {
+    if (topicId) {
+      createQuizMutation.mutate();
+    }
+  }, [topicId]);
+
+  const questions = quizData?.questions || [];
+  const question = questions[currentQuestion];
+  const progress = questions.length > 0 
+    ? ((currentQuestion + (isAnswered ? 1 : 0)) / questions.length) * 100
+    : 0;
+
+  const handleSelectAnswer = async (index: number) => {
+    if (isAnswered || !question) return;
     
     setSelectedAnswer(index);
     setIsAnswered(true);
     
-    if (index === question.correctIndex) {
-      setScore((prev) => prev + 1);
+    try {
+      const result = await submitAnswerMutation.mutateAsync({
+        questionId: question.id,
+        answer: index,
+      });
+      
+      if (result.isCorrect) {
+        setScore((prev) => prev + 1);
+      }
+      setCurrentExplanation(result.explanation || question.explanation || "");
+    } catch (error) {
+      console.error("Error submitting answer:", error);
     }
-    
-    console.log("Answer selected:", index, "Correct:", index === question.correctIndex);
   };
 
-  const handleNextQuestion = () => {
-    if (currentQuestion < mockQuestions.length - 1) {
+  const handleNextQuestion = async () => {
+    if (currentQuestion < questions.length - 1) {
       setCurrentQuestion((prev) => prev + 1);
       setSelectedAnswer(null);
       setIsAnswered(false);
+      setCurrentExplanation("");
     } else {
+      try {
+        await completeQuizMutation.mutateAsync();
+      } catch (error) {
+        console.error("Error completing quiz:", error);
+      }
       setShowResults(true);
     }
   };
@@ -108,11 +124,67 @@ export default function Quiz({ onComplete }: QuizProps) {
     setIsAnswered(false);
     setScore(0);
     setShowResults(false);
+    setCurrentExplanation("");
+    setQuizData(null);
+    createQuizMutation.mutate();
   };
 
+  if (createQuizMutation.isPending) {
+    return (
+      <Card className="border-card-border overflow-hidden">
+        <CardContent className="p-8 text-center">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div>
+              <p className="font-medium">Generating Quiz...</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Creating personalized questions for {topicTitle || "this topic"}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (createQuizMutation.isError) {
+    return (
+      <Card className="border-card-border overflow-hidden">
+        <CardContent className="p-8 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10 mx-auto mb-4">
+            <XCircle className="h-8 w-8 text-destructive" />
+          </div>
+          <h3 className="text-lg font-semibold mb-2">Could not load quiz</h3>
+          <p className="text-sm text-muted-foreground mb-6">
+            Please sign in to take quizzes, or try again later.
+          </p>
+          <Button variant="outline" onClick={() => createQuizMutation.mutate()}>
+            Try Again
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!question) {
+    return (
+      <Card className="border-card-border overflow-hidden">
+        <CardContent className="p-8">
+          <div className="space-y-4">
+            <Skeleton className="h-6 w-3/4" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (showResults) {
-    const percentage = Math.round((score / mockQuestions.length) * 100);
-    const isPassing = percentage >= 75;
+    const percentage = Math.round((score / questions.length) * 100);
+    const isPassing = percentage >= 70;
 
     return (
       <Card className="border-card-border overflow-hidden">
@@ -132,7 +204,7 @@ export default function Quiz({ onComplete }: QuizProps) {
             {isPassing ? "Excellent Work!" : "Good Effort!"}
           </h3>
           <p className="text-muted-foreground mb-6">
-            You answered {score} out of {mockQuestions.length} questions correctly.
+            You answered {score} out of {questions.length} questions correctly.
             {isPassing 
               ? " You've demonstrated a solid understanding of the first principles."
               : " Review the principles and try again to improve your score."
@@ -154,11 +226,13 @@ export default function Quiz({ onComplete }: QuizProps) {
     );
   }
 
+  const correctAnswer = question.correctAnswer;
+
   return (
     <Card className="border-card-border overflow-hidden">
       <div className="px-6 pt-6">
         <div className="flex items-center justify-between mb-2 text-sm text-muted-foreground">
-          <span>Question {currentQuestion + 1} of {mockQuestions.length}</span>
+          <span>Question {currentQuestion + 1} of {questions.length}</span>
           <span>{Math.round(progress)}% complete</span>
         </div>
         <Progress value={progress} className="h-2" />
@@ -174,13 +248,13 @@ export default function Quiz({ onComplete }: QuizProps) {
             transition={{ duration: 0.2 }}
           >
             <h3 className="text-lg font-semibold mb-6" data-testid="text-quiz-question">
-              {question.question}
+              {question.questionText}
             </h3>
 
             <div className="space-y-3 mb-6">
               {question.options.map((option, index) => {
                 const isSelected = selectedAnswer === index;
-                const isCorrect = index === question.correctIndex;
+                const isCorrect = index === correctAnswer;
                 const showCorrect = isAnswered && isCorrect;
                 const showIncorrect = isAnswered && isSelected && !isCorrect;
 
@@ -188,7 +262,7 @@ export default function Quiz({ onComplete }: QuizProps) {
                   <button
                     key={index}
                     onClick={() => handleSelectAnswer(index)}
-                    disabled={isAnswered}
+                    disabled={isAnswered || submitAnswerMutation.isPending}
                     className={`flex items-center gap-3 w-full text-left p-4 rounded-lg border transition-all ${
                       showCorrect
                         ? "border-green-500 bg-green-50 dark:bg-green-900/20"
@@ -230,21 +304,23 @@ export default function Quiz({ onComplete }: QuizProps) {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className={`p-4 rounded-lg mb-6 ${
-                  selectedAnswer === question.correctIndex
+                  selectedAnswer === correctAnswer
                     ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
                     : "bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800"
                 }`}
               >
                 <p className="text-sm font-medium mb-1">
-                  {selectedAnswer === question.correctIndex ? "Correct!" : "Not quite right"}
+                  {selectedAnswer === correctAnswer ? "Correct!" : "Not quite right"}
                 </p>
-                <p className="text-sm text-muted-foreground">{question.explanation}</p>
+                <p className="text-sm text-muted-foreground">
+                  {currentExplanation || question.explanation}
+                </p>
               </motion.div>
             )}
 
             {isAnswered && (
               <Button onClick={handleNextQuestion} className="w-full" data-testid="button-next-question">
-                {currentQuestion < mockQuestions.length - 1 ? "Next Question" : "See Results"}
+                {currentQuestion < questions.length - 1 ? "Next Question" : "See Results"}
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             )}
