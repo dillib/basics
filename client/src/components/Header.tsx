@@ -45,7 +45,7 @@ export default function Header({ isLoggedIn = false, onLogin, onLogout }: Header
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
             <BookOpen className="h-5 w-5 text-primary-foreground" />
           </div>
-          <span className="text-xl font-bold" data-testid="text-logo">First Principles</span>
+          <span className="text-xl font-bold" data-testid="text-logo">BasicsTutor</span>
         </Link>
 
         <nav className="hidden md:flex items-center gap-6">

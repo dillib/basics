@@ -45,10 +45,10 @@ export default function Footer() {
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
                 <BookOpen className="h-5 w-5 text-primary-foreground" />
               </div>
-              <span className="text-xl font-bold" data-testid="text-footer-logo">First Principles</span>
+              <span className="text-xl font-bold" data-testid="text-footer-logo">BasicsTutor</span>
             </Link>
             <p className="text-sm text-muted-foreground mb-6 max-w-xs">
-              Learn anything by understanding its fundamental truths. AI-powered education that builds knowledge from the ground up.
+              Learn anything by understanding its fundamental truths. BasicsTutor breaks down complex topics into building blocks.
             </p>
             <div className="flex gap-3">
               {socialLinks.map((social) => (
@@ -138,7 +138,7 @@ export default function Footer() {
 
         <div className="border-t border-border mt-12 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p className="text-sm text-muted-foreground" data-testid="text-copyright">
-            © {new Date().getFullYear()} First Principles Tutor. All rights reserved.
+            © {new Date().getFullYear()} BasicsTutor.com. All rights reserved.
           </p>
           <p className="text-sm text-muted-foreground">
             Made with curiosity in San Francisco

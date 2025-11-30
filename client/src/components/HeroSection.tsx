@@ -58,6 +58,9 @@ export default function HeroSection({ onSearch, onTopicClick }: HeroSectionProps
             First Principles
           </span>
         </h1>
+        <p className="text-lg text-white/70 max-w-2xl mx-auto mb-4 text-sm">
+          Introducing BasicsTutor.com
+        </p>
         
         <p className="text-lg sm:text-xl text-white/80 max-w-2xl mx-auto mb-10 leading-relaxed">
           Master any subject by understanding its fundamental truths. Our AI breaks down complex topics 
