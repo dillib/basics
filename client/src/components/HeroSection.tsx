@@ -1,23 +1,13 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Search, ArrowRight, Sparkles } from "lucide-react";
-import heroImage from "@assets/generated_images/abstract_learning_neural_network_hero.png";
+import { ArrowRight, Search, Play } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface HeroSectionProps {
   onSearch?: (query: string) => void;
   onTopicClick?: (topic: string) => void;
 }
-
-// todo: remove mock functionality
-const exampleTopics = [
-  "Quantum Mechanics",
-  "Machine Learning",
-  "Starting a Business",
-  "Philosophy of Mind",
-  "Blockchain",
-];
 
 export default function HeroSection({ onSearch, onTopicClick }: HeroSectionProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -30,80 +20,94 @@ export default function HeroSection({ onSearch, onTopicClick }: HeroSectionProps
     }
   };
 
-  const handleTopicClick = (topic: string) => {
-    console.log("Topic clicked:", topic);
-    setSearchQuery(topic);
-    onTopicClick?.(topic);
-  };
-
   return (
-    <section className="relative min-h-[85vh] flex items-center justify-center overflow-hidden">
-      <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: `url(${heroImage})` }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/80" />
-      
-      <div className="relative z-10 container mx-auto px-4 py-20 text-center">
-        <div className="flex items-center justify-center gap-2 mb-6">
-          <Badge variant="secondary" className="bg-primary/20 text-primary-foreground border-primary/30 backdrop-blur-sm">
-            <Sparkles className="h-3 w-3 mr-1" />
-            AI-Powered Learning
-          </Badge>
-        </div>
-        
-        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
-          Learn Anything From
-          <span className="block text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
-            First Principles
-          </span>
-        </h1>
-        <p className="text-lg text-white/70 max-w-2xl mx-auto mb-4 text-sm">
-          Introducing BasicsTutor.com
-        </p>
-        
-        <p className="text-lg sm:text-xl text-white/80 max-w-2xl mx-auto mb-10 leading-relaxed">
-          Master any subject by understanding its fundamental truths. Our AI breaks down complex topics 
-          into building blocks you can truly understand.
-        </p>
+    <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-gradient-to-b from-background via-background to-accent/20">
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-400/10 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-violet-500/5 rounded-full blur-3xl" />
+      </div>
 
-        <form onSubmit={handleSearch} className="max-w-2xl mx-auto mb-8">
-          <div className="relative flex items-center">
-            <Search className="absolute left-5 h-5 w-5 text-muted-foreground pointer-events-none" />
-            <Input
-              type="search"
-              placeholder="Enter any topic to learn from first principles..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-14 sm:h-16 pl-14 pr-36 text-base sm:text-lg bg-white/95 dark:bg-background/95 backdrop-blur-md border-0 shadow-2xl rounded-full"
-              data-testid="input-hero-search"
-            />
-            <Button 
-              type="submit" 
-              size="lg"
-              className="absolute right-2 rounded-full h-10 sm:h-12 px-6"
-              data-testid="button-hero-search"
-            >
-              Explore
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+      <div className="relative z-10 container mx-auto px-6 py-24 text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="max-w-4xl mx-auto"
+        >
+          <p className="text-sm font-medium text-primary mb-6 tracking-wide uppercase" data-testid="text-hero-tagline">
+            Learn smarter, not harder
+          </p>
+
+          <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-semibold tracking-tight text-foreground mb-8 leading-[1.1]">
+            Understand anything
+            <span className="block bg-gradient-to-r from-primary via-purple-500 to-violet-500 bg-clip-text text-transparent">
+              from first principles
+            </span>
+          </h1>
+
+          <p className="text-xl sm:text-2xl text-muted-foreground max-w-2xl mx-auto mb-12 leading-relaxed font-light">
+            BasicsTutor breaks down complex topics into fundamental building blocks. 
+            Learn the way great thinkers do.
+          </p>
+
+          <form onSubmit={handleSearch} className="max-w-xl mx-auto mb-8">
+            <div className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-purple-500/20 to-violet-500/20 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className="relative flex items-center bg-card border border-border rounded-full shadow-lg">
+                <Search className="absolute left-6 h-5 w-5 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="What do you want to learn?"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-16 pl-14 pr-40 text-lg bg-transparent border-0 rounded-full focus-visible:ring-0 focus-visible:ring-offset-0"
+                  data-testid="input-hero-search"
+                />
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="absolute right-2 rounded-full h-12 px-8 font-medium"
+                  data-testid="button-hero-search"
+                >
+                  Start learning
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </form>
+
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-16">
+            <span className="text-sm text-muted-foreground">Popular:</span>
+            {["Quantum Physics", "Machine Learning", "Economics", "Philosophy"].map((topic) => (
+              <button
+                key={topic}
+                onClick={() => {
+                  setSearchQuery(topic);
+                  onTopicClick?.(topic);
+                }}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-full border border-transparent hover:border-border hover:bg-accent/50"
+                data-testid={`button-topic-${topic.toLowerCase().replace(/\s+/g, "-")}`}
+              >
+                {topic}
+              </button>
+            ))}
           </div>
-        </form>
 
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <span className="text-sm text-white/60">Try:</span>
-          {exampleTopics.map((topic) => (
-            <Badge
-              key={topic}
-              variant="outline"
-              className="cursor-pointer border-white/20 text-white/90 bg-white/10 backdrop-blur-sm hover-elevate active-elevate-2"
-              onClick={() => handleTopicClick(topic)}
-              data-testid={`badge-topic-${topic.toLowerCase().replace(/\s+/g, "-")}`}
-            >
-              {topic}
-            </Badge>
-          ))}
-        </div>
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="flex items-center justify-center gap-6"
+          >
+            <Button variant="ghost" size="lg" className="text-muted-foreground group" data-testid="button-watch-demo">
+              <div className="mr-3 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                <Play className="h-4 w-4 text-primary ml-0.5" />
+              </div>
+              Watch how it works
+            </Button>
+          </motion.div>
+        </motion.div>
       </div>
     </section>
   );

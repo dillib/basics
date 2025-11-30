@@ -1,127 +1,138 @@
-# First Principles Tutor Design Guidelines
+# BasicsTutor.com Design Guidelines
 
 ## Design Approach
 
-**Reference-Based Approach**: Duolingo meets Notion aesthetic
-- **Duolingo inspiration**: Playful learning engagement, progress visualization, clean quiz interfaces, encouraging micro-interactions
-- **Notion inspiration**: Minimalist layouts, excellent typography hierarchy, spacious content areas, sophisticated data organization
-- **Differentiation**: Educational focus with emphasis on conceptual clarity and progressive disclosure of complex topics
+**Reference-Based Approach**: Apple product pages meet Google Material Design 3
+- **Apple inspiration**: Generous white space, refined typography, sophisticated minimalism, premium feel, soft gradients, human-centered messaging
+- **Google MD3 inspiration**: Adaptive color systems, dynamic elevation, purposeful motion, warm and approachable aesthetics
+- **Differentiation**: Premium educational platform emphasizing clarity, trust, and delightful simplicity
 
 ## Core Design Elements
 
 ### A. Typography
-- **Primary Font**: Inter or similar modern sans-serif via Google Fonts
+- **Primary Font**: SF Pro Display (fallback: Inter) for headings, SF Pro Text (fallback: Inter) for body via Google Fonts
 - **Heading Hierarchy**:
-  - H1: 3xl-4xl (mobile), 5xl-6xl (desktop), font-bold
-  - H2: 2xl-3xl, font-semibold
+  - H1: 4xl-5xl (mobile), 6xl-7xl (desktop), font-semibold, tracking-tight, leading-tight
+  - H2: 3xl-4xl, font-semibold, tracking-tight
   - H3: xl-2xl, font-medium
-  - Body: base-lg, font-normal, leading-relaxed for readability
-- **Special Treatment**: Code snippets and technical terms in monospace (JetBrains Mono)
+  - Body: lg (18px), font-normal, leading-relaxed (1.75) for exceptional readability
+- **Special Treatment**: Code/technical terms in JetBrains Mono with subtle rounded background
+- **Warm Copy**: Use conversational, encouraging language ("Let's explore" vs "Learn", "Your journey" vs "Progress")
 
 ### B. Layout System
-- **Spacing Scale**: Tailwind units of 2, 4, 6, 8, 12, 16, 20, 24 for consistent rhythm
+- **Spacing Scale**: Tailwind units of 4, 6, 8, 12, 16, 24, 32, 40 for generous breathing room
 - **Container Strategy**:
-  - Homepage hero: Full-width with max-w-4xl inner content
-  - Topic pages: max-w-5xl for optimal reading
-  - Admin dashboard: max-w-7xl for data tables
-- **Grid System**: 12-column responsive grid, 4-8 gap units between elements
+  - Homepage sections: max-w-6xl with py-24 to py-40 spacing between sections
+  - Content pages: max-w-4xl for optimal reading (prose-like)
+  - Dashboard: max-w-7xl
+- **Vertical Rhythm**: Consistent py-32 (desktop) / py-20 (mobile) section padding
 
 ### C. Component Library
 
-**Homepage**
-- **Hero Section** (60vh): Centered search bar (max-w-2xl), oversized headline, 3-4 example topic pills below, subtle gradient background
-- **How It Works**: 3-column grid (stacks on mobile) with icon, title, description per step
-- **Featured Topics**: Masonry-style card grid showcasing popular learning paths
-- **Social Proof**: Single-row testimonials with user avatars and quotes
-- **CTA Section**: Large centered call-to-action with subscription pricing cards side-by-side
+**Homepage (8 Sections)**
+
+1. **Hero Section** (80vh): Full-width gradient background (soft purple-to-violet radial), centered content (max-w-3xl), oversized headline, subtitle with leading-relaxed, primary CTA + secondary "See how it works" link, subtle floating product screenshot mockup
+   
+2. **Trust Indicators**: Single row of 4-5 subtle logo badges (universities, companies), centered, grayscale with low opacity
+
+3. **How It Works**: 3 large cards in horizontal layout (stacks mobile), each with icon (w-16 h-16 in soft circle), headline, description, generous p-12 padding, subtle shadow
+
+4. **Feature Showcase**: Alternating left/right sections (3 features), each with large image/screenshot on one side, text content on other, py-24 spacing between
+
+5. **Interactive Demo**: Full-width embedded quiz example with live interaction preview, backdrop showing sample learning interface
+
+6. **Social Proof**: 3-column testimonial grid with generous cards (p-8), circular avatars (w-16 h-16), quote text, name + role
+
+7. **Pricing**: Side-by-side comparison cards (max 2 plans), rounded-2xl borders, featured plan with subtle purple gradient background, clear feature lists, prominent CTA buttons
+
+8. **Final CTA**: Centered section with compelling headline, description, large primary button, subtle text link below
 
 **Topic Learning Page**
-- **Progress Header**: Sticky top bar with breadcrumb navigation, progress indicator (percentage bar), bookmark icon
-- **Content Sections** (sequential vertical flow):
-  1. **First Principles Breakdown**: Large cards with numbered principles, expandable details
-  2. **Step-by-Step Explanations**: Alternating left/right layout with text + Mermaid diagrams
-  3. **Visual Aids**: Full-width image/diagram placements with captions
-  4. **Interactive Quiz**: Card-based multiple choice, instant feedback with explanations, progress dots
-  5. **Related Topics**: Horizontal scrollable cards with thumbnails
-- **Sidebar** (desktop only): Floating table of contents with scroll spy, estimated time remaining
 
-**Authentication Flows**
-- **Modal-based**: Centered overlay (max-w-md) with Replit Auth options displayed as large icon buttons, subtle form inputs for email/password
-- **Social Login**: Prominent Google/GitHub buttons with recognizable branding
+- **Hero Header**: Full-width with subtle gradient, breadcrumb nav, topic title (text-5xl), estimated time + difficulty badges, "Start Learning" CTA
+- **Progress Bar**: Sticky top bar (backdrop-blur-lg) showing percentage completion, minimalist design
+- **Content Flow** (sequential):
+  1. **Introduction Card**: Large rounded card (p-12) with overview text, learning objectives list
+  2. **First Principles** (3-5 cards): Numbered cards with generous spacing (gap-8), expandable sections with smooth transitions
+  3. **Visual Explanations**: Full-width Mermaid diagrams with captions, alternating with text blocks (max-w-3xl)
+  4. **Interactive Quiz**: Single question at a time, large answer cards (min-h-24), instant feedback with green/red subtle accents, explanation reveal, progress dots
+  5. **Summary Card**: Key takeaways with checkmarks
+  6. **Related Topics**: 3-4 horizontal cards with thumbnails, hover lift effect
+- **Floating TOC** (desktop): Right sidebar (w-64) with scroll-spy, smooth scrolling links
 
-**Dashboard/Profile**
-- **Stats Cards**: 2x2 grid (mobile stacks) showing topics learned, quiz scores, streak days, time invested
-- **Learning History**: Timeline view with topic cards, completion status badges
-- **Subscription Management**: Clear pricing comparison table, Stripe-powered payment forms
+**Authentication**
+
+- **Centered Modal**: max-w-md card with p-10, headline, Replit Auth + social login buttons (large, rounded-xl, icon + text), subtle divider with "or", minimal form inputs
+
+**Dashboard**
+
+- **Header**: Welcome message with user name, current streak indicator, quick search
+- **Stats Grid**: 2x2 cards (lg:grid-cols-4 for single row) with large numbers, icons, subtle backgrounds
+- **Recent Activity**: Timeline-style list with topic cards, completion badges
+- **Continue Learning**: Horizontal scroll of in-progress topics with progress bars
+- **Recommendations**: 3-column grid of suggested topics
 
 **Admin Panel**
-- **Sidebar Navigation**: Fixed left sidebar (collapsible on mobile) with icon + label nav items
-- **Data Tables**: Sortable columns, pagination, search filters, action buttons per row
-- **Analytics Charts**: Simple bar/line charts for usage metrics
+
+- **Sidebar**: Fixed left (w-64), icon + label navigation, subtle active state with purple accent
+- **Content Area**: Data tables with clean rows, sortable headers, search + filters, action menus
+- **Analytics**: Card-based metrics with simple charts, KPIs highlighted
 
 ### D. Interactive Elements
 
-**Search Bar**: 
-- Large rounded input (h-14 mobile, h-16 desktop) with subtle shadow, search icon prefix
-- Auto-suggest dropdown with recent/popular topics
-
-**Cards**:
-- Rounded-xl borders, subtle shadow on hover (no animation), padding p-6
-- Topic cards include: thumbnail/icon, title (font-semibold), description snippet, difficulty badge, time estimate
-
 **Buttons**:
-- Primary: Rounded-lg, px-6 py-3, font-medium
-- Secondary: Outlined variant with same dimensions
-- Text buttons: Minimal padding, underline on hover
-- When over images: Backdrop-blur-md with semi-transparent background
+- Primary: rounded-full, px-8 py-4, font-medium, soft purple gradient background, white text
+- Secondary: rounded-full, outlined with purple border, px-8 py-4
+- Buttons over images: backdrop-blur-md, bg-white/20, dark:bg-black/20, rounded-full
+- No hover states on blurred buttons
 
-**Quiz Interface**:
-- Multiple choice options as large clickable cards (min-h-16)
-- Correct answers: green accent border with checkmark
-- Incorrect: red accent border with explanation reveal
-- Next question: Smooth fade transition
+**Cards**: 
+- rounded-2xl, p-8 to p-12, shadow-sm, hover:shadow-md transition, border border-gray-100
+
+**Search**:
+- Extra-large input (h-16), rounded-full, subtle shadow, icon prefix, auto-suggest dropdown with generous spacing
 
 **Progress Indicators**:
-- Linear progress bars (h-2, rounded-full)
-- Circular progress for quiz completion
-- Streak calendars with filled/empty day dots
+- Thin bars (h-1.5), rounded-full, purple gradient fill
+- Circular progress with stroke-2 thickness
+
+**Quiz Cards**:
+- Large clickable areas (p-6), rounded-xl, border-2, hover:border-purple-300 transition
+- Correct: border-green-400 with checkmark icon
+- Incorrect: border-red-400 with gentle explanation reveal
 
 ### E. Animations
-**Minimal, purposeful only**:
-- Page transitions: Subtle fade (200ms)
-- Card hover: Slight scale (1.02) and shadow increase
-- Quiz feedback: Gentle shake on wrong answer
-- Content reveal: Stagger fade-in for principle cards (100ms delay between)
 
-## Page-Specific Layouts
-
-**Homepage**: Single-page scroll with 6 sections (Hero → How It Works → Featured Topics → Testimonials → Pricing → CTA/Footer), generous vertical spacing (py-20 desktop, py-12 mobile)
-
-**Topic Page**: Long-form scrollable with sticky progress header, sequential sections separated by subtle dividers, right sidebar for navigation on desktop
-
-**Dashboard**: App-like layout with persistent left navigation, main content area with cards/tables
+**Subtle and purposeful**:
+- Page transitions: 300ms fade
+- Card hover: translate-y-[-4px] with shadow increase
+- Section reveals: Staggered fade-in on scroll (150ms delays)
+- Quiz feedback: Smooth color transition (400ms)
+- No animations on blurred buttons over images
 
 ## Images
 
-**Hero Section**: Yes, use a large abstract/conceptual image representing learning/knowledge (e.g., interconnected nodes, light bulb moment, book pages transforming into digital elements). Image should be subtle background with overlay gradient to ensure text readability. Position: Background cover with centered content overlay.
+**Hero Section**: Yes - large, high-quality abstract imagery representing learning/knowledge discovery. Soft focus background with overlay gradient (purple-to-transparent) ensuring text remains crisp. Alternatively, floating product screenshot with subtle shadow.
 
-**Topic Cards**: Small square thumbnails (w-20 h-20) representing topic categories (use icons or simple illustrations)
+**Feature Sections**: High-fidelity product screenshots showing interface in use, with subtle device frames or floating card presentation
 
-**Testimonials**: Circular avatar images (w-12 h-12) for user photos
+**Testimonial Avatars**: Circular photos (w-16 h-16) with subtle border
 
-**Visual Learning Aids**: Within topic content, use full-width Mermaid-generated diagrams for flowcharts, concept maps, and process visualizations
+**Topic Thumbnails**: Rounded square icons (w-24 h-24) with subtle backgrounds representing categories
 
 ## Accessibility
-- Semantic HTML structure with proper heading hierarchy
-- ARIA labels for interactive elements
-- Keyboard navigation support (focus states with visible outline)
-- Dark mode toggle in header (respects system preference by default)
-- Minimum touch target size: 44x44px for mobile
-- Text contrast ratios meeting WCAG AA standards
+
+- Semantic HTML throughout
+- ARIA labels on all interactive elements
+- Keyboard navigation with visible focus rings (ring-2 ring-purple-400)
+- Dark mode with equally premium aesthetic (deep backgrounds, refined contrast)
+- Touch targets minimum 48px
+- WCAG AA contrast ratios maintained
 
 ## Responsive Behavior
-- Mobile-first breakpoints: sm (640px), md (768px), lg (1024px), xl (1280px)
-- Stack all multi-column layouts to single column below md breakpoint
-- Hamburger menu for navigation on mobile
-- Search bar remains prominent on all screen sizes
-- Touch-optimized quiz buttons with adequate spacing on mobile
+
+- Mobile-first with breakpoints: sm (640px), md (768px), lg (1024px), xl (1280px)
+- All grids stack to single column below md
+- Hamburger menu with slide-out drawer on mobile
+- Maintain generous spacing on mobile (reduce by 40%)
+- Touch-optimized inputs and buttons

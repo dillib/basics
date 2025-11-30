@@ -1,62 +1,67 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { Lightbulb, Layers, Target, TrendingUp } from "lucide-react";
+import { motion } from "framer-motion";
+import { Lightbulb, Layers, Target } from "lucide-react";
 
 const steps = [
   {
     icon: Lightbulb,
-    title: "Break Down to Fundamentals",
-    description: "Our AI identifies the core principles that form the foundation of any topic, eliminating assumptions and jargon.",
+    title: "Break it down",
+    description: "Our AI identifies the core principles that form the foundation of any topic—the fundamental truths that everything else builds upon.",
   },
   {
     icon: Layers,
-    title: "Build Up Step by Step",
-    description: "Each concept builds on the previous one with clear explanations, real-world analogies, and visual diagrams.",
+    title: "Build it up",
+    description: "Each concept connects to the next with clear explanations, real-world analogies, and visual diagrams that make complex ideas click.",
   },
   {
     icon: Target,
-    title: "Test Your Understanding",
-    description: "Interactive quizzes with instant feedback ensure you truly grasp each principle before moving forward.",
-  },
-  {
-    icon: TrendingUp,
-    title: "Track Your Progress",
-    description: "Personalized learning paths adapt to your performance, suggesting next steps based on your mastery.",
+    title: "Make it stick",
+    description: "Interactive quizzes with instant feedback ensure you truly understand each principle before moving forward.",
   },
 ];
 
 export default function HowItWorks() {
   return (
-    <section className="py-16 sm:py-24 bg-background">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-12 sm:mb-16">
-          <h2 className="text-3xl sm:text-4xl font-bold mb-4" data-testid="text-how-it-works-title">
-            How It Works
+    <section className="py-32 sm:py-40 bg-background">
+      <div className="container mx-auto px-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-20"
+        >
+          <h2 className="text-4xl sm:text-5xl font-semibold tracking-tight mb-6" data-testid="text-how-it-works-title">
+            Learning, reimagined
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Our method is inspired by how the world's greatest thinkers approach learning—by questioning everything and building from the ground up.
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+            The most effective way to learn anything is to understand it from the ground up. 
+            Here's how BasicsTutor makes that happen.
           </p>
-        </div>
+        </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12 max-w-6xl mx-auto">
           {steps.map((step, index) => (
-            <Card 
-              key={step.title} 
-              className="relative overflow-visible border-card-border"
+            <motion.div
+              key={step.title}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: index * 0.15 }}
+              className="relative group"
               data-testid={`card-step-${index + 1}`}
             >
-              <div className="absolute -top-4 left-6">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold shadow-lg">
-                  {index + 1}
+              <div className="relative bg-card rounded-3xl p-10 sm:p-12 border border-border/50 h-full transition-all duration-300 hover:border-border hover:shadow-lg">
+                <div className="mb-8">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/10 to-purple-500/10 flex items-center justify-center">
+                    <step.icon className="h-8 w-8 text-primary" />
+                  </div>
                 </div>
-              </div>
-              <CardContent className="pt-10 pb-6">
-                <step.icon className="h-8 w-8 text-primary mb-4" />
-                <h3 className="text-lg font-semibold mb-2">{step.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
+                <h3 className="text-2xl font-semibold mb-4">{step.title}</h3>
+                <p className="text-muted-foreground leading-relaxed text-lg">
                   {step.description}
                 </p>
-              </CardContent>
-            </Card>
+              </div>
+            </motion.div>
           ))}
         </div>
       </div>
