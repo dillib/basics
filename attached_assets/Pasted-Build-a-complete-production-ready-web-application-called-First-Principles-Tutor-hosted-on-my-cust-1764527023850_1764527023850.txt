@@ -1,0 +1,24 @@
+Build a complete, production-ready web application called "First Principles Tutor" hosted on my custom domain basicstutor.com. The app is an AI-driven online learning platform where users type any topic (e.g., "quantum mechanics" or "starting a business"), and it generates customized learning materials from first principles—breaking down complex ideas into fundamental truths, building up step-by-step with explanations, examples, diagrams (using libraries like Mermaid or Canvas), interactive quizzes, and personalized learning paths.
+
+Key requirements:
+- **Tech Stack**: Use Node.js with Express.js for the backend (or Python with Flask if better for AI integration). Frontend: React.js for excellent, responsive UX (mobile-first design with clean, minimalist interface—think Duolingo meets Notion). Database: MongoDB or PostgreSQL for user data, topics, and progress tracking. Host on Replit initially, but include setup for easy deployment to Vercel or Heroku with custom domain integration (basicstutor.com via DNS pointers).
+- **AI Integration**: Fully AI-driven content generation using Grok API, OpenAI API, or Hugging Face (prefer open-source models for cost). When a user submits a topic, call the AI to generate: 1) Breakdown into first principles (e.g., atomic facts), 2) Step-by-step explanations, 3) Visual aids (text-based or generated images via DALL-E if integrated), 4) Interactive elements like multiple-choice quizzes with feedback, 5) Recommended follow-up topics. Cache generated content in DB to avoid repeated API calls.
+- **User Experience (End-to-End Excellent)**: 
+  - Homepage: Simple search bar ("Enter any topic to learn from first principles") with examples and a demo.
+  - Topic Page: Dynamic, scrollable layout with sections (Principles, Explanations, Quizzes, Paths). Use animations (e.g., Framer Motion) for smooth reveals.
+  - Personalization: Track user progress, suggest paths based on quiz performance (e.g., "Mastered basics? Dive into advanced applications").
+  - Differentiation: Unlike generic tutors, emphasize first-principles (e.g., "Why does this work fundamentally?") with real-world analogies, user-voted refinements, and community forums for discussions. Add voice narration option using Web Speech API.
+  - Accessibility: WCAG compliant, dark mode, multilingual support (at least English initially).
+- **Authentication**: Integrate secure user auth using JWT or OAuth. Options: Email/password signup/login, Google/Facebook SSO. Store hashed passwords securely. Require auth for saving progress or accessing paid features.
+- **Payments Integration**: Use Stripe for payments. Free tier: Any user can search and learn one full topic for free (no auth required for the first one; track via cookies/IP). After that, prompt for subscription ($9.99/month for unlimited topics) or per-topic payments ($1.99). Include dashboard for managing subscriptions, with webhooks for handling payments/refunds.
+- **Free Tier Details**: UnaAuthenticated users get one free topic session (generate and view materials). Prompt to sign up for more. Logged-in free users get one free topic per account lifetime, then upsell.
+- **Additional Features**:
+  - Search/Learn: Public search bar for topics; results show previews or full free ones.
+  - Admin Panel: For you to monitor usage, add custom topics, or moderate community.
+  - Analytics: Integrate Google Analytics or Mixpanel for user behavior tracking.
+  - Security: HTTPS, input sanitization, rate limiting on API calls to prevent abuse.
+  - Scalability: Use environment variables for API keys (e.g., AI and Stripe keys). Include error handling and loading states.
+- **Deployment & Testing**: Provide scripts for local dev, testing (unit tests with Jest/Mocha), and deployment. Include README with setup instructions, including linking to basicstutor.com.
+- **Edge Cases**: Handle invalid topics (e.g., suggest alternatives), API failures (fallback content), mobile responsiveness.
+
+Generate the full code structure: folders for backend, frontend, shared utils. Start with setup commands (e.g., npm install dependencies like express, react, mongoose, stripe, axios for AI calls). Make it modular and commented for easy customization.
