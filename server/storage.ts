@@ -8,7 +8,7 @@ import {
   type Progress, type InsertProgress
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -18,6 +18,7 @@ export interface IStorage {
   getTopic(id: string): Promise<Topic | undefined>;
   getTopicBySlug(slug: string): Promise<Topic | undefined>;
   getTopicsByUser(userId: string): Promise<Topic[]>;
+  getTopicsByIds(ids: string[]): Promise<Topic[]>;
   getPublicTopics(): Promise<Topic[]>;
   createTopic(topic: InsertTopic): Promise<Topic>;
   updateTopic(id: string, updates: Partial<InsertTopic>): Promise<Topic | undefined>;
@@ -80,6 +81,11 @@ export class DatabaseStorage implements IStorage {
 
   async getTopicsByUser(userId: string): Promise<Topic[]> {
     return db.select().from(topics).where(eq(topics.userId, userId)).orderBy(desc(topics.createdAt));
+  }
+
+  async getTopicsByIds(ids: string[]): Promise<Topic[]> {
+    if (ids.length === 0) return [];
+    return db.select().from(topics).where(inArray(topics.id, ids));
   }
 
   async getPublicTopics(): Promise<Topic[]> {

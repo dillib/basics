@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean, timestamp, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, boolean, timestamp, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -109,7 +109,9 @@ export const progress = pgTable("progress", {
   bestScore: integer("best_score"),
   lastAccessedAt: timestamp("last_accessed_at").defaultNow(),
   completedAt: timestamp("completed_at"),
-});
+}, (table) => [
+  uniqueIndex("progress_user_topic_unique").on(table.userId, table.topicId),
+]);
 
 export const progressRelations = relations(progress, ({ one }) => ({
   user: one(users, { fields: [progress.userId], references: [users.id] }),

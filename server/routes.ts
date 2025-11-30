@@ -255,8 +255,26 @@ export async function registerRoutes(
   app.get('/api/user/topics', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const topics = await storage.getTopicsByUser(userId);
-      res.json(topics);
+      
+      // Get topics created by user
+      const createdTopics = await storage.getTopicsByUser(userId);
+      
+      // Get topics user has progress on
+      const progressList = await storage.getProgressByUser(userId);
+      // Filter out undefined/null topic IDs
+      const progressTopicIds = progressList
+        .map(p => p.topicId)
+        .filter((id): id is string => !!id);
+      const progressTopics = progressTopicIds.length > 0 
+        ? await storage.getTopicsByIds(progressTopicIds)
+        : [];
+      
+      // Merge and deduplicate
+      const topicMap = new Map<string, typeof createdTopics[0]>();
+      createdTopics.forEach(t => topicMap.set(t.id, t));
+      progressTopics.forEach(t => topicMap.set(t.id, t));
+      
+      res.json(Array.from(topicMap.values()));
     } catch (error) {
       console.error("Error fetching user topics:", error);
       res.status(500).json({ message: "Failed to fetch topics" });

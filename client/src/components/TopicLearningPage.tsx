@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,8 +21,9 @@ import {
   Sparkles
 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { Topic, Principle } from "@shared/schema";
+import type { Topic, Principle, Progress as ProgressType } from "@shared/schema";
 import Quiz from "./Quiz";
+import { useAuth } from "@/hooks/useAuth";
 
 interface TopicLearningPageProps {
   topicId?: string;
@@ -32,6 +33,8 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
   const [expandedPrinciples, setExpandedPrinciples] = useState<Set<string>>(new Set());
   const [completedPrinciples, setCompletedPrinciples] = useState<Set<string>>(new Set());
   const [showQuiz, setShowQuiz] = useState(false);
+  const [progressInitialized, setProgressInitialized] = useState(false);
+  const { isAuthenticated } = useAuth();
 
   const { data: topic, isLoading: topicLoading, error: topicError } = useQuery<Topic>({
     queryKey: ['/api/topics', slug],
@@ -41,6 +44,41 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
   const { data: principles = [], isLoading: principlesLoading } = useQuery<Principle[]>({
     queryKey: ['/api/topics', topic?.id, 'principles'],
     enabled: !!topic?.id,
+  });
+
+  const { data: userProgress } = useQuery<ProgressType[]>({
+    queryKey: ['/api/user/progress'],
+    enabled: isAuthenticated,
+  });
+
+  // Initialize completed principles from saved progress
+  useEffect(() => {
+    if (!topic?.id || principles.length === 0 || !isAuthenticated) return;
+    
+    const topicProgress = userProgress?.find(p => p.topicId === topic.id);
+    if (topicProgress) {
+      const completedCount = topicProgress.principlesCompleted || 0;
+      if (completedCount > 0) {
+        // Mark the first N principles as completed based on saved progress
+        const completedIds = principles.slice(0, completedCount).map(p => p.id);
+        setCompletedPrinciples(new Set(completedIds));
+      }
+    }
+    setProgressInitialized(true);
+  }, [topic?.id, principles, userProgress, isAuthenticated]);
+
+  const updateProgressMutation = useMutation({
+    mutationFn: async ({ principlesCompleted, totalPrinciples }: { principlesCompleted: number; totalPrinciples: number }) => {
+      if (!topic?.id) return;
+      const response = await apiRequest("POST", `/api/progress/${topic.id}`, {
+        principlesCompleted,
+        totalPrinciples,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/user/progress'] });
+    },
   });
 
   const togglePrinciple = (id: string) => {
@@ -56,7 +94,15 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
   };
 
   const markComplete = (id: string) => {
-    setCompletedPrinciples((prev) => new Set(Array.from(prev).concat(id)));
+    const newCompleted = new Set(Array.from(completedPrinciples).concat(id));
+    setCompletedPrinciples(newCompleted);
+    
+    if (principles.length > 0) {
+      updateProgressMutation.mutate({
+        principlesCompleted: newCompleted.size,
+        totalPrinciples: principles.length,
+      });
+    }
   };
 
   const calculatedProgress = principles.length > 0 
