@@ -69,6 +69,16 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
     mutationFn: async () => {
       if (!topic?.id) throw new Error("Topic not found");
       const response = await apiRequest("POST", `/api/checkout/topic/${topic.id}`);
+      if (response.status === 401) {
+        throw new Error("Please log in to purchase this topic");
+      }
+      if (response.status === 403) {
+        throw new Error("You don't have permission to purchase this topic");
+      }
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "Failed to start checkout");
+      }
       return response.json();
     },
     onSuccess: (data) => {
@@ -77,6 +87,10 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
       }
     },
     onError: (error: Error) => {
+      if (error.message === "Please log in to purchase this topic") {
+        window.location.href = "/api/login";
+        return;
+      }
       toast({
         title: "Error",
         description: error.message || "Failed to start checkout",
@@ -195,6 +209,15 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
 
   const canAccess = !isAuthenticated || accessLoading || accessInfo?.canAccess !== false;
   const showPaywall = isAuthenticated && !accessLoading && accessInfo?.canAccess === false;
+  const showLoginPrompt = !isAuthenticated;
+
+  const handlePurchase = () => {
+    if (!isAuthenticated) {
+      window.location.href = "/api/login";
+      return;
+    }
+    purchaseTopicMutation.mutate();
+  };
 
   const formatTime = (minutes: number) => {
     if (minutes < 60) return `${minutes} min`;
@@ -270,7 +293,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                 <div className="flex flex-col gap-3 max-w-xs mx-auto">
                   <Button 
                     size="lg" 
-                    onClick={() => purchaseTopicMutation.mutate()}
+                    onClick={handlePurchase}
                     disabled={purchaseTopicMutation.isPending}
                     data-testid="button-purchase-topic"
                   >
