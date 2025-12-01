@@ -125,10 +125,15 @@ Preferred communication style: Simple, everyday language.
 - PostCSS with Autoprefixer for CSS processing
 - Custom build script that compiles both client (Vite) and server (esbuild) separately
 
-**Payment Processing** (Prepared but not fully implemented)
-- Stripe integration references in dependencies for premium subscriptions
-- Free tier: One topic per unauthenticated user (tracked via session)
-- Pro tier: Unlimited topics with payment gateway integration
+**Payment Processing** (Fully Implemented)
+- Stripe integration with stripe-replit-sync for automatic webhook management
+- Three-tier pricing model:
+  - Free tier: 1 topic per user
+  - Pay-per-topic: $1.99 per topic (one-time payment)
+  - Pro subscription: $9.99/month for unlimited topics
+- Checkout flow with success/cancel pages
+- Topic access control based on purchase status
+- Stripe customer and subscription management
 
 **Session Management**
 - PostgreSQL session store via connect-pg-simple
@@ -136,6 +141,15 @@ Preferred communication style: Simple, everyday language.
 - 7-day session TTL with automatic cleanup
 
 ## Recent Changes
+
+**December 1, 2025**
+- Implemented full Stripe payment integration with stripe-replit-sync
+- Added pay-per-topic ($1.99) and Pro subscription ($9.99/month) tiers
+- Created topic_purchases table for tracking individual topic purchases
+- Implemented topic access control based on plan and purchase status
+- Added checkout success/cancel pages with payment verification
+- Added paywall UI to TopicLearningPage with proper authentication guards
+- Fixed authentication checks for purchase flow to redirect unauthenticated users to login
 
 **November 30, 2025**
 - Fixed critical routing bug: TopicPage.tsx now correctly uses `params.slug` (was `params.id`)
@@ -161,7 +175,15 @@ Preferred communication style: Simple, everyday language.
 - GET `/api/topics/:topicId/quizzes` - Get quizzes for topic
 - POST `/api/topics/:topicId/quiz/generate` - Generate quiz via AI
 
+**Payments**
+- GET `/api/stripe/publishable-key` - Get Stripe publishable key
+- GET `/api/stripe/products` - Get available products and prices
+- POST `/api/checkout/topic/:topicId` - Create checkout session for topic purchase
+- POST `/api/checkout/pro` - Create checkout session for Pro subscription
+- GET `/api/checkout/verify/:sessionId` - Verify payment and update user access
+- GET `/api/user/purchases` - Get user's topic purchases
+- GET `/api/user/can-access-topic/:topicId` - Check if user can access a topic
+
 ## Known Limitations
 
 1. **Sequential Progress**: Progress tracking stores count of completed principles (not specific IDs). This assumes sequential learning where principles build on each other.
-2. **Payment Processing**: Stripe integration is prepared but not fully implemented. Currently all users get free access.
