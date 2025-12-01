@@ -11,6 +11,8 @@ import TopicsPage from "@/pages/TopicsPage";
 import TopicPage from "@/pages/TopicPage";
 import DashboardPage from "@/pages/DashboardPage";
 import PricingPage from "@/pages/PricingPage";
+import CheckoutSuccessPage from "@/pages/CheckoutSuccessPage";
+import CheckoutCancelPage from "@/pages/CheckoutCancelPage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -21,6 +23,8 @@ function Router() {
       <Route path="/topic/:slug" component={TopicPage} />
       <Route path="/dashboard" component={DashboardPage} />
       <Route path="/pricing" component={PricingPage} />
+      <Route path="/checkout/success" component={CheckoutSuccessPage} />
+      <Route path="/checkout/cancel" component={CheckoutCancelPage} />
       <Route component={NotFound} />
     </Switch>
   );

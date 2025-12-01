@@ -1,6 +1,11 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
+import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 
 interface PricingTier {
   id: string;
@@ -13,7 +18,6 @@ interface PricingTier {
   buttonText: string;
 }
 
-// todo: remove mock functionality
 const pricingTiers: PricingTier[] = [
   {
     id: "free",
@@ -30,6 +34,21 @@ const pricingTiers: PricingTier[] = [
     buttonText: "Get started",
   },
   {
+    id: "pay-per-topic",
+    name: "Pay Per Topic",
+    price: "$1.99",
+    period: "/topic",
+    description: "Unlock topics as you need them",
+    features: [
+      "Pay only for what you learn",
+      "First principles breakdowns",
+      "Interactive quizzes",
+      "Progress tracking",
+      "Lifetime access to purchased topics",
+    ],
+    buttonText: "Browse topics",
+  },
+  {
     id: "pro",
     name: "Pro",
     price: "$9.99",
@@ -44,7 +63,7 @@ const pricingTiers: PricingTier[] = [
       "Priority support",
     ],
     highlighted: true,
-    buttonText: "Start free trial",
+    buttonText: "Subscribe to Pro",
   },
 ];
 
@@ -53,6 +72,52 @@ interface PricingSectionProps {
 }
 
 export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
+  const { isAuthenticated } = useAuth();
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+
+  const proCheckoutMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest('POST', '/api/checkout/pro');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to start checkout",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handlePlanSelect = (planId: string) => {
+    if (planId === "free") {
+      setLocation("/");
+      return;
+    }
+
+    if (planId === "pay-per-topic") {
+      setLocation("/");
+      return;
+    }
+
+    if (planId === "pro") {
+      if (!isAuthenticated) {
+        window.location.href = "/api/login";
+        return;
+      }
+      proCheckoutMutation.mutate();
+      return;
+    }
+
+    onSelectPlan?.(planId);
+  };
+
   return (
     <section className="py-32 sm:py-40 bg-muted/30">
       <div className="container mx-auto px-6">
@@ -71,7 +136,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
           {pricingTiers.map((tier, index) => (
             <motion.div
               key={tier.id}
@@ -82,7 +147,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
               data-testid={`card-pricing-${tier.id}`}
             >
               <div 
-                className={`relative rounded-3xl p-10 sm:p-12 h-full transition-all duration-300 ${
+                className={`relative rounded-3xl p-8 sm:p-10 h-full transition-all duration-300 ${
                   tier.highlighted
                     ? "bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 text-white shadow-2xl shadow-indigo-500/20"
                     : "bg-card border border-border/50"
@@ -91,7 +156,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
                 {tier.highlighted && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2">
                     <span className="bg-foreground text-background text-sm font-medium px-4 py-1.5 rounded-full">
-                      Most popular
+                      Best value
                     </span>
                   </div>
                 )}
@@ -101,7 +166,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
                     {tier.name}
                   </h3>
                   <div className="flex items-baseline gap-1 mb-2">
-                    <span className="text-5xl font-semibold">{tier.price}</span>
+                    <span className="text-4xl font-semibold">{tier.price}</span>
                     <span className={tier.highlighted ? "text-white/70" : "text-muted-foreground"}>
                       {tier.period}
                     </span>
@@ -111,7 +176,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
                   </p>
                 </div>
 
-                <ul className="space-y-4 mb-10">
+                <ul className="space-y-3 mb-8">
                   {tier.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-3">
                       <div className={`mt-0.5 rounded-full p-1 ${
@@ -119,7 +184,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
                       }`}>
                         <Check className={`h-3 w-3 ${tier.highlighted ? "text-white" : "text-primary"}`} />
                       </div>
-                      <span className={tier.highlighted ? "text-white/90" : "text-muted-foreground"}>
+                      <span className={`text-sm ${tier.highlighted ? "text-white/90" : "text-muted-foreground"}`}>
                         {feature}
                       </span>
                     </li>
@@ -134,13 +199,11 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
                       : ""
                   }`}
                   variant={tier.highlighted ? "secondary" : "outline"}
-                  onClick={() => {
-                    console.log("Plan selected:", tier.id);
-                    onSelectPlan?.(tier.id);
-                  }}
+                  onClick={() => handlePlanSelect(tier.id)}
+                  disabled={tier.id === "pro" && proCheckoutMutation.isPending}
                   data-testid={`button-select-${tier.id}`}
                 >
-                  {tier.buttonText}
+                  {tier.id === "pro" && proCheckoutMutation.isPending ? "Loading..." : tier.buttonText}
                 </Button>
               </div>
             </motion.div>

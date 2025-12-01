@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -18,15 +18,23 @@ import {
   Share2,
   ArrowRight,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  Lock,
+  CreditCard
 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Topic, Principle, Progress as ProgressType } from "@shared/schema";
 import Quiz from "./Quiz";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 interface TopicLearningPageProps {
   topicId?: string;
+}
+
+interface TopicAccess {
+  canAccess: boolean;
+  reason: string;
 }
 
 export default function TopicLearningPage({ topicId: slug }: TopicLearningPageProps) {
@@ -35,6 +43,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
   const [showQuiz, setShowQuiz] = useState(false);
   const [progressInitialized, setProgressInitialized] = useState(false);
   const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
 
   const { data: topic, isLoading: topicLoading, error: topicError } = useQuery<Topic>({
     queryKey: ['/api/topics', slug],
@@ -49,6 +58,31 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
   const { data: userProgress } = useQuery<ProgressType[]>({
     queryKey: ['/api/user/progress'],
     enabled: isAuthenticated,
+  });
+
+  const { data: accessInfo, isLoading: accessLoading } = useQuery<TopicAccess>({
+    queryKey: ['/api/user/can-access-topic', topic?.id],
+    enabled: !!topic?.id && isAuthenticated,
+  });
+
+  const purchaseTopicMutation = useMutation({
+    mutationFn: async () => {
+      if (!topic?.id) throw new Error("Topic not found");
+      const response = await apiRequest("POST", `/api/checkout/topic/${topic.id}`);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to start checkout",
+        variant: "destructive",
+      });
+    },
   });
 
   // Initialize completed principles from saved progress
@@ -159,6 +193,9 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
     );
   }
 
+  const canAccess = !isAuthenticated || accessLoading || accessInfo?.canAccess !== false;
+  const showPaywall = isAuthenticated && !accessLoading && accessInfo?.canAccess === false;
+
   const formatTime = (minutes: number) => {
     if (minutes < 60) return `${minutes} min`;
     const hours = Math.floor(minutes / 60);
@@ -199,7 +236,62 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
+        {showPaywall && (
+          <div className="max-w-2xl mx-auto mb-8">
+            <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent" data-testid="card-paywall">
+              <CardHeader className="text-center pb-2">
+                <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Lock className="h-8 w-8 text-primary" />
+                </div>
+                <CardTitle className="text-2xl">Unlock This Topic</CardTitle>
+                <CardDescription className="text-base">
+                  You've used your free topic. Purchase access to continue learning.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="text-center pb-8">
+                <div className="mb-6">
+                  <div className="text-4xl font-bold mb-1">$1.99</div>
+                  <div className="text-sm text-muted-foreground">one-time payment</div>
+                </div>
+                <ul className="text-sm text-muted-foreground space-y-2 mb-6 max-w-xs mx-auto text-left">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                    <span>Lifetime access to this topic</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                    <span>First principles breakdowns</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                    <span>Interactive quiz included</span>
+                  </li>
+                </ul>
+                <div className="flex flex-col gap-3 max-w-xs mx-auto">
+                  <Button 
+                    size="lg" 
+                    onClick={() => purchaseTopicMutation.mutate()}
+                    disabled={purchaseTopicMutation.isPending}
+                    data-testid="button-purchase-topic"
+                  >
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    {purchaseTopicMutation.isPending ? "Loading..." : "Purchase This Topic"}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="lg"
+                    onClick={() => window.location.href = "/pricing"}
+                    data-testid="button-view-pro"
+                  >
+                    Or get Pro for unlimited access
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        <div className={`flex flex-col lg:flex-row gap-8 ${showPaywall ? "opacity-50 pointer-events-none blur-sm" : ""}`}>
           <main className="flex-1 max-w-3xl">
             <div className="mb-8">
               <h1 className="text-3xl sm:text-4xl font-bold mb-4" data-testid="text-topic-title">{topic.title}</h1>

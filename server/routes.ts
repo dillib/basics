@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { generateTopicContent, generateQuizQuestions } from "./ai";
 import { insertTopicSchema } from "@shared/schema";
+import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -298,6 +299,281 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error updating progress:", error);
       res.status(500).json({ message: "Failed to update progress" });
+    }
+  });
+
+  app.get('/api/stripe/publishable-key', async (_req, res) => {
+    try {
+      const publishableKey = await getStripePublishableKey();
+      res.json({ publishableKey });
+    } catch (error) {
+      console.error("Error getting Stripe publishable key:", error);
+      res.status(500).json({ message: "Failed to get Stripe configuration" });
+    }
+  });
+
+  app.get('/api/stripe/products', async (_req, res) => {
+    try {
+      const rows = await storage.listStripeProductsWithPrices();
+      
+      const productsMap = new Map();
+      for (const row of rows as any[]) {
+        if (!productsMap.has(row.product_id)) {
+          productsMap.set(row.product_id, {
+            id: row.product_id,
+            name: row.product_name,
+            description: row.product_description,
+            active: row.product_active,
+            metadata: row.product_metadata,
+            prices: []
+          });
+        }
+        if (row.price_id) {
+          productsMap.get(row.product_id).prices.push({
+            id: row.price_id,
+            unit_amount: row.unit_amount,
+            currency: row.currency,
+            recurring: row.recurring,
+            active: row.price_active,
+            metadata: row.price_metadata,
+          });
+        }
+      }
+
+      res.json({ data: Array.from(productsMap.values()) });
+    } catch (error) {
+      console.error("Error fetching Stripe products:", error);
+      res.status(500).json({ message: "Failed to fetch products" });
+    }
+  });
+
+  app.post('/api/checkout/topic/:topicId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { topicId } = req.params;
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const topic = await storage.getTopic(topicId);
+      if (!topic) {
+        return res.status(404).json({ message: "Topic not found" });
+      }
+
+      const alreadyPurchased = await storage.hasUserPurchasedTopic(userId, topicId);
+      if (alreadyPurchased) {
+        return res.status(400).json({ message: "Topic already purchased" });
+      }
+
+      const stripe = await getUncachableStripeClient();
+
+      let customerId = user.stripeCustomerId;
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: user.email || undefined,
+          name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || undefined,
+          metadata: { userId },
+        });
+        await storage.updateUserStripeInfo(userId, { stripeCustomerId: customer.id });
+        customerId = customer.id;
+      }
+
+      const products = await storage.listStripeProductsWithPrices();
+      const payPerTopicProduct = (products as any[]).find(
+        (p: any) => p.product_metadata?.type === 'pay_per_topic' && p.price_id
+      );
+
+      if (!payPerTopicProduct) {
+        return res.status(500).json({ message: "Pay-per-topic pricing not configured" });
+      }
+
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ['card'],
+        line_items: [{
+          price: payPerTopicProduct.price_id,
+          quantity: 1,
+        }],
+        mode: 'payment',
+        success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&topic_id=${topicId}`,
+        cancel_url: `${baseUrl}/checkout/cancel?topic_id=${topicId}`,
+        metadata: {
+          userId,
+          topicId,
+          type: 'topic_purchase',
+        },
+      });
+
+      await storage.createTopicPurchase({
+        userId,
+        topicId,
+        stripeSessionId: session.id,
+        amount: payPerTopicProduct.unit_amount,
+        currency: payPerTopicProduct.currency || 'usd',
+        status: 'pending',
+      });
+
+      res.json({ url: session.url });
+    } catch (error) {
+      console.error("Error creating checkout session:", error);
+      res.status(500).json({ message: "Failed to create checkout session" });
+    }
+  });
+
+  app.post('/api/checkout/pro', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (user.plan === 'pro') {
+        return res.status(400).json({ message: "Already subscribed to Pro" });
+      }
+
+      const stripe = await getUncachableStripeClient();
+
+      let customerId = user.stripeCustomerId;
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: user.email || undefined,
+          name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || undefined,
+          metadata: { userId },
+        });
+        await storage.updateUserStripeInfo(userId, { stripeCustomerId: customer.id });
+        customerId = customer.id;
+      }
+
+      const products = await storage.listStripeProductsWithPrices();
+      const proProduct = (products as any[]).find(
+        (p: any) => p.product_metadata?.type === 'pro_subscription' && p.price_id
+      );
+
+      if (!proProduct) {
+        return res.status(500).json({ message: "Pro subscription pricing not configured" });
+      }
+
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ['card'],
+        line_items: [{
+          price: proProduct.price_id,
+          quantity: 1,
+        }],
+        mode: 'subscription',
+        success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&plan=pro`,
+        cancel_url: `${baseUrl}/checkout/cancel`,
+        metadata: {
+          userId,
+          type: 'pro_subscription',
+        },
+      });
+
+      res.json({ url: session.url });
+    } catch (error) {
+      console.error("Error creating checkout session:", error);
+      res.status(500).json({ message: "Failed to create checkout session" });
+    }
+  });
+
+  app.get('/api/checkout/verify/:sessionId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { sessionId } = req.params;
+
+      const stripe = await getUncachableStripeClient();
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+      if (session.payment_status !== 'paid') {
+        return res.status(400).json({ message: "Payment not completed", status: session.payment_status });
+      }
+
+      const metadata = session.metadata || {};
+      
+      if (metadata.type === 'topic_purchase' && metadata.topicId) {
+        const purchase = await storage.getTopicPurchase(userId, metadata.topicId);
+        if (purchase && purchase.status !== 'completed') {
+          await storage.updateTopicPurchase(purchase.id, {
+            status: 'completed',
+            stripePaymentIntentId: session.payment_intent as string,
+          });
+        }
+        return res.json({ 
+          success: true, 
+          type: 'topic_purchase', 
+          topicId: metadata.topicId 
+        });
+      }
+
+      if (metadata.type === 'pro_subscription') {
+        await storage.updateUser(userId, { plan: 'pro' });
+        if (session.subscription) {
+          await storage.updateUserStripeInfo(userId, { 
+            stripeSubscriptionId: session.subscription as string 
+          });
+        }
+        return res.json({ 
+          success: true, 
+          type: 'pro_subscription' 
+        });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error verifying checkout session:", error);
+      res.status(500).json({ message: "Failed to verify payment" });
+    }
+  });
+
+  app.get('/api/user/purchases', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const purchases = await storage.getTopicPurchasesByUser(userId);
+      res.json(purchases);
+    } catch (error) {
+      console.error("Error fetching purchases:", error);
+      res.status(500).json({ message: "Failed to fetch purchases" });
+    }
+  });
+
+  app.get('/api/user/can-access-topic/:topicId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { topicId } = req.params;
+
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (user.plan === 'pro') {
+        return res.json({ canAccess: true, reason: 'pro_subscription' });
+      }
+
+      const topic = await storage.getTopic(topicId);
+      if (topic?.userId === userId) {
+        return res.json({ canAccess: true, reason: 'topic_creator' });
+      }
+
+      const hasPurchased = await storage.hasUserPurchasedTopic(userId, topicId);
+      if (hasPurchased) {
+        return res.json({ canAccess: true, reason: 'purchased' });
+      }
+
+      if ((user.topicsUsed || 0) < 1) {
+        return res.json({ canAccess: true, reason: 'free_tier' });
+      }
+
+      return res.json({ canAccess: false, reason: 'limit_reached' });
+    } catch (error) {
+      console.error("Error checking topic access:", error);
+      res.status(500).json({ message: "Failed to check topic access" });
     }
   });
 

@@ -1,14 +1,15 @@
 import { 
-  users, topics, principles, quizzes, questions, progress,
+  users, topics, principles, quizzes, questions, progress, topicPurchases,
   type User, type InsertUser, 
   type Topic, type InsertTopic,
   type Principle, type InsertPrinciple,
   type Quiz, type InsertQuiz,
   type Question, type InsertQuestion,
-  type Progress, type InsertProgress
+  type Progress, type InsertProgress,
+  type TopicPurchase, type InsertTopicPurchase
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc, inArray, sql } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -39,6 +40,13 @@ export interface IStorage {
   getProgress(userId: string, topicId: string): Promise<Progress | undefined>;
   getProgressByUser(userId: string): Promise<Progress[]>;
   upsertProgress(progress: InsertProgress): Promise<Progress>;
+  
+  getTopicPurchase(userId: string, topicId: string): Promise<TopicPurchase | undefined>;
+  getTopicPurchasesByUser(userId: string): Promise<TopicPurchase[]>;
+  createTopicPurchase(purchase: InsertTopicPurchase): Promise<TopicPurchase>;
+  updateTopicPurchase(id: string, updates: Partial<TopicPurchase>): Promise<TopicPurchase | undefined>;
+  hasUserPurchasedTopic(userId: string, topicId: string): Promise<boolean>;
+  updateUserStripeInfo(userId: string, stripeInfo: { stripeCustomerId?: string; stripeSubscriptionId?: string }): Promise<User | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -177,6 +185,103 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return prog;
+  }
+
+  async getTopicPurchase(userId: string, topicId: string): Promise<TopicPurchase | undefined> {
+    const [purchase] = await db.select().from(topicPurchases).where(
+      and(eq(topicPurchases.userId, userId), eq(topicPurchases.topicId, topicId))
+    );
+    return purchase || undefined;
+  }
+
+  async getTopicPurchasesByUser(userId: string): Promise<TopicPurchase[]> {
+    return db.select().from(topicPurchases)
+      .where(eq(topicPurchases.userId, userId))
+      .orderBy(desc(topicPurchases.purchasedAt));
+  }
+
+  async createTopicPurchase(purchase: InsertTopicPurchase): Promise<TopicPurchase> {
+    const [newPurchase] = await db.insert(topicPurchases).values(purchase).returning();
+    return newPurchase;
+  }
+
+  async updateTopicPurchase(id: string, updates: Partial<TopicPurchase>): Promise<TopicPurchase | undefined> {
+    const [purchase] = await db.update(topicPurchases).set(updates).where(eq(topicPurchases.id, id)).returning();
+    return purchase || undefined;
+  }
+
+  async hasUserPurchasedTopic(userId: string, topicId: string): Promise<boolean> {
+    const [purchase] = await db.select().from(topicPurchases).where(
+      and(
+        eq(topicPurchases.userId, userId), 
+        eq(topicPurchases.topicId, topicId),
+        eq(topicPurchases.status, "completed")
+      )
+    );
+    return !!purchase;
+  }
+
+  async updateUserStripeInfo(userId: string, stripeInfo: { stripeCustomerId?: string; stripeSubscriptionId?: string }): Promise<User | undefined> {
+    const [user] = await db.update(users).set(stripeInfo).where(eq(users.id, userId)).returning();
+    return user || undefined;
+  }
+
+  async getStripeProduct(productId: string) {
+    const result = await db.execute(
+      sql`SELECT * FROM stripe.products WHERE id = ${productId}`
+    );
+    return result.rows[0] || null;
+  }
+
+  async listStripeProducts(active = true, limit = 20, offset = 0) {
+    const result = await db.execute(
+      sql`SELECT * FROM stripe.products WHERE active = ${active} LIMIT ${limit} OFFSET ${offset}`
+    );
+    return result.rows;
+  }
+
+  async listStripeProductsWithPrices(active = true, limit = 20, offset = 0) {
+    const result = await db.execute(
+      sql`
+        WITH paginated_products AS (
+          SELECT id, name, description, metadata, active
+          FROM stripe.products
+          WHERE active = ${active}
+          ORDER BY id
+          LIMIT ${limit} OFFSET ${offset}
+        )
+        SELECT 
+          p.id as product_id,
+          p.name as product_name,
+          p.description as product_description,
+          p.active as product_active,
+          p.metadata as product_metadata,
+          pr.id as price_id,
+          pr.unit_amount,
+          pr.currency,
+          pr.recurring,
+          pr.active as price_active,
+          pr.metadata as price_metadata
+        FROM paginated_products p
+        LEFT JOIN stripe.prices pr ON pr.product = p.id AND pr.active = true
+        ORDER BY p.id, pr.unit_amount
+      `
+    );
+    return result.rows;
+  }
+
+  async getStripePrice(priceId: string) {
+    const result = await db.execute(
+      sql`SELECT * FROM stripe.prices WHERE id = ${priceId}`
+    );
+    return result.rows[0] || null;
+  }
+
+  async getStripeSubscription(subscriptionId: string) {
+    const result = await db.execute(
+      sql`SELECT * FROM stripe.subscriptions WHERE id = ${subscriptionId}`
+    );
+    return result.rows[0] || null;
   }
 }
 
