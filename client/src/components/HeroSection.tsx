@@ -70,7 +70,7 @@ export default function HeroSection({ onSearch, onTopicClick }: HeroSectionProps
                   className="absolute right-2 rounded-full h-12 px-8 font-medium"
                   data-testid="button-hero-search"
                 >
-                  Generate topic
+                  Learn topic
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
