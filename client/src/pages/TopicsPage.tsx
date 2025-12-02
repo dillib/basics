@@ -123,7 +123,7 @@ export default function TopicsPage() {
                 </div>
                 {generateTopicMutation.isError && (
                   <p className="text-sm text-destructive">
-                    Please sign in to generate topics, or try again later.
+                    {(generateTopicMutation.error as any)?.message || "Failed to generate topic. Please try again."}
                   </p>
                 )}
               </form>

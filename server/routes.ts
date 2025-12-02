@@ -56,26 +56,29 @@ export async function registerRoutes(
     }
   });
 
-  app.post('/api/topics/generate', isAuthenticated, async (req: any, res) => {
+  app.post('/api/topics/generate', async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user?.claims?.sub;
       const { title } = req.body;
       
-      console.log(`[Topic Generate] Starting for "${title}" by user ${userId}`);
+      console.log(`[Topic Generate] Starting for "${title}" by user ${userId || 'anonymous'}`);
 
       if (!title) {
         return res.status(400).json({ message: "Topic title is required" });
       }
 
-      const user = await storage.getUser(userId);
-      if (!user) {
-        console.log(`[Topic Generate] User not found: ${userId}`);
-        return res.status(404).json({ message: "User not found" });
-      }
+      let user = null;
+      if (userId) {
+        user = await storage.getUser(userId);
+        if (!user) {
+          console.log(`[Topic Generate] User not found: ${userId}`);
+          return res.status(404).json({ message: "User not found" });
+        }
 
-      if (user.plan === 'free' && (user.topicsUsed || 0) >= 1) {
-        console.log(`[Topic Generate] Free tier limit reached for user ${userId}`);
-        return res.status(403).json({ message: "Free tier limit reached. Please upgrade to Pro." });
+        if (user.plan === 'free' && (user.topicsUsed || 0) >= 1) {
+          console.log(`[Topic Generate] Free tier limit reached for user ${userId}`);
+          return res.status(403).json({ message: "Free tier limit reached. Please upgrade to Pro." });
+        }
       }
 
       const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -92,7 +95,7 @@ export async function registerRoutes(
       console.log(`[Topic Generate] AI completed in ${Date.now() - startTime}ms`);
 
       const newTopic = await storage.createTopic({
-        userId,
+        userId: userId || null,
         title,
         slug,
         description: content.description,
@@ -117,8 +120,10 @@ export async function registerRoutes(
       await storage.createPrinciples(principleData);
       console.log(`[Topic Generate] Created ${principleData.length} principles`);
 
-      // Update user's topics used count
-      await storage.updateUser(userId, { topicsUsed: (user.topicsUsed || 0) + 1 });
+      // Update user's topics used count only if authenticated
+      if (userId && user) {
+        await storage.updateUser(userId, { topicsUsed: (user.topicsUsed || 0) + 1 });
+      }
 
       res.json(newTopic);
     } catch (error) {
