@@ -142,6 +142,21 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**December 2, 2025**
+- Added complete support infrastructure with 5 new pages:
+  - Contact page (/contact) - Support form with validation using shadcn Form components
+  - Help Center (/help) - FAQ page with 4 categories, search, and accordion questions
+  - Terms of Service (/terms) - Complete terms with 11 sections
+  - Privacy Policy (/privacy) - GDPR-compliant privacy policy with 12 sections
+  - Account Settings (/account) - User profile, subscription info, security settings
+- Updated Footer component:
+  - Removed broken links pointing to non-existent pages
+  - Reorganized into Product, Support, and Legal sections
+  - Added support email (support@basicstutor.com)
+  - All footer links now point to existing pages
+- Updated App.tsx with 5 new routes
+- All pages follow design guidelines with proper data-testid attributes
+
 **December 1, 2025**
 - Implemented full Stripe payment integration with stripe-replit-sync
 - Added pay-per-topic ($1.99) and Pro subscription ($9.99/month) tiers

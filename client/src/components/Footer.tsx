@@ -1,26 +1,21 @@
 import { Link } from "wouter";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Mail } from "lucide-react";
 import { SiX, SiGithub, SiLinkedin, SiDiscord } from "react-icons/si";
 
 const footerLinks = {
   product: [
-    { label: "Features", href: "/features" },
-    { label: "Pricing", href: "/pricing" },
     { label: "Topics", href: "/topics" },
+    { label: "Pricing", href: "/pricing" },
+    { label: "Dashboard", href: "/dashboard" },
   ],
-  company: [
-    { label: "About", href: "/about" },
-    { label: "Blog", href: "/blog" },
-    { label: "Careers", href: "/careers" },
-  ],
-  resources: [
+  support: [
     { label: "Help Center", href: "/help" },
-    { label: "Community", href: "/community" },
-    { label: "Contact", href: "/contact" },
+    { label: "Contact Us", href: "/contact" },
+    { label: "Account", href: "/account" },
   ],
   legal: [
-    { label: "Privacy", href: "/privacy" },
-    { label: "Terms", href: "/terms" },
+    { label: "Privacy Policy", href: "/privacy" },
+    { label: "Terms of Service", href: "/terms" },
   ],
 };
 
@@ -35,7 +30,7 @@ export default function Footer() {
   return (
     <footer className="bg-card border-t border-border">
       <div className="container mx-auto px-6 py-16 sm:py-20">
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-12 mb-16">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-12 mb-16">
           <div className="col-span-2">
             <Link href="/" className="flex items-center gap-3 mb-6">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
@@ -46,6 +41,18 @@ export default function Footer() {
             <p className="text-muted-foreground mb-6 max-w-xs leading-relaxed">
               Learn anything by understanding its fundamental truths. AI-powered education that builds knowledge from the ground up.
             </p>
+            
+            <div className="flex items-center gap-2 text-muted-foreground mb-6">
+              <Mail className="h-4 w-4" />
+              <a 
+                href="mailto:support@basicstutor.com" 
+                className="hover:text-foreground transition-colors"
+                data-testid="link-footer-email"
+              >
+                support@basicstutor.com
+              </a>
+            </div>
+
             <div className="flex gap-3">
               {socialLinks.map((social) => (
                 <a
@@ -71,7 +78,7 @@ export default function Footer() {
                   <Link
                     href={link.href}
                     className="text-muted-foreground hover:text-foreground transition-colors"
-                    data-testid={`link-footer-${link.label.toLowerCase()}`}
+                    data-testid={`link-footer-${link.label.toLowerCase().replace(/\s+/g, '-')}`}
                   >
                     {link.label}
                   </Link>
@@ -81,31 +88,14 @@ export default function Footer() {
           </div>
 
           <div>
-            <h4 className="font-medium mb-4">Company</h4>
+            <h4 className="font-medium mb-4">Support</h4>
             <ul className="space-y-3">
-              {footerLinks.company.map((link) => (
+              {footerLinks.support.map((link) => (
                 <li key={link.label}>
                   <Link
                     href={link.href}
                     className="text-muted-foreground hover:text-foreground transition-colors"
-                    data-testid={`link-footer-${link.label.toLowerCase()}`}
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="font-medium mb-4">Resources</h4>
-            <ul className="space-y-3">
-              {footerLinks.resources.map((link) => (
-                <li key={link.label}>
-                  <Link
-                    href={link.href}
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                    data-testid={`link-footer-${link.label.toLowerCase()}`}
+                    data-testid={`link-footer-${link.label.toLowerCase().replace(/\s+/g, '-')}`}
                   >
                     {link.label}
                   </Link>
@@ -122,7 +112,7 @@ export default function Footer() {
                   <Link
                     href={link.href}
                     className="text-muted-foreground hover:text-foreground transition-colors"
-                    data-testid={`link-footer-${link.label.toLowerCase()}`}
+                    data-testid={`link-footer-${link.label.toLowerCase().replace(/\s+/g, '-')}`}
                   >
                     {link.label}
                   </Link>

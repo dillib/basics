@@ -13,6 +13,11 @@ import DashboardPage from "@/pages/DashboardPage";
 import PricingPage from "@/pages/PricingPage";
 import CheckoutSuccessPage from "@/pages/CheckoutSuccessPage";
 import CheckoutCancelPage from "@/pages/CheckoutCancelPage";
+import ContactPage from "@/pages/ContactPage";
+import HelpPage from "@/pages/HelpPage";
+import TermsPage from "@/pages/TermsPage";
+import PrivacyPage from "@/pages/PrivacyPage";
+import AccountPage from "@/pages/AccountPage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -25,6 +30,11 @@ function Router() {
       <Route path="/pricing" component={PricingPage} />
       <Route path="/checkout/success" component={CheckoutSuccessPage} />
       <Route path="/checkout/cancel" component={CheckoutCancelPage} />
+      <Route path="/contact" component={ContactPage} />
+      <Route path="/help" component={HelpPage} />
+      <Route path="/terms" component={TermsPage} />
+      <Route path="/privacy" component={PrivacyPage} />
+      <Route path="/account" component={AccountPage} />
       <Route component={NotFound} />
     </Switch>
   );
