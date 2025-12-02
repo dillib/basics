@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { useTheme } from "./ThemeProvider";
 import { Menu, X, Sun, Moon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import logoImage from "@assets/generated_images/ai_learning_platform_logo_-_basicstutor.png";
 import type { User } from "@shared/schema";
 
 interface HeaderProps {
@@ -29,7 +28,7 @@ export default function Header({ isLoggedIn = false, onLogin, onLogout, user, is
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between gap-4 px-6">
         <Link href="/" className="flex items-center gap-2">
-          <img src={logoImage} alt="BasicsTutor" className="h-9 w-9 rounded-lg" data-testid="img-logo" />
+          <img src="/assets/logo.png" alt="BasicsTutor" className="h-9 w-9 rounded-lg object-cover" data-testid="img-logo" />
           <span className="text-lg font-semibold" data-testid="text-logo">BasicsTutor</span>
         </Link>
 
