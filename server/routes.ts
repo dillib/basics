@@ -557,25 +557,26 @@ export async function registerRoutes(
         return res.status(404).json({ message: "User not found" });
       }
 
+      // Pro subscription users can access all topics beyond the first 2 principles
       if (user.plan === 'pro') {
         return res.json({ canAccess: true, reason: 'pro_subscription' });
       }
 
+      // Topic creators can access their own topics beyond the first 2 principles
       const topic = await storage.getTopic(topicId);
       if (topic?.userId === userId) {
         return res.json({ canAccess: true, reason: 'topic_creator' });
       }
 
+      // Users who purchased this topic can access all principles
       const hasPurchased = await storage.hasUserPurchasedTopic(userId, topicId);
       if (hasPurchased) {
         return res.json({ canAccess: true, reason: 'purchased' });
       }
 
-      if ((user.topicsUsed || 0) < 1) {
-        return res.json({ canAccess: true, reason: 'free_tier' });
-      }
-
-      return res.json({ canAccess: false, reason: 'limit_reached' });
+      // Freemium model: Everyone can see first 1-2 principles
+      // Authenticated users who don't have access can't see principles 3+
+      return res.json({ canAccess: false, reason: 'insufficient_access' });
     } catch (error) {
       console.error("Error checking topic access:", error);
       res.status(500).json({ message: "Failed to check topic access" });
