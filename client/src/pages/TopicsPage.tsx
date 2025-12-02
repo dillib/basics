@@ -23,7 +23,12 @@ const difficultyColors: Record<string, string> = {
 export default function TopicsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [newTopicTitle, setNewTopicTitle] = useState("");
+  const [location] = useLocation();
+  const [newTopicTitle, setNewTopicTitle] = useState(() => {
+    // Check if there's a topic parameter in the URL
+    const params = new URLSearchParams(window.location.search);
+    return params.get("topic") || "";
+  });
   const [, setLocation] = useLocation();
 
   const { data: topics = [], isLoading } = useQuery<Topic[]>({

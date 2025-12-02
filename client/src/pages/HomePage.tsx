@@ -13,7 +13,7 @@ export default function HomePage() {
 
   const handleSearch = (query: string) => {
     console.log("Searching for:", query);
-    setLocation(`/topic/${encodeURIComponent(query.toLowerCase().replace(/\s+/g, "-"))}`);
+    setLocation(`/topics?topic=${encodeURIComponent(query)}`);
   };
 
   const handleTopicClick = (topicId: string) => {

@@ -22,11 +22,12 @@ export default function CTASection({ onGetStarted }: CTASectionProps) {
           className="text-center max-w-3xl mx-auto"
         >
           <h2 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight mb-6">
-            Ready to understand
-            <span className="block text-primary">anything?</span>
+            Ready to build real understanding?
+            <span className="block text-primary">Start learning from first principles</span>
           </h2>
           <p className="text-xl text-muted-foreground mb-10 leading-relaxed">
-            Start your first lesson today. No credit card required.
+            Create your first topic and begin your AI-powered learning journey. 
+            Explore the fundamentals at your own pace. No credit card required.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button

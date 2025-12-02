@@ -40,15 +40,15 @@ export default function HeroSection({ onSearch, onTopicClick }: HeroSectionProps
           </p>
 
           <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-semibold tracking-tight text-foreground mb-8 leading-[1.1]">
-            Understand anything
+            Master any topic
             <span className="block bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-              from first principles
+              starting from the fundamentals
             </span>
           </h1>
 
           <p className="text-xl sm:text-2xl text-muted-foreground max-w-2xl mx-auto mb-12 leading-relaxed font-light">
-            BasicsTutor breaks down complex topics into fundamental building blocks. 
-            Learn the way great thinkers do.
+            Enter any topic and let AI break it down into core first principles. 
+            Build deep understanding, not just surface knowledge.
           </p>
 
           <form onSubmit={handleSearch} className="max-w-xl mx-auto mb-8">
@@ -58,7 +58,7 @@ export default function HeroSection({ onSearch, onTopicClick }: HeroSectionProps
                 <Search className="absolute left-6 h-5 w-5 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="What do you want to learn?"
+                  placeholder="Enter any topic to learn..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="h-16 pl-14 pr-40 text-lg bg-transparent border-0 rounded-full focus-visible:ring-0 focus-visible:ring-offset-0"
@@ -70,7 +70,7 @@ export default function HeroSection({ onSearch, onTopicClick }: HeroSectionProps
                   className="absolute right-2 rounded-full h-12 px-8 font-medium"
                   data-testid="button-hero-search"
                 >
-                  Start learning
+                  Generate topic
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
