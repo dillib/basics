@@ -348,16 +348,18 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                 principles.map((principle, index) => {
                   const isExpanded = expandedPrinciples.has(principle.id);
                   const isComplete = completedPrinciples.has(principle.id);
+                  const isFreePreview = index < 2; // First 2 principles are free
+                  const isLocked = !isFreePreview && !canAccess;
 
                   return (
                     <Card 
                       key={principle.id}
-                      className={`border-card-border transition-all ${isComplete ? "border-l-4 border-l-primary" : ""}`}
+                      className={`border-card-border transition-all ${isComplete ? "border-l-4 border-l-primary" : ""} ${isLocked ? "opacity-60" : ""}`}
                       data-testid={`card-principle-${index + 1}`}
                     >
                       <CardHeader 
-                        className="cursor-pointer"
-                        onClick={() => togglePrinciple(principle.id)}
+                        className={`${isLocked ? "cursor-not-allowed" : "cursor-pointer"}`}
+                        onClick={() => !isLocked && togglePrinciple(principle.id)}
                       >
                         <div className="flex items-start gap-4">
                           <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
@@ -365,6 +367,8 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                           }`}>
                             {isComplete ? (
                               <CheckCircle2 className="h-4 w-4" />
+                            ) : isLocked ? (
+                              <Lock className="h-4 w-4 text-muted-foreground" />
                             ) : (
                               <span className="text-sm font-bold">{index + 1}</span>
                             )}
@@ -372,9 +376,20 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                           <div className="flex-1 min-w-0">
                             <CardTitle className="text-lg flex items-center gap-2">
                               {principle.title}
+                              {isLocked && (
+                                <Badge variant="secondary" className="ml-2 text-xs">
+                                  <Lock className="h-3 w-3 mr-1" />
+                                  Locked
+                                </Badge>
+                              )}
+                              {isFreePreview && index === 0 && (
+                                <Badge variant="default" className="ml-2 text-xs bg-green-600">
+                                  Free Preview
+                                </Badge>
+                              )}
                             </CardTitle>
                           </div>
-                          {isExpanded ? (
+                          {isExpanded && !isLocked ? (
                             <ChevronDown className="h-5 w-5 text-muted-foreground shrink-0" />
                           ) : (
                             <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
@@ -382,7 +397,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                         </div>
                       </CardHeader>
                       
-                      {isExpanded && (
+                      {isExpanded && !isLocked && (
                         <CardContent className="pt-0 space-y-6">
                           <div className="pl-12">
                             <p className="text-muted-foreground leading-relaxed mb-4 whitespace-pre-line">
@@ -429,6 +444,49 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                               </Button>
                             </div>
                           )}
+                        </CardContent>
+                      )}
+
+                      {isLocked && isExpanded && (
+                        <CardContent className="pt-0">
+                          <div className="pl-12 py-4">
+                            <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
+                              <div className="flex items-start gap-3">
+                                <Lock className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                                <div className="flex-1">
+                                  <p className="font-semibold text-sm mb-2">This principle is locked</p>
+                                  <p className="text-sm text-muted-foreground mb-4">
+                                    Unlock this and all remaining principles to explore the complete learning path.
+                                  </p>
+                                  <div className="flex flex-col sm:flex-row gap-2">
+                                    <Button 
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handlePurchase();
+                                      }}
+                                      disabled={purchaseTopicMutation.isPending}
+                                      data-testid="button-unlock-topic"
+                                    >
+                                      <CreditCard className="h-3 w-3 mr-1" />
+                                      Unlock for $1.99
+                                    </Button>
+                                    <Button 
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        window.location.href = "/pricing";
+                                      }}
+                                      data-testid="button-unlock-pro"
+                                    >
+                                      Get Pro
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         </CardContent>
                       )}
                     </Card>
@@ -486,19 +544,28 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                     <nav className="space-y-2">
                       {principles.map((principle, index) => {
                         const isComplete = completedPrinciples.has(principle.id);
+                        const isFreePreview = index < 2;
+                        const isLocked = !isFreePreview && !canAccess;
                         return (
                           <button
                             key={principle.id}
                             onClick={() => {
-                              setExpandedPrinciples((prev) => new Set(Array.from(prev).concat(principle.id)));
+                              if (!isLocked) {
+                                setExpandedPrinciples((prev) => new Set(Array.from(prev).concat(principle.id)));
+                              }
                             }}
-                            className={`flex items-center gap-2 w-full text-left text-sm p-2 rounded-md hover-elevate ${
+                            disabled={isLocked}
+                            className={`flex items-center gap-2 w-full text-left text-sm p-2 rounded-md ${
+                              isLocked ? "opacity-50 cursor-not-allowed" : "hover-elevate"
+                            } ${
                               isComplete ? "text-primary" : "text-muted-foreground"
                             }`}
                             data-testid={`toc-principle-${index + 1}`}
                           >
                             {isComplete ? (
                               <CheckCircle2 className="h-4 w-4 shrink-0" />
+                            ) : isLocked ? (
+                              <Lock className="h-4 w-4 shrink-0" />
                             ) : (
                               <div className="h-4 w-4 rounded-full border border-current shrink-0" />
                             )}
