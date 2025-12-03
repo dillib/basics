@@ -10,6 +10,69 @@ interface HeroSectionProps {
   isGenerating?: boolean;
 }
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.08,
+      delayChildren: 0.1,
+    },
+  },
+};
+
+const wordVariants = {
+  hidden: { 
+    opacity: 0, 
+    y: 40,
+    filter: "blur(10px)",
+  },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    filter: "blur(0px)",
+    transition: {
+      duration: 0.5,
+      ease: [0.25, 0.4, 0.25, 1],
+    },
+  },
+};
+
+const fadeUpVariants = {
+  hidden: { opacity: 0, y: 30 },
+  visible: (delay: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.8,
+      delay,
+      ease: [0.25, 0.4, 0.25, 1],
+    },
+  }),
+};
+
+function AnimatedWords({ text, className }: { text: string; className?: string }) {
+  const words = text.split(" ");
+  return (
+    <motion.span
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className={className}
+    >
+      {words.map((word, index) => (
+        <motion.span
+          key={index}
+          variants={wordVariants}
+          className="inline-block mr-[0.25em]"
+        >
+          {word}
+        </motion.span>
+      ))}
+    </motion.span>
+  );
+}
+
 export default function HeroSection({ onGenerateTopic, onTopicClick, isGenerating = false }: HeroSectionProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -29,29 +92,48 @@ export default function HeroSection({ onGenerateTopic, onTopicClick, isGeneratin
       </div>
 
       <div className="relative z-10 container mx-auto px-6 py-24 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="max-w-4xl mx-auto"
-        >
-          <p className="text-sm font-medium text-primary mb-6 tracking-wide uppercase" data-testid="text-hero-tagline">
+        <div className="max-w-4xl mx-auto">
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: [0.25, 0.4, 0.25, 1] }}
+            className="text-sm font-medium text-primary mb-6 tracking-wide uppercase" 
+            data-testid="text-hero-tagline"
+          >
             Learn smarter, not harder
-          </p>
+          </motion.p>
 
           <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-semibold tracking-tight text-foreground mb-8 leading-[1.1]">
-            Master any topic
-            <span className="block bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-              starting from the fundamentals
-            </span>
+            <AnimatedWords text="Master any topic" />
+            <motion.span 
+              className="block bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+            >
+              <AnimatedWords text="starting from the fundamentals" />
+            </motion.span>
           </h1>
 
-          <p className="text-xl sm:text-2xl text-muted-foreground max-w-2xl mx-auto mb-12 leading-relaxed font-light">
+          <motion.p 
+            variants={fadeUpVariants}
+            initial="hidden"
+            animate="visible"
+            custom={0.8}
+            className="text-xl sm:text-2xl text-muted-foreground max-w-2xl mx-auto mb-12 leading-relaxed font-light"
+          >
             Enter any topic and let AI break it down into core first principles. 
             Build deep understanding, not just surface knowledge.
-          </p>
+          </motion.p>
 
-          <form onSubmit={handleSearch} className="max-w-xl mx-auto mb-8">
+          <motion.form 
+            onSubmit={handleSearch} 
+            className="max-w-xl mx-auto mb-8"
+            variants={fadeUpVariants}
+            initial="hidden"
+            animate="visible"
+            custom={1.0}
+          >
             <div className="relative group">
               <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-purple-500/20 to-violet-500/20 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               <div className="relative flex items-center bg-card border border-border rounded-full shadow-lg">
@@ -86,12 +168,18 @@ export default function HeroSection({ onGenerateTopic, onTopicClick, isGeneratin
                 </Button>
               </div>
             </div>
-          </form>
+          </motion.form>
 
-          <div className="flex flex-wrap items-center justify-center gap-3 mb-16">
+          <motion.div 
+            className="flex flex-wrap items-center justify-center gap-3 mb-16"
+            variants={fadeUpVariants}
+            initial="hidden"
+            animate="visible"
+            custom={1.2}
+          >
             <span className="text-sm text-muted-foreground">Try:</span>
-            {["Quantum Physics", "Machine Learning", "Economics", "Philosophy"].map((topic) => (
-              <button
+            {["Quantum Physics", "Machine Learning", "Economics", "Philosophy"].map((topic, index) => (
+              <motion.button
                 key={topic}
                 onClick={() => {
                   if (!isGenerating) {
@@ -102,16 +190,19 @@ export default function HeroSection({ onGenerateTopic, onTopicClick, isGeneratin
                 disabled={isGenerating}
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-full border border-transparent hover:border-border hover:bg-accent/50 disabled:opacity-50 disabled:cursor-not-allowed"
                 data-testid={`button-topic-${topic.toLowerCase().replace(/\s+/g, "-")}`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.98 }}
               >
                 {topic}
-              </button>
+              </motion.button>
             ))}
-          </div>
+          </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
+            variants={fadeUpVariants}
+            initial="hidden"
+            animate="visible"
+            custom={1.4}
             className="flex items-center justify-center gap-6"
           >
             <Button variant="ghost" size="lg" className="text-muted-foreground group" data-testid="button-watch-demo">
@@ -121,7 +212,7 @@ export default function HeroSection({ onGenerateTopic, onTopicClick, isGeneratin
               Watch how it works
             </Button>
           </motion.div>
-        </motion.div>
+        </div>
       </div>
     </section>
   );
