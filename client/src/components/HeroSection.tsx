@@ -10,34 +10,6 @@ interface HeroSectionProps {
   isGenerating?: boolean;
 }
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.08,
-      delayChildren: 0.1,
-    },
-  },
-};
-
-const wordVariants = {
-  hidden: { 
-    opacity: 0, 
-    y: 40,
-    filter: "blur(10px)",
-  },
-  visible: { 
-    opacity: 1, 
-    y: 0,
-    filter: "blur(0px)",
-    transition: {
-      duration: 0.5,
-      ease: [0.25, 0.4, 0.25, 1],
-    },
-  },
-};
-
 const fadeUpVariants = {
   hidden: { opacity: 0, y: 30 },
   visible: (delay: number) => ({
@@ -51,25 +23,26 @@ const fadeUpVariants = {
   }),
 };
 
-function AnimatedWords({ text, className }: { text: string; className?: string }) {
+function AnimatedWords({ text, className, baseDelay = 0 }: { text: string; className?: string; baseDelay?: number }) {
   const words = text.split(" ");
   return (
-    <motion.span
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className={className}
-    >
+    <span className={className}>
       {words.map((word, index) => (
         <motion.span
           key={index}
-          variants={wordVariants}
+          initial={{ opacity: 0, y: 40, filter: "blur(10px)" }}
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          transition={{
+            duration: 0.5,
+            delay: baseDelay + index * 0.08,
+            ease: [0.25, 0.4, 0.25, 1],
+          }}
           className="inline-block mr-[0.25em]"
         >
           {word}
         </motion.span>
       ))}
-    </motion.span>
+    </span>
   );
 }
 
@@ -104,15 +77,10 @@ export default function HeroSection({ onGenerateTopic, onTopicClick, isGeneratin
           </motion.p>
 
           <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-semibold tracking-tight text-foreground mb-8 leading-[1.1]">
-            <AnimatedWords text="Master any topic" />
-            <motion.span 
-              className="block bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient"
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-            >
-              <AnimatedWords text="starting from the fundamentals" />
-            </motion.span>
+            <AnimatedWords text="Master any topic" baseDelay={0.1} />
+            <span className="block bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient">
+              <AnimatedWords text="starting from the fundamentals" baseDelay={0.4} />
+            </span>
           </h1>
 
           <motion.p 
