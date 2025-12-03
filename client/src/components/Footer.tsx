@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { BookOpen, Mail } from "lucide-react";
+import { Star, Mail } from "lucide-react";
 import { SiX, SiGithub, SiLinkedin, SiDiscord } from "react-icons/si";
 
 const footerLinks = {
@@ -33,10 +33,10 @@ export default function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-12 mb-16">
           <div className="col-span-2">
             <Link href="/" className="flex items-center gap-3 mb-6">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
-                <BookOpen className="h-5 w-5 text-primary-foreground" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600">
+                <Star className="h-5 w-5 text-white fill-white" />
               </div>
-              <span className="text-xl font-semibold" data-testid="text-footer-logo">BasicsTutor</span>
+              <span className="text-xl font-semibold" data-testid="text-footer-logo">BasicsTutor.com</span>
             </Link>
             <p className="text-muted-foreground mb-6 max-w-xs leading-relaxed">
               Learn anything by understanding its fundamental truths. AI-powered education that builds knowledge from the ground up.

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "./ThemeProvider";
-import { Menu, X, Sun, Moon, Sparkles } from "lucide-react";
+import { Menu, X, Sun, Moon, Star } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { User } from "@shared/schema";
 
@@ -29,9 +29,9 @@ export default function Header({ isLoggedIn = false, onLogin, onLogout, user, is
       <div className="container mx-auto flex h-16 items-center justify-between gap-4 px-6">
         <Link href="/" className="flex items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600">
-            <Sparkles className="h-5 w-5 text-white" />
+            <Star className="h-5 w-5 text-white fill-white" />
           </div>
-          <span className="text-lg font-semibold" data-testid="text-logo">BasicsTutor</span>
+          <span className="text-lg font-semibold" data-testid="text-logo">BasicsTutor.com</span>
         </Link>
 
         <nav className="hidden md:flex items-center gap-8">
