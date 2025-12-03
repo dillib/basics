@@ -127,13 +127,20 @@ Preferred communication style: Simple, everyday language.
 
 **Payment Processing** (Fully Implemented)
 - Stripe integration with stripe-replit-sync for automatic webhook management
-- Three-tier pricing model:
-  - Free tier: 1 topic per user
-  - Pay-per-topic: $1.99 per topic (one-time payment)
+- Freemium pricing model:
+  - Sample topics: Fully free (all principles and quizzes available)
+  - User-generated topics: First 2 principles free preview, rest locked
+  - Pay-per-topic: $1.99 per topic (unlocks all principles and quiz)
   - Pro subscription: $9.99/month for unlimited topics
 - Checkout flow with success/cancel pages
-- Topic access control based on purchase status
+- Topic access control based on sample status, plan, and purchase status
 - Stripe customer and subscription management
+
+**Sample Topics System**
+- Sample topics marked with `isSample: true` flag in database
+- Sample topics are fully accessible (all principles + quizzes) for everyone
+- Sample topics displayed prominently on home page FeaturedTopics section
+- Non-sample topics have first 2 principles as free preview
 
 **Session Management**
 - PostgreSQL session store via connect-pg-simple
@@ -141,6 +148,23 @@ Preferred communication style: Simple, everyday language.
 - 7-day session TTL with automatic cleanup
 
 ## Recent Changes
+
+**December 3, 2025**
+- Implemented complete freemium model with sample topics system:
+  - Added `isSample` boolean column to topics table
+  - Sample topics are fully free (all principles + quizzes accessible by everyone)
+  - User-generated topics have first 2 principles as free preview
+  - Principles 3+ locked with unlock options ($1.99 per topic or Pro subscription)
+  - Quizzes locked for non-sample topics until purchased
+- Updated TopicLearningPage with proper access control:
+  - Inline lock icons on locked principles
+  - Clear unlock prompts with sign-in flow for unauthenticated users
+  - Separate paths for authenticated (purchase options) vs unauthenticated (sign-in first)
+- Added redirect-after-login mechanism:
+  - Stores redirect URL in sessionStorage before login
+  - Automatically redirects users back to topic after authentication
+- Updated FeaturedTopics component to fetch real sample topics from API
+- Added 3 sample topics: Basic Chemistry, Introduction to Biology, Basic Economics
 
 **December 2, 2025**
 - Added complete support infrastructure with 5 new pages:
@@ -177,9 +201,12 @@ Preferred communication style: Simple, everyday language.
 ## API Routes
 
 **Topics**
-- GET `/api/topics/:slug` - Fetch topic by slug
+- GET `/api/topics` - Fetch all public topics
+- GET `/api/sample-topics` - Fetch sample topics (fully free)
+- GET `/api/topics/:slug` - Fetch topic by slug (includes isSample flag)
 - GET `/api/topics/:topicId/principles` - Fetch principles for topic
-- POST `/api/topics/generate` - Generate new topic via AI
+- GET `/api/topics/:topicId/is-sample` - Check if topic is a sample
+- POST `/api/topics/generate` - Generate new topic via AI (no auth required)
 
 **Progress**
 - GET `/api/user/progress` - Get all progress records for authenticated user

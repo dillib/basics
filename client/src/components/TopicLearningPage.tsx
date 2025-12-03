@@ -65,6 +65,9 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
     enabled: !!topic?.id && isAuthenticated,
   });
 
+  // Check if topic is a sample topic (free for everyone) - use property from topic response
+  const isSampleTopic = (topic as any)?.isSample === true;
+
   const purchaseTopicMutation = useMutation({
     mutationFn: async () => {
       if (!topic?.id) throw new Error("Topic not found");
@@ -207,9 +210,13 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
     );
   }
 
-  const canAccess = !isAuthenticated || accessLoading || accessInfo?.canAccess !== false;
-  const showPaywall = isAuthenticated && !accessLoading && accessInfo?.canAccess === false;
-  const showLoginPrompt = !isAuthenticated;
+  // Sample topics are always fully accessible
+  // For non-sample topics: check if user has access (Pro, purchased, or created)
+  const hasFullAccess = isSampleTopic || 
+    (!isAuthenticated ? false : accessLoading ? false : accessInfo?.canAccess === true);
+  
+  // For non-sample topics, show lock on principles 3+ if user doesn't have full access
+  const canAccessAllPrinciples = isSampleTopic || hasFullAccess;
 
   const handlePurchase = () => {
     if (!isAuthenticated) {
@@ -259,62 +266,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        {showPaywall && (
-          <div className="max-w-2xl mx-auto mb-8">
-            <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent" data-testid="card-paywall">
-              <CardHeader className="text-center pb-2">
-                <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Lock className="h-8 w-8 text-primary" />
-                </div>
-                <CardTitle className="text-2xl">Unlock This Topic</CardTitle>
-                <CardDescription className="text-base">
-                  You've used your free topic. Purchase access to continue learning.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-center pb-8">
-                <div className="mb-6">
-                  <div className="text-4xl font-bold mb-1">$1.99</div>
-                  <div className="text-sm text-muted-foreground">one-time payment</div>
-                </div>
-                <ul className="text-sm text-muted-foreground space-y-2 mb-6 max-w-xs mx-auto text-left">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-                    <span>Lifetime access to this topic</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-                    <span>First principles breakdowns</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
-                    <span>Interactive quiz included</span>
-                  </li>
-                </ul>
-                <div className="flex flex-col gap-3 max-w-xs mx-auto">
-                  <Button 
-                    size="lg" 
-                    onClick={handlePurchase}
-                    disabled={purchaseTopicMutation.isPending}
-                    data-testid="button-purchase-topic"
-                  >
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    {purchaseTopicMutation.isPending ? "Loading..." : "Purchase This Topic"}
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="lg"
-                    onClick={() => window.location.href = "/pricing"}
-                    data-testid="button-view-pro"
-                  >
-                    Or get Pro for unlimited access
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        <div className={`flex flex-col lg:flex-row gap-8 ${showPaywall ? "opacity-50 pointer-events-none blur-sm" : ""}`}>
+        <div className="flex flex-col lg:flex-row gap-8">
           <main className="flex-1 max-w-3xl">
             <div className="mb-8">
               <h1 className="text-3xl sm:text-4xl font-bold mb-4" data-testid="text-topic-title">{topic.title}</h1>
@@ -348,8 +300,9 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                 principles.map((principle, index) => {
                   const isExpanded = expandedPrinciples.has(principle.id);
                   const isComplete = completedPrinciples.has(principle.id);
-                  const isFreePreview = index < 2; // First 2 principles are free
-                  const isLocked = !isFreePreview && !canAccess;
+                  // Sample topics: all principles free. Non-sample: first 2 free
+                  const isFreePreview = isSampleTopic || index < 2;
+                  const isLocked = !isFreePreview && !canAccessAllPrinciples;
 
                   return (
                     <Card 
@@ -382,7 +335,12 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                                   Locked
                                 </Badge>
                               )}
-                              {isFreePreview && index === 0 && (
+                              {isSampleTopic && index === 0 && (
+                                <Badge variant="default" className="ml-2 text-xs bg-green-600">
+                                  Sample Topic
+                                </Badge>
+                              )}
+                              {!isSampleTopic && index < 2 && !isLocked && (
                                 <Badge variant="default" className="ml-2 text-xs bg-green-600">
                                   Free Preview
                                 </Badge>
@@ -454,35 +412,69 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                               <div className="flex items-start gap-3">
                                 <Lock className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                                 <div className="flex-1">
-                                  <p className="font-semibold text-sm mb-2">This principle is locked</p>
-                                  <p className="text-sm text-muted-foreground mb-4">
-                                    Unlock this and all remaining principles to explore the complete learning path.
+                                  <p className="font-semibold text-sm mb-2">
+                                    {isAuthenticated ? "Unlock This Topic" : "Sign in to Continue Learning"}
                                   </p>
-                                  <div className="flex flex-col sm:flex-row gap-2">
-                                    <Button 
-                                      size="sm"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handlePurchase();
-                                      }}
-                                      disabled={purchaseTopicMutation.isPending}
-                                      data-testid="button-unlock-topic"
-                                    >
-                                      <CreditCard className="h-3 w-3 mr-1" />
-                                      Unlock for $1.99
-                                    </Button>
-                                    <Button 
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        window.location.href = "/pricing";
-                                      }}
-                                      data-testid="button-unlock-pro"
-                                    >
-                                      Get Pro
-                                    </Button>
-                                  </div>
+                                  <p className="text-sm text-muted-foreground mb-4">
+                                    {isAuthenticated 
+                                      ? "Get access to all principles and the interactive quiz for this topic."
+                                      : "Create a free account to unlock this topic or get unlimited access with Pro."
+                                    }
+                                  </p>
+                                  {isAuthenticated ? (
+                                    <div className="flex flex-col sm:flex-row gap-2">
+                                      <Button 
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handlePurchase();
+                                        }}
+                                        disabled={purchaseTopicMutation.isPending}
+                                        data-testid="button-unlock-topic"
+                                      >
+                                        <CreditCard className="h-3 w-3 mr-1" />
+                                        Unlock for $1.99
+                                      </Button>
+                                      <Button 
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          window.location.href = "/pricing";
+                                        }}
+                                        data-testid="button-unlock-pro"
+                                      >
+                                        Get Pro - Unlimited Topics
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex flex-col sm:flex-row gap-2">
+                                      <Button 
+                                        size="sm"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          // Store the current topic URL to redirect back after login
+                                          sessionStorage.setItem('redirectAfterLogin', window.location.pathname);
+                                          window.location.href = "/api/login";
+                                        }}
+                                        data-testid="button-signin-unlock"
+                                      >
+                                        Sign In to Unlock
+                                      </Button>
+                                      <Button 
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          sessionStorage.setItem('redirectAfterLogin', window.location.pathname);
+                                          window.location.href = "/pricing";
+                                        }}
+                                        data-testid="button-view-pricing"
+                                      >
+                                        View Pricing
+                                      </Button>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -503,30 +495,89 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                 </div>
               </div>
               
-              {showQuiz ? (
-                <Quiz 
-                  topicId={topic.id}
-                  topicTitle={topic.title}
-                  onComplete={() => setShowQuiz(false)} 
-                />
+              {/* Quiz is free for sample topics, locked for non-sample topics without access */}
+              {canAccessAllPrinciples ? (
+                showQuiz ? (
+                  <Quiz 
+                    topicId={topic.id}
+                    topicTitle={topic.title}
+                    onComplete={() => setShowQuiz(false)} 
+                  />
+                ) : (
+                  <Card className="border-card-border">
+                    <CardContent className="p-8 text-center">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mx-auto mb-4">
+                        <BookOpen className="h-8 w-8 text-primary" />
+                      </div>
+                      <h3 className="text-lg font-semibold mb-2">Ready to test your knowledge?</h3>
+                      <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
+                        Answer interactive questions to reinforce what you've learned about the first principles.
+                      </p>
+                      <Button 
+                        onClick={() => setShowQuiz(true)} 
+                        disabled={principles.length === 0}
+                        data-testid="button-start-quiz"
+                      >
+                        Start Quiz
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )
               ) : (
                 <Card className="border-card-border">
                   <CardContent className="p-8 text-center">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mx-auto mb-4">
-                      <BookOpen className="h-8 w-8 text-primary" />
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mx-auto mb-4">
+                      <Lock className="h-8 w-8 text-muted-foreground" />
                     </div>
-                    <h3 className="text-lg font-semibold mb-2">Ready to test your knowledge?</h3>
+                    <h3 className="text-lg font-semibold mb-2">Quiz Locked</h3>
                     <p className="text-sm text-muted-foreground mb-6 max-w-sm mx-auto">
-                      Answer interactive questions to reinforce what you've learned about the first principles.
+                      {isAuthenticated 
+                        ? "Unlock this topic to access the interactive quiz and test your understanding."
+                        : "Sign in and unlock this topic to access the quiz."
+                      }
                     </p>
-                    <Button 
-                      onClick={() => setShowQuiz(true)} 
-                      disabled={principles.length === 0}
-                      data-testid="button-start-quiz"
-                    >
-                      Start Quiz
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
+                    {isAuthenticated ? (
+                      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                        <Button 
+                          onClick={handlePurchase}
+                          disabled={purchaseTopicMutation.isPending}
+                          data-testid="button-unlock-quiz"
+                        >
+                          <CreditCard className="mr-2 h-4 w-4" />
+                          Unlock for $1.99
+                        </Button>
+                        <Button 
+                          variant="outline"
+                          onClick={() => window.location.href = "/pricing"}
+                          data-testid="button-quiz-pro"
+                        >
+                          Get Pro - Unlimited Topics
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                        <Button 
+                          onClick={() => {
+                            sessionStorage.setItem('redirectAfterLogin', window.location.pathname);
+                            window.location.href = "/api/login";
+                          }}
+                          data-testid="button-signin-quiz"
+                        >
+                          Sign In to Unlock
+                        </Button>
+                        <Button 
+                          variant="outline"
+                          onClick={() => {
+                            sessionStorage.setItem('redirectAfterLogin', window.location.pathname);
+                            window.location.href = "/pricing";
+                          }}
+                          data-testid="button-quiz-pricing"
+                        >
+                          View Pricing
+                        </Button>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )}
@@ -544,8 +595,8 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                     <nav className="space-y-2">
                       {principles.map((principle, index) => {
                         const isComplete = completedPrinciples.has(principle.id);
-                        const isFreePreview = index < 2;
-                        const isLocked = !isFreePreview && !canAccess;
+                        const isFreePreview = isSampleTopic || index < 2;
+                        const isLocked = !isFreePreview && !canAccessAllPrinciples;
                         return (
                           <button
                             key={principle.id}

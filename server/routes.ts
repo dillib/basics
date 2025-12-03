@@ -33,6 +33,16 @@ export async function registerRoutes(
     }
   });
 
+  app.get('/api/sample-topics', async (_req, res) => {
+    try {
+      const sampleTopics = await storage.getSampleTopics();
+      res.json(sampleTopics);
+    } catch (error) {
+      console.error("Error fetching sample topics:", error);
+      res.status(500).json({ message: "Failed to fetch sample topics" });
+    }
+  });
+
   app.get('/api/topics/:slug', async (req, res) => {
     try {
       const topic = await storage.getTopicBySlug(req.params.slug);
@@ -547,6 +557,21 @@ export async function registerRoutes(
     }
   });
 
+  // Check if topic is a sample topic (no auth required)
+  app.get('/api/topics/:topicId/is-sample', async (req, res) => {
+    try {
+      const { topicId } = req.params;
+      const topic = await storage.getTopic(topicId);
+      if (!topic) {
+        return res.status(404).json({ message: "Topic not found" });
+      }
+      res.json({ isSample: topic.isSample === true });
+    } catch (error) {
+      console.error("Error checking if topic is sample:", error);
+      res.status(500).json({ message: "Failed to check topic" });
+    }
+  });
+
   app.get('/api/user/can-access-topic/:topicId', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -557,13 +582,18 @@ export async function registerRoutes(
         return res.status(404).json({ message: "User not found" });
       }
 
+      // Sample topics are fully free - everyone can access all principles
+      const topic = await storage.getTopic(topicId);
+      if (topic?.isSample) {
+        return res.json({ canAccess: true, reason: 'sample_topic' });
+      }
+
       // Pro subscription users can access all topics beyond the first 2 principles
       if (user.plan === 'pro') {
         return res.json({ canAccess: true, reason: 'pro_subscription' });
       }
 
       // Topic creators can access their own topics beyond the first 2 principles
-      const topic = await storage.getTopic(topicId);
       if (topic?.userId === userId) {
         return res.json({ canAccess: true, reason: 'topic_creator' });
       }

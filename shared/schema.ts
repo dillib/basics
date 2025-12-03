@@ -42,6 +42,7 @@ export const topics = pgTable("topics", {
   estimatedMinutes: integer("estimated_minutes").default(30),
   imageUrl: text("image_url"),
   isPublic: boolean("is_public").default(false),
+  isSample: boolean("is_sample").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

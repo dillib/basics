@@ -21,6 +21,7 @@ export interface IStorage {
   getTopicsByUser(userId: string): Promise<Topic[]>;
   getTopicsByIds(ids: string[]): Promise<Topic[]>;
   getPublicTopics(): Promise<Topic[]>;
+  getSampleTopics(): Promise<Topic[]>;
   createTopic(topic: InsertTopic): Promise<Topic>;
   updateTopic(id: string, updates: Partial<InsertTopic>): Promise<Topic | undefined>;
   
@@ -98,6 +99,10 @@ export class DatabaseStorage implements IStorage {
 
   async getPublicTopics(): Promise<Topic[]> {
     return db.select().from(topics).where(eq(topics.isPublic, true)).orderBy(desc(topics.createdAt));
+  }
+
+  async getSampleTopics(): Promise<Topic[]> {
+    return db.select().from(topics).where(eq(topics.isSample, true)).orderBy(desc(topics.createdAt));
   }
 
   async createTopic(topic: InsertTopic): Promise<Topic> {

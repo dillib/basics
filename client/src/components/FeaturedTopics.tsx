@@ -1,68 +1,35 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Clock, Star } from "lucide-react";
-
-interface Topic {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  difficulty: "Beginner" | "Intermediate" | "Advanced";
-  duration: string;
-  rating: number;
-}
-
-// todo: remove mock functionality
-const featuredTopics: Topic[] = [
-  {
-    id: "1",
-    title: "Quantum Mechanics",
-    description: "Understand particles, waves, and probability from absolute scratch.",
-    category: "Physics",
-    difficulty: "Intermediate",
-    duration: "4 hours",
-    rating: 4.9,
-  },
-  {
-    id: "2",
-    title: "Machine Learning",
-    description: "Learn how computers discover patterns in data, step by step.",
-    category: "Technology",
-    difficulty: "Beginner",
-    duration: "3 hours",
-    rating: 4.8,
-  },
-  {
-    id: "3",
-    title: "Entrepreneurship",
-    description: "From idea to first customer—the fundamentals of building a business.",
-    category: "Business",
-    difficulty: "Beginner",
-    duration: "2.5 hours",
-    rating: 4.7,
-  },
-  {
-    id: "4",
-    title: "Philosophy of Mind",
-    description: "Explore consciousness and what it means to think.",
-    category: "Philosophy",
-    difficulty: "Advanced",
-    duration: "5 hours",
-    rating: 4.9,
-  },
-];
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ArrowRight, Clock, Sparkles } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import type { Topic } from "@shared/schema";
+import { Link } from "wouter";
 
 const difficultyColors = {
-  Beginner: "text-emerald-600 dark:text-emerald-400",
-  Intermediate: "text-amber-600 dark:text-amber-400",
-  Advanced: "text-rose-600 dark:text-rose-400",
+  beginner: "text-emerald-600 dark:text-emerald-400",
+  intermediate: "text-amber-600 dark:text-amber-400",
+  advanced: "text-rose-600 dark:text-rose-400",
 };
 
 interface FeaturedTopicsProps {
-  onTopicClick?: (topicId: string) => void;
+  onTopicClick?: (topicSlug: string) => void;
 }
 
+const formatTime = (minutes: number | null) => {
+  if (!minutes) return "30 min";
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+};
+
 export default function FeaturedTopics({ onTopicClick }: FeaturedTopicsProps) {
+  const { data: sampleTopics = [], isLoading } = useQuery<Topic[]>({
+    queryKey: ['/api/sample-topics'],
+  });
+
   return (
     <section className="py-32 sm:py-40 bg-muted/30">
       <div className="container mx-auto px-6">
@@ -75,69 +42,85 @@ export default function FeaturedTopics({ onTopicClick }: FeaturedTopicsProps) {
         >
           <div>
             <h2 className="text-4xl sm:text-5xl font-semibold tracking-tight mb-4" data-testid="text-featured-topics-title">
-              Start exploring
+              Explore free sample topics
             </h2>
             <p className="text-xl text-muted-foreground max-w-xl">
-              Dive into our most popular learning paths, curated for curious minds.
+              Dive into these fully available topics to see how first principles learning works.
             </p>
           </div>
-          <Button variant="outline" size="lg" className="rounded-full shrink-0" data-testid="button-view-all-topics">
-            View all topics
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
+          <Link href="/topics">
+            <Button variant="outline" size="lg" className="rounded-full shrink-0" data-testid="button-view-all-topics">
+              Browse all topics
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </Link>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-          {featuredTopics.map((topic, index) => (
-            <motion.article
-              key={topic.id}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              onClick={() => {
-                console.log("Topic clicked:", topic.id);
-                onTopicClick?.(topic.id);
-              }}
-              className="group cursor-pointer"
-              data-testid={`card-topic-${topic.id}`}
-            >
-              <div className="relative bg-card rounded-3xl p-8 sm:p-10 border border-border/50 h-full transition-all duration-300 hover:border-border hover:shadow-lg hover:-translate-y-1">
-                <div className="flex items-start justify-between gap-4 mb-6">
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium text-muted-foreground">{topic.category}</span>
-                    <span className="text-muted-foreground/30">·</span>
-                    <span className={`text-sm font-medium ${difficultyColors[topic.difficulty]}`}>
-                      {topic.difficulty}
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-card rounded-3xl p-8 sm:p-10 border border-border/50">
+                <Skeleton className="h-4 w-24 mb-6" />
+                <Skeleton className="h-8 w-3/4 mb-3" />
+                <Skeleton className="h-16 w-full mb-6" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+            ))}
+          </div>
+        ) : sampleTopics.length === 0 ? (
+          <div className="text-center py-16">
+            <p className="text-muted-foreground text-lg">No sample topics available yet. Check back soon!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+            {sampleTopics.map((topic, index) => (
+              <motion.article
+                key={topic.id}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                onClick={() => onTopicClick?.(topic.slug)}
+                className="group cursor-pointer"
+                data-testid={`card-sample-topic-${topic.id}`}
+              >
+                <div className="relative bg-card rounded-3xl p-8 sm:p-10 border border-border/50 h-full transition-all duration-300 hover:border-border hover:shadow-lg hover:-translate-y-1">
+                  <div className="flex items-start justify-between gap-4 mb-6">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-muted-foreground">{topic.category || "General"}</span>
+                      <span className="text-muted-foreground/30">·</span>
+                      <span className={`text-sm font-medium capitalize ${difficultyColors[topic.difficulty as keyof typeof difficultyColors] || difficultyColors.beginner}`}>
+                        {topic.difficulty || "Beginner"}
+                      </span>
+                    </div>
+                    <Badge variant="default" className="bg-green-600 text-xs shrink-0">
+                      <Sparkles className="h-3 w-3 mr-1" />
+                      Free
+                    </Badge>
+                  </div>
+
+                  <h3 className="text-2xl sm:text-3xl font-semibold mb-3 group-hover:text-primary transition-colors">
+                    {topic.title}
+                  </h3>
+                  <p className="text-lg text-muted-foreground mb-6 leading-relaxed line-clamp-3">
+                    {topic.description || "Explore this topic from the ground up using first principles thinking."}
+                  </p>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Clock className="h-4 w-4" />
+                      <span>{formatTime(topic.estimatedMinutes)}</span>
+                    </div>
+                    <span className="text-sm font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                      Start learning
+                      <ArrowRight className="h-4 w-4" />
                     </span>
                   </div>
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                    <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-                    <span>{topic.rating}</span>
-                  </div>
                 </div>
-
-                <h3 className="text-2xl sm:text-3xl font-semibold mb-3 group-hover:text-primary transition-colors">
-                  {topic.title}
-                </h3>
-                <p className="text-lg text-muted-foreground mb-6 leading-relaxed">
-                  {topic.description}
-                </p>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    <span>{topic.duration}</span>
-                  </div>
-                  <span className="text-sm font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                    Start learning
-                    <ArrowRight className="h-4 w-4" />
-                  </span>
-                </div>
-              </div>
-            </motion.article>
-          ))}
-        </div>
+              </motion.article>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
