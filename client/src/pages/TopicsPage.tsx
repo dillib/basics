@@ -93,7 +93,7 @@ export default function TopicsPage() {
               <form onSubmit={handleGenerateTopic} className="space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Sparkles className="h-5 w-5 text-primary" />
-                  <h3 className="font-semibold">Generate a New Topic</h3>
+                  <h3 className="font-semibold">Learn a New Topic</h3>
                 </div>
                 <p className="text-sm text-muted-foreground mb-4">
                   Enter any topic you want to learn, and our AI will break it down into first principles.
