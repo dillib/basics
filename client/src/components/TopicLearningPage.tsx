@@ -269,7 +269,26 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
         <div className="flex flex-col lg:flex-row gap-8">
           <main className="flex-1 max-w-3xl">
             <div className="mb-8">
-              <h1 className="text-3xl sm:text-4xl font-bold mb-4" data-testid="text-topic-title">{topic.title}</h1>
+              <div className="flex flex-wrap items-center gap-3 mb-4">
+                <h1 className="text-3xl sm:text-4xl font-bold" data-testid="text-topic-title">{topic.title}</h1>
+                {isSampleTopic ? (
+                  <Badge variant="default" className="bg-green-600 text-white" data-testid="badge-free">
+                    Free
+                  </Badge>
+                ) : !canAccessAllPrinciples && (
+                  <Button 
+                    size="sm"
+                    variant="outline"
+                    onClick={handlePurchase}
+                    disabled={purchaseTopicMutation.isPending}
+                    className="ml-2"
+                    data-testid="button-unlock-topic-header"
+                  >
+                    <Lock className="h-3 w-3 mr-1" />
+                    Unlock - $1.99
+                  </Button>
+                )}
+              </div>
               <p className="text-lg text-muted-foreground mb-4">{topic.description}</p>
               <div className="flex flex-wrap items-center gap-4">
                 <Badge>{topic.difficulty}</Badge>
@@ -335,14 +354,9 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                                   Locked
                                 </Badge>
                               )}
-                              {isSampleTopic && index === 0 && (
-                                <Badge variant="default" className="ml-2 text-xs bg-green-600">
-                                  Sample Topic
-                                </Badge>
-                              )}
                               {!isSampleTopic && index < 2 && !isLocked && (
                                 <Badge variant="default" className="ml-2 text-xs bg-green-600">
-                                  Free Preview
+                                  Free
                                 </Badge>
                               )}
                             </CardTitle>
