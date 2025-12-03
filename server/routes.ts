@@ -142,14 +142,19 @@ export async function registerRoutes(
     }
   });
 
-  app.post('/api/topics/:topicId/quiz', isAuthenticated, async (req: any, res) => {
+  app.post('/api/topics/:topicId/quiz', async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
       const { topicId } = req.params;
+      const userId = req.user?.claims?.sub || null;
 
       const topic = await storage.getTopic(topicId);
       if (!topic) {
         return res.status(404).json({ message: "Topic not found" });
+      }
+
+      // Sample topics are free for everyone, non-sample topics require auth for quiz
+      if (!topic.isSample && !userId) {
+        return res.status(401).json({ message: "Please sign in to take quizzes for this topic" });
       }
 
       const principles = await storage.getPrinciplesByTopic(topicId);
@@ -161,7 +166,7 @@ export async function registerRoutes(
 
       const quiz = await storage.createQuiz({
         topicId,
-        userId,
+        userId: userId || null,
         totalQuestions: questions.length,
       });
 
@@ -183,7 +188,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post('/api/quiz/:quizId/answer', isAuthenticated, async (req: any, res) => {
+  app.post('/api/quiz/:quizId/answer', async (req: any, res) => {
     try {
       const { quizId } = req.params;
       const { questionId, answer } = req.body;
@@ -218,9 +223,9 @@ export async function registerRoutes(
     }
   });
 
-  app.post('/api/quiz/:quizId/complete', isAuthenticated, async (req: any, res) => {
+  app.post('/api/quiz/:quizId/complete', async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user?.claims?.sub || null;
       const { quizId } = req.params;
 
       const quiz = await storage.getQuiz(quizId);
@@ -237,18 +242,21 @@ export async function registerRoutes(
         completedAt: new Date(),
       });
 
-      const currentProgress = await storage.getProgress(userId, quiz.topicId);
-      const principles = await storage.getPrinciplesByTopic(quiz.topicId);
+      // Only save progress for authenticated users
+      if (userId) {
+        const currentProgress = await storage.getProgress(userId, quiz.topicId);
+        const principles = await storage.getPrinciplesByTopic(quiz.topicId);
 
-      await storage.upsertProgress({
-        userId,
-        topicId: quiz.topicId,
-        principlesCompleted: currentProgress?.principlesCompleted || principles.length,
-        totalPrinciples: principles.length,
-        quizzesTaken: (currentProgress?.quizzesTaken || 0) + 1,
-        bestScore: Math.max(score, currentProgress?.bestScore || 0),
-        completedAt: score >= 70 ? new Date() : null,
-      });
+        await storage.upsertProgress({
+          userId,
+          topicId: quiz.topicId,
+          principlesCompleted: currentProgress?.principlesCompleted || principles.length,
+          totalPrinciples: principles.length,
+          quizzesTaken: (currentProgress?.quizzesTaken || 0) + 1,
+          bestScore: Math.max(score, currentProgress?.bestScore || 0),
+          completedAt: score >= 70 ? new Date() : null,
+        });
+      }
 
       res.json({ score, correctCount, totalQuestions: questions.length });
     } catch (error) {
