@@ -43,7 +43,7 @@ export default function CTASection({ onGetStarted }: CTASectionProps) {
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
             <p className="text-sm text-muted-foreground">
-              Join 50,000+ learners
+              No credit card required
             </p>
           </div>
         </motion.div>

@@ -8,25 +8,24 @@ interface Testimonial {
   content: string;
 }
 
-// todo: remove mock functionality
 const testimonials: Testimonial[] = [
   {
     id: "1",
-    name: "Sarah Chen",
-    role: "Software Engineer at Google",
-    content: "Finally understood quantum mechanics after years of confusion. The first principles approach made everything click into place. This is how learning should be.",
+    name: "Alex M.",
+    role: "Self-taught Developer",
+    content: "The first principles approach helped me understand programming concepts I struggled with for months. Everything finally clicked into place.",
   },
   {
     id: "2",
-    name: "Marcus Johnson",
-    role: "Founder, Stealth Startup",
-    content: "I started my business using the frameworks I learned here. The way they break down complex business concepts into fundamentals is brilliant.",
+    name: "Jordan K.",
+    role: "Entrepreneur",
+    content: "Breaking down business concepts into fundamentals gave me a new perspective. I now approach problems more systematically.",
   },
   {
     id: "3",
-    name: "Dr. Emily Rodriguez",
-    role: "Physics PhD, Stanford",
-    content: "I recommend BasicsTutor to all my students. It builds intuition before formalism—exactly how great physicists think about problems.",
+    name: "Sam R.",
+    role: "Lifelong Learner",
+    content: "I love how each topic builds from the ground up. It builds real intuition instead of just memorizing facts.",
   },
 ];
 
@@ -45,7 +44,7 @@ export default function Testimonials() {
             Loved by curious minds
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Join thousands of learners who've transformed their understanding.
+            See how first principles learning has helped others understand complex topics.
           </p>
         </motion.div>
 
