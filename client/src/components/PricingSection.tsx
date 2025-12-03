@@ -119,7 +119,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
   };
 
   return (
-    <section className="py-32 sm:py-40 bg-muted/30">
+    <section className="py-16 sm:py-20 bg-muted/30">
       <div className="container mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
