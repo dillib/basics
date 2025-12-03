@@ -20,7 +20,7 @@ export default function Header({ isLoggedIn = false, onLogin, onLogout, user, is
   const [location] = useLocation();
 
   const navLinks = [
-    { href: "/topics", label: "Topics" },
+    { href: "/topics", label: "Browse Topics" },
     { href: "/pricing", label: "Pricing" },
   ];
 

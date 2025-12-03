@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,6 +30,11 @@ export default function TopicsPage() {
     return params.get("topic") || "";
   });
   const [, setLocation] = useLocation();
+
+  // Scroll to top when page loads
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   const { data: topics = [], isLoading } = useQuery<Topic[]>({
     queryKey: ['/api/topics'],
