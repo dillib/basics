@@ -1,22 +1,22 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, Search, Play } from "lucide-react";
+import { ArrowRight, Search, Play, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface HeroSectionProps {
-  onSearch?: (query: string) => void;
+  onGenerateTopic?: (query: string) => void;
   onTopicClick?: (topic: string) => void;
+  isGenerating?: boolean;
 }
 
-export default function HeroSection({ onSearch, onTopicClick }: HeroSectionProps) {
+export default function HeroSection({ onGenerateTopic, onTopicClick, isGenerating = false }: HeroSectionProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      console.log("Search triggered:", searchQuery);
-      onSearch?.(searchQuery);
+    if (searchQuery.trim() && !isGenerating) {
+      onGenerateTopic?.(searchQuery.trim());
     }
   };
 
@@ -63,30 +63,44 @@ export default function HeroSection({ onSearch, onTopicClick }: HeroSectionProps
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="h-16 pl-14 pr-40 text-lg bg-transparent border-0 rounded-full focus-visible:ring-0 focus-visible:ring-offset-0"
                   data-testid="input-hero-search"
+                  disabled={isGenerating}
                 />
                 <Button
                   type="submit"
                   size="lg"
                   className="absolute right-2 rounded-full h-12 px-8 font-medium"
                   data-testid="button-hero-search"
+                  disabled={!searchQuery.trim() || isGenerating}
                 >
-                  Learn topic
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      Start learning
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
           </form>
 
           <div className="flex flex-wrap items-center justify-center gap-3 mb-16">
-            <span className="text-sm text-muted-foreground">Popular:</span>
+            <span className="text-sm text-muted-foreground">Try:</span>
             {["Quantum Physics", "Machine Learning", "Economics", "Philosophy"].map((topic) => (
               <button
                 key={topic}
                 onClick={() => {
-                  setSearchQuery(topic);
-                  onTopicClick?.(topic);
+                  if (!isGenerating) {
+                    setSearchQuery(topic);
+                    onGenerateTopic?.(topic);
+                  }
                 }}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-full border border-transparent hover:border-border hover:bg-accent/50"
+                disabled={isGenerating}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-full border border-transparent hover:border-border hover:bg-accent/50 disabled:opacity-50 disabled:cursor-not-allowed"
                 data-testid={`button-topic-${topic.toLowerCase().replace(/\s+/g, "-")}`}
               >
                 {topic}

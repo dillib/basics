@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Clock, Sparkles, Plus, Loader2 } from "lucide-react";
+import { Search, Clock, Plus, Loader2, Sparkles } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Topic } from "@shared/schema";
 import Footer from "@/components/Footer";
@@ -203,10 +203,6 @@ export default function TopicsPage() {
                     <div className="flex items-center gap-1">
                       <Clock className="h-3.5 w-3.5" />
                       <span>{formatTime(topic.estimatedMinutes)}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Sparkles className="h-3.5 w-3.5 text-primary" />
-                      <span>AI-generated</span>
                     </div>
                   </div>
                 </CardContent>

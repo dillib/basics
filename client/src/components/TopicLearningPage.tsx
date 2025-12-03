@@ -278,10 +278,9 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                 ) : !canAccessAllPrinciples && (
                   <Button 
                     size="sm"
-                    variant="outline"
                     onClick={handlePurchase}
                     disabled={purchaseTopicMutation.isPending}
-                    className="ml-2"
+                    className="ml-2 bg-amber-500 hover:bg-amber-600 text-white border-amber-600"
                     data-testid="button-unlock-topic-header"
                   >
                     <Lock className="h-3 w-3 mr-1" />
@@ -295,10 +294,6 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                 <div className="flex items-center gap-1 text-sm text-muted-foreground">
                   <Clock className="h-4 w-4" />
                   <span>{formatTime(topic.estimatedMinutes || 30)} to complete</span>
-                </div>
-                <div className="flex items-center gap-1 text-sm text-primary">
-                  <Sparkles className="h-4 w-4" />
-                  <span>AI-generated content</span>
                 </div>
               </div>
             </div>
@@ -444,6 +439,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                                           handlePurchase();
                                         }}
                                         disabled={purchaseTopicMutation.isPending}
+                                        className="bg-amber-500 hover:bg-amber-600 text-white border-amber-600"
                                         data-testid="button-unlock-topic"
                                       >
                                         <CreditCard className="h-3 w-3 mr-1" />
