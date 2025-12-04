@@ -26,7 +26,7 @@ const fadeUpVariants = {
 function AnimatedWords({ text, className, baseDelay = 0, isGradient = false }: { text: string; className?: string; baseDelay?: number; isGradient?: boolean }) {
   const words = text.split(" ");
   return (
-    <span className={className}>
+    <span className={`inline-flex flex-wrap justify-center gap-x-[0.25em] ${className || ''}`}>
       {words.map((word, index) => (
         <motion.span
           key={index}
@@ -37,7 +37,7 @@ function AnimatedWords({ text, className, baseDelay = 0, isGradient = false }: {
             delay: baseDelay + index * 0.08,
             ease: [0.25, 0.4, 0.25, 1],
           }}
-          className={`inline-block mr-[0.25em] ${isGradient ? 'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent' : ''}`}
+          className={isGradient ? 'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent' : ''}
         >
           {word}
         </motion.span>
