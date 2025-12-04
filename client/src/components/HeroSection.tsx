@@ -173,7 +173,18 @@ export default function HeroSection({ onGenerateTopic, onTopicClick, isGeneratin
             custom={1.4}
             className="flex items-center justify-center gap-6"
           >
-            <Button variant="ghost" size="lg" className="text-muted-foreground group" data-testid="button-watch-demo">
+            <Button 
+              variant="ghost" 
+              size="lg" 
+              className="text-muted-foreground group" 
+              data-testid="button-watch-demo"
+              onClick={() => {
+                const videoSection = document.querySelector('[data-testid="video-demo"]');
+                if (videoSection) {
+                  videoSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+              }}
+            >
               <div className="mr-3 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                 <Play className="h-4 w-4 text-primary ml-0.5" />
               </div>

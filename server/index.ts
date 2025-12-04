@@ -151,6 +151,10 @@ app.use((req, res, next) => {
   if (process.env.NODE_ENV === "production") {
     serveStatic(app);
   } else {
+    // Serve static files from client/public in development mode
+    const path = await import("path");
+    app.use(express.static(path.resolve(import.meta.dirname, "..", "client", "public")));
+    
     const { setupVite } = await import("./vite");
     await setupVite(httpServer, app);
   }
