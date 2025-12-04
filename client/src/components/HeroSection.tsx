@@ -23,7 +23,7 @@ const fadeUpVariants = {
   }),
 };
 
-function AnimatedWords({ text, className, baseDelay = 0 }: { text: string; className?: string; baseDelay?: number }) {
+function AnimatedWords({ text, className, baseDelay = 0, isGradient = false }: { text: string; className?: string; baseDelay?: number; isGradient?: boolean }) {
   const words = text.split(" ");
   return (
     <span className={className}>
@@ -37,7 +37,7 @@ function AnimatedWords({ text, className, baseDelay = 0 }: { text: string; class
             delay: baseDelay + index * 0.08,
             ease: [0.25, 0.4, 0.25, 1],
           }}
-          className="inline-block mr-[0.25em]"
+          className={`inline-block mr-[0.25em] ${isGradient ? 'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent' : ''}`}
         >
           {word}
         </motion.span>
@@ -78,8 +78,8 @@ export default function HeroSection({ onGenerateTopic, onTopicClick, isGeneratin
 
           <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-semibold tracking-tight text-foreground mb-8 leading-[1.1]">
             <AnimatedWords text="Master any topic" baseDelay={0.1} />
-            <span className="block bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent bg-[length:200%_auto] animate-gradient">
-              <AnimatedWords text="starting from the fundamentals" baseDelay={0.4} />
+            <span className="block">
+              <AnimatedWords text="starting from the fundamentals" baseDelay={0.4} isGradient={true} />
             </span>
           </h1>
 
