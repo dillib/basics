@@ -1,6 +1,5 @@
 import HeroSection from "@/components/HeroSection";
 import TrustIndicators from "@/components/TrustIndicators";
-import HowItWorks from "@/components/HowItWorks";
 import FeaturedTopics from "@/components/FeaturedTopics";
 import Testimonials from "@/components/Testimonials";
 import PricingSection from "@/components/PricingSection";
@@ -65,7 +64,6 @@ export default function HomePage() {
         isGenerating={generateTopicMutation.isPending}
       />
       <TrustIndicators />
-      <HowItWorks />
       <FeaturedTopics onTopicClick={handleTopicClick} />
       <Testimonials />
       <PricingSection onSelectPlan={handlePlanSelect} />
