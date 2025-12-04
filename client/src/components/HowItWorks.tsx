@@ -1,6 +1,5 @@
 import { motion } from "framer-motion";
-import { Lightbulb, Layers, Target, Sparkles, BookOpen, Brain } from "lucide-react";
-import demoImage from "@assets/stock_images/laptop_computer_with_c100523f.jpg";
+import { Lightbulb, Layers, Target, Search, BookOpen, CheckCircle2, Brain, Sparkles } from "lucide-react";
 
 const steps = [
   {
@@ -20,10 +19,11 @@ const steps = [
   },
 ];
 
-const floatingElements = [
-  { icon: Sparkles, label: "AI-Powered", delay: 0 },
-  { icon: BookOpen, label: "First Principles", delay: 0.2 },
-  { icon: Brain, label: "Deep Understanding", delay: 0.4 },
+const demoSteps = [
+  { icon: Search, text: "Enter any topic", color: "from-blue-500 to-indigo-500" },
+  { icon: Brain, text: "AI analyzes & breaks it down", color: "from-purple-500 to-pink-500" },
+  { icon: BookOpen, text: "Learn first principles", color: "from-indigo-500 to-violet-500" },
+  { icon: CheckCircle2, text: "Test your understanding", color: "from-emerald-500 to-teal-500" },
 ];
 
 export default function HowItWorks() {
@@ -53,46 +53,64 @@ export default function HowItWorks() {
           transition={{ duration: 0.8 }}
           className="max-w-4xl mx-auto mb-20"
         >
-          <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-primary/5 to-purple-500/5 border border-border/50 shadow-2xl group" data-testid="demo-showcase">
-            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent pointer-events-none z-10" />
-            <img
-              src={demoImage}
-              alt="BasicsTutor learning platform demonstration"
-              className="w-full aspect-video object-cover transition-transform duration-700 group-hover:scale-105"
-              data-testid="image-demo"
-            />
+          <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800 border border-border/50 shadow-2xl p-8 sm:p-12" data-testid="demo-showcase">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-purple-500/5 to-pink-500/5" />
+            <div className="absolute top-4 right-4">
+              <Sparkles className="h-6 w-6 text-primary/40 animate-pulse" />
+            </div>
             
-            <div className="absolute inset-0 flex flex-col items-center justify-center z-20 gap-4">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: 0.3 }}
-                className="text-center"
-              >
-                <h3 className="text-2xl sm:text-3xl font-semibold text-white mb-2 drop-shadow-lg">
-                  Learn any topic from first principles
-                </h3>
-                <p className="text-white/90 text-lg drop-shadow-md max-w-md">
-                  AI-powered breakdowns that make complex ideas simple
-                </p>
-              </motion.div>
+            <div className="relative z-10">
+              <div className="text-center mb-8">
+                <motion.h3 
+                  initial={{ opacity: 0 }}
+                  whileInView={{ opacity: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, delay: 0.2 }}
+                  className="text-2xl sm:text-3xl font-semibold text-white mb-2"
+                >
+                  Your learning journey
+                </motion.h3>
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  whileInView={{ opacity: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6, delay: 0.3 }}
+                  className="text-slate-400"
+                >
+                  From curiosity to mastery in four simple steps
+                </motion.p>
+              </div>
               
-              <div className="flex flex-wrap gap-3 justify-center mt-4">
-                {floatingElements.map(({ icon: Icon, label, delay }) => (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
+                {demoSteps.map(({ icon: Icon, text, color }, index) => (
                   <motion.div
-                    key={label}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
+                    key={text}
+                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                    whileInView={{ opacity: 1, y: 0, scale: 1 }}
                     viewport={{ once: true }}
-                    transition={{ duration: 0.5, delay: delay + 0.6 }}
-                    className="flex items-center gap-2 bg-white/20 backdrop-blur-md rounded-full px-4 py-2 text-white text-sm font-medium shadow-lg"
+                    transition={{ duration: 0.5, delay: 0.4 + index * 0.1 }}
+                    className="flex flex-col items-center text-center group"
+                    data-testid={`demo-step-${index + 1}`}
                   >
-                    <Icon className="h-4 w-4" />
-                    <span>{label}</span>
+                    <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br ${color} flex items-center justify-center mb-3 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                      <Icon className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
+                    </div>
+                    <span className="text-sm sm:text-base text-slate-300 font-medium">{text}</span>
+                    {index < demoSteps.length - 1 && (
+                      <div className="hidden sm:block absolute top-1/2 -right-3 transform -translate-y-1/2">
+                      </div>
+                    )}
                   </motion.div>
                 ))}
               </div>
+              
+              <motion.div 
+                initial={{ opacity: 0, scaleX: 0 }}
+                whileInView={{ opacity: 1, scaleX: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.8, delay: 0.8 }}
+                className="hidden sm:block mt-6 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500 rounded-full origin-left"
+              />
             </div>
           </div>
           <p className="text-center text-sm text-muted-foreground mt-4">
