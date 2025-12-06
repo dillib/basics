@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import React from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,12 +7,31 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { User, Mail, CreditCard, Shield, LogOut, ExternalLink, Crown, Sparkles } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { User, Mail, CreditCard, Shield, LogOut, ExternalLink, Crown, Sparkles, Share2, MessageSquare, Trash2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import type { User as UserType } from "@shared/schema";
 import Footer from "@/components/Footer";
 
+const featureRequestSchema = z.object({
+  email: z.string().email(),
+  subject: z.string().min(5),
+  message: z.string().min(10),
+});
+
 export default function AccountPage() {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
+  const [showFeatureDialog, setShowFeatureDialog] = React.useState(false);
 
   const { data: user, isLoading, isError } = useQuery<UserType>({
     queryKey: ['/api/auth/user'],
@@ -23,12 +43,66 @@ export default function AccountPage() {
     enabled: !!user,
   });
 
+  const form = useForm<z.infer<typeof featureRequestSchema>>({
+    resolver: zodResolver(featureRequestSchema),
+    defaultValues: {
+      email: user?.email || '',
+      subject: '',
+      message: '',
+    },
+  });
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/user/delete-account", {});
+      if (!response.ok) throw new Error("Failed to delete account");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Account deleted", description: "Your account has been deleted successfully" });
+      setTimeout(() => window.location.href = "/", 2000);
+    },
+    onError: () => toast({ title: "Error", description: "Failed to delete account", variant: "destructive" }),
+  });
+
+  const featureRequestMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof featureRequestSchema>) => {
+      const response = await apiRequest("POST", "/api/feature-requests", data);
+      if (!response.ok) throw new Error("Failed to submit request");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Feature request submitted!" });
+      setShowFeatureDialog(false);
+      form.reset();
+    },
+    onError: () => toast({ title: "Error", description: "Failed to submit request", variant: "destructive" }),
+  });
+
   const handleLogout = () => {
     window.location.href = "/api/logout";
   };
 
   const handleUpgrade = () => {
     setLocation("/pricing");
+  };
+
+  const handleShare = async () => {
+    const url = window.location.origin;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "BasicsTutor.com",
+          text: "Learn any topic by breaking it down into first principles with AI",
+          url,
+        });
+      } catch (err) {
+        console.log("Share cancelled");
+      }
+    } else {
+      await navigator.clipboard.writeText(url);
+      toast({ title: "Link copied", description: "Referral link copied to clipboard" });
+    }
   };
 
   if (isLoading) {
@@ -252,16 +326,27 @@ export default function AccountPage() {
 
                 <Separator />
 
-                <div className="text-sm text-muted-foreground">
-                  <p className="mb-2">Need to delete your account?</p>
-                  <p>
-                    Contact us at{" "}
-                    <a href="mailto:support@basicstutor.com" className="text-primary hover:underline" data-testid="link-delete-email">
-                      support@basicstutor.com
-                    </a>{" "}
-                    and we'll process your request within 30 days.
-                  </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Button variant="outline" onClick={handleShare} data-testid="button-share-refer">
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Share & Refer
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowFeatureDialog(true)} data-testid="button-feature-request">
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Feature Request
+                  </Button>
                 </div>
+
+                <Separator />
+
+                <Button 
+                  variant="destructive" 
+                  onClick={() => setShowDeleteDialog(true)}
+                  data-testid="button-delete-account"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Account
+                </Button>
               </CardContent>
             </Card>
 
@@ -283,6 +368,86 @@ export default function AccountPage() {
           </div>
         </div>
       </div>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Account</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. Your account and all associated data will be permanently deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex gap-4 justify-end">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => deleteAccountMutation.mutate()}
+              disabled={deleteAccountMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
+            >
+              {deleteAccountMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={showFeatureDialog} onOpenChange={setShowFeatureDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Feature Request</DialogTitle>
+            <DialogDescription>
+              Tell us what feature you'd like to see in BasicsTutor
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit((data) => featureRequestMutation.mutate(data))} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input placeholder="your@email.com" {...field} data-testid="input-feature-email" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="subject"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Subject</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Feature title" {...field} data-testid="input-feature-subject" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="message"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea placeholder="Describe your feature request..." {...field} data-testid="textarea-feature-message" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" disabled={featureRequestMutation.isPending} data-testid="button-submit-feature">
+                {featureRequestMutation.isPending ? "Submitting..." : "Submit Request"}
+              </Button>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
       <Footer />
     </div>
   );

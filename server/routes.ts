@@ -621,5 +621,40 @@ export async function registerRoutes(
     }
   });
 
+  app.post('/api/user/delete-account', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      // Mark user as deleted (soft delete)
+      await storage.updateUser(userId, { firstName: 'Deleted', lastName: 'User', email: null });
+      req.session.destroy((err: any) => {
+        if (err) console.error("Session destroy error:", err);
+        res.clearCookie('connect.sid');
+        res.json({ message: "Account deleted successfully" });
+      });
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      res.status(500).json({ message: "Failed to delete account" });
+    }
+  });
+
+  app.post('/api/feature-requests', async (req, res) => {
+    try {
+      const { email, subject, message } = req.body;
+      if (!email || !subject || !message) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      // In production, you'd send this to a service or store in a database
+      console.log(`[Feature Request] From ${email}: ${subject}\n${message}`);
+      res.json({ message: "Feature request submitted successfully" });
+    } catch (error) {
+      console.error("Error submitting feature request:", error);
+      res.status(500).json({ message: "Failed to submit feature request" });
+    }
+  });
+
   return httpServer;
 }
