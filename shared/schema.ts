@@ -140,6 +140,112 @@ export const topicPurchasesRelations = relations(topicPurchases, ({ one }) => ({
   topic: one(topics, { fields: [topicPurchases.topicId], references: [topics.id] }),
 }));
 
+// Quiz Attempts - Track each quiz attempt for analytics
+export const quizAttempts = pgTable("quiz_attempts", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id", { length: 255 }).references(() => users.id).notNull(),
+  quizId: varchar("quiz_id", { length: 255 }).references(() => quizzes.id).notNull(),
+  topicId: varchar("topic_id", { length: 255 }).references(() => topics.id).notNull(),
+  score: integer("score").notNull(),
+  totalQuestions: integer("total_questions").notNull(),
+  correctAnswers: integer("correct_answers").notNull(),
+  timeSpentSeconds: integer("time_spent_seconds"),
+  answers: jsonb("answers"), // Array of { questionId, userAnswer, isCorrect }
+  completedAt: timestamp("completed_at").defaultNow(),
+}, (table) => [
+  index("quiz_attempts_user_idx").on(table.userId),
+  index("quiz_attempts_topic_idx").on(table.topicId),
+]);
+
+export const quizAttemptsRelations = relations(quizAttempts, ({ one }) => ({
+  user: one(users, { fields: [quizAttempts.userId], references: [users.id] }),
+  quiz: one(quizzes, { fields: [quizAttempts.quizId], references: [quizzes.id] }),
+  topic: one(topics, { fields: [quizAttempts.topicId], references: [topics.id] }),
+}));
+
+// Principle Mastery - Track mastery level for each principle per user
+export const principleMastery = pgTable("principle_mastery", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id", { length: 255 }).references(() => users.id).notNull(),
+  principleId: varchar("principle_id", { length: 255 }).references(() => principles.id).notNull(),
+  topicId: varchar("topic_id", { length: 255 }).references(() => topics.id).notNull(),
+  masteryScore: integer("mastery_score").default(0), // 0-100 scale
+  timesReviewed: integer("times_reviewed").default(0),
+  timesCorrect: integer("times_correct").default(0),
+  lastReviewedAt: timestamp("last_reviewed_at"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("principle_mastery_user_principle_unique").on(table.userId, table.principleId),
+  index("principle_mastery_user_idx").on(table.userId),
+]);
+
+export const principleMasteryRelations = relations(principleMastery, ({ one }) => ({
+  user: one(users, { fields: [principleMastery.userId], references: [users.id] }),
+  principle: one(principles, { fields: [principleMastery.principleId], references: [principles.id] }),
+  topic: one(topics, { fields: [principleMastery.topicId], references: [topics.id] }),
+}));
+
+// Review Schedule - Spaced repetition scheduling
+export const reviewSchedule = pgTable("review_schedule", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id", { length: 255 }).references(() => users.id).notNull(),
+  principleId: varchar("principle_id", { length: 255 }).references(() => principles.id).notNull(),
+  topicId: varchar("topic_id", { length: 255 }).references(() => topics.id).notNull(),
+  dueAt: timestamp("due_at").notNull(),
+  easeFactor: integer("ease_factor").default(250), // SM-2 algorithm ease factor (x100)
+  interval: integer("interval").default(1), // Days until next review
+  repetitions: integer("repetitions").default(0),
+  status: varchar("status", { length: 50 }).default("pending"), // pending, reviewed, skipped
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("review_schedule_user_principle_unique").on(table.userId, table.principleId),
+  index("review_schedule_due_idx").on(table.dueAt),
+  index("review_schedule_user_idx").on(table.userId),
+]);
+
+export const reviewScheduleRelations = relations(reviewSchedule, ({ one }) => ({
+  user: one(users, { fields: [reviewSchedule.userId], references: [users.id] }),
+  principle: one(principles, { fields: [reviewSchedule.principleId], references: [principles.id] }),
+  topic: one(topics, { fields: [reviewSchedule.topicId], references: [topics.id] }),
+}));
+
+// Tutor Sessions - AI tutor chat sessions
+export const tutorSessions = pgTable("tutor_sessions", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id", { length: 255 }).references(() => users.id).notNull(),
+  topicId: varchar("topic_id", { length: 255 }).references(() => topics.id).notNull(),
+  principleId: varchar("principle_id", { length: 255 }).references(() => principles.id),
+  title: text("title"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("tutor_sessions_user_idx").on(table.userId),
+  index("tutor_sessions_topic_idx").on(table.topicId),
+]);
+
+export const tutorSessionsRelations = relations(tutorSessions, ({ one, many }) => ({
+  user: one(users, { fields: [tutorSessions.userId], references: [users.id] }),
+  topic: one(topics, { fields: [tutorSessions.topicId], references: [topics.id] }),
+  principle: one(principles, { fields: [tutorSessions.principleId], references: [principles.id] }),
+  messages: many(tutorMessages),
+}));
+
+// Tutor Messages - Individual chat messages
+export const tutorMessages = pgTable("tutor_messages", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id", { length: 255 }).references(() => tutorSessions.id).notNull(),
+  role: varchar("role", { length: 50 }).notNull(), // user, assistant
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("tutor_messages_session_idx").on(table.sessionId),
+]);
+
+export const tutorMessagesRelations = relations(tutorMessages, ({ one }) => ({
+  session: one(tutorSessions, { fields: [tutorMessages.sessionId], references: [tutorSessions.id] }),
+}));
+
 export const insertUserSchema = createInsertSchema(users).omit({ createdAt: true });
 export const insertTopicSchema = createInsertSchema(topics).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertPrincipleSchema = createInsertSchema(principles).omit({ id: true });
@@ -147,6 +253,11 @@ export const insertQuizSchema = createInsertSchema(quizzes).omit({ id: true, cre
 export const insertQuestionSchema = createInsertSchema(questions).omit({ id: true });
 export const insertProgressSchema = createInsertSchema(progress).omit({ id: true });
 export const insertTopicPurchaseSchema = createInsertSchema(topicPurchases).omit({ id: true, purchasedAt: true });
+export const insertQuizAttemptSchema = createInsertSchema(quizAttempts).omit({ id: true, completedAt: true });
+export const insertPrincipleMasterySchema = createInsertSchema(principleMastery).omit({ id: true, updatedAt: true });
+export const insertReviewScheduleSchema = createInsertSchema(reviewSchedule).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertTutorSessionSchema = createInsertSchema(tutorSessions).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertTutorMessageSchema = createInsertSchema(tutorMessages).omit({ id: true, createdAt: true });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -162,3 +273,13 @@ export type InsertProgress = z.infer<typeof insertProgressSchema>;
 export type Progress = typeof progress.$inferSelect;
 export type InsertTopicPurchase = z.infer<typeof insertTopicPurchaseSchema>;
 export type TopicPurchase = typeof topicPurchases.$inferSelect;
+export type InsertQuizAttempt = z.infer<typeof insertQuizAttemptSchema>;
+export type QuizAttempt = typeof quizAttempts.$inferSelect;
+export type InsertPrincipleMastery = z.infer<typeof insertPrincipleMasterySchema>;
+export type PrincipleMastery = typeof principleMastery.$inferSelect;
+export type InsertReviewSchedule = z.infer<typeof insertReviewScheduleSchema>;
+export type ReviewSchedule = typeof reviewSchedule.$inferSelect;
+export type InsertTutorSession = z.infer<typeof insertTutorSessionSchema>;
+export type TutorSession = typeof tutorSessions.$inferSelect;
+export type InsertTutorMessage = z.infer<typeof insertTutorMessageSchema>;
+export type TutorMessage = typeof tutorMessages.$inferSelect;
