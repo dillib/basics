@@ -1,15 +1,21 @@
 import { 
   users, topics, principles, quizzes, questions, progress, topicPurchases,
+  quizAttempts, principleMastery, reviewSchedule, tutorSessions, tutorMessages,
   type User, type InsertUser, 
   type Topic, type InsertTopic,
   type Principle, type InsertPrinciple,
   type Quiz, type InsertQuiz,
   type Question, type InsertQuestion,
   type Progress, type InsertProgress,
-  type TopicPurchase, type InsertTopicPurchase
+  type TopicPurchase, type InsertTopicPurchase,
+  type QuizAttempt, type InsertQuizAttempt,
+  type PrincipleMastery, type InsertPrincipleMastery,
+  type ReviewSchedule, type InsertReviewSchedule,
+  type TutorSession, type InsertTutorSession,
+  type TutorMessage, type InsertTutorMessage
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, inArray, sql } from "drizzle-orm";
+import { eq, and, desc, inArray, sql, lte, asc } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -48,6 +54,33 @@ export interface IStorage {
   updateTopicPurchase(id: string, updates: Partial<TopicPurchase>): Promise<TopicPurchase | undefined>;
   hasUserPurchasedTopic(userId: string, topicId: string): Promise<boolean>;
   updateUserStripeInfo(userId: string, stripeInfo: { stripeCustomerId?: string; stripeSubscriptionId?: string }): Promise<User | undefined>;
+  
+  // Quiz Attempts & Analytics
+  createQuizAttempt(attempt: InsertQuizAttempt): Promise<QuizAttempt>;
+  getQuizAttemptsByUser(userId: string): Promise<QuizAttempt[]>;
+  getQuizAttemptsByTopic(userId: string, topicId: string): Promise<QuizAttempt[]>;
+  
+  // Principle Mastery
+  getPrincipleMastery(userId: string, principleId: string): Promise<PrincipleMastery | undefined>;
+  getPrincipleMasteryByUser(userId: string): Promise<PrincipleMastery[]>;
+  getPrincipleMasteryByTopic(userId: string, topicId: string): Promise<PrincipleMastery[]>;
+  upsertPrincipleMastery(mastery: InsertPrincipleMastery): Promise<PrincipleMastery>;
+  
+  // Spaced Repetition
+  getReviewSchedule(userId: string, principleId: string): Promise<ReviewSchedule | undefined>;
+  getDueReviews(userId: string, limit?: number): Promise<ReviewSchedule[]>;
+  upsertReviewSchedule(schedule: InsertReviewSchedule): Promise<ReviewSchedule>;
+  updateReviewSchedule(id: string, updates: Partial<ReviewSchedule>): Promise<ReviewSchedule | undefined>;
+  
+  // Tutor Sessions
+  createTutorSession(session: InsertTutorSession): Promise<TutorSession>;
+  getTutorSession(sessionId: string): Promise<TutorSession | undefined>;
+  getTutorSessionsByUser(userId: string): Promise<TutorSession[]>;
+  getTutorSessionByTopicAndPrinciple(userId: string, topicId: string, principleId?: string): Promise<TutorSession | undefined>;
+  
+  // Tutor Messages
+  createTutorMessage(message: InsertTutorMessage): Promise<TutorMessage>;
+  getTutorMessagesBySession(sessionId: string): Promise<TutorMessage[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -287,6 +320,143 @@ export class DatabaseStorage implements IStorage {
       sql`SELECT * FROM stripe.subscriptions WHERE id = ${subscriptionId}`
     );
     return result.rows[0] || null;
+  }
+
+  // Quiz Attempts & Analytics
+  async createQuizAttempt(attempt: InsertQuizAttempt): Promise<QuizAttempt> {
+    const [newAttempt] = await db.insert(quizAttempts).values(attempt).returning();
+    return newAttempt;
+  }
+
+  async getQuizAttemptsByUser(userId: string): Promise<QuizAttempt[]> {
+    return db.select().from(quizAttempts)
+      .where(eq(quizAttempts.userId, userId))
+      .orderBy(desc(quizAttempts.completedAt));
+  }
+
+  async getQuizAttemptsByTopic(userId: string, topicId: string): Promise<QuizAttempt[]> {
+    return db.select().from(quizAttempts)
+      .where(and(eq(quizAttempts.userId, userId), eq(quizAttempts.topicId, topicId)))
+      .orderBy(desc(quizAttempts.completedAt));
+  }
+
+  // Principle Mastery
+  async getPrincipleMastery(userId: string, principleId: string): Promise<PrincipleMastery | undefined> {
+    const [mastery] = await db.select().from(principleMastery)
+      .where(and(eq(principleMastery.userId, userId), eq(principleMastery.principleId, principleId)));
+    return mastery || undefined;
+  }
+
+  async getPrincipleMasteryByUser(userId: string): Promise<PrincipleMastery[]> {
+    return db.select().from(principleMastery)
+      .where(eq(principleMastery.userId, userId))
+      .orderBy(desc(principleMastery.updatedAt));
+  }
+
+  async getPrincipleMasteryByTopic(userId: string, topicId: string): Promise<PrincipleMastery[]> {
+    return db.select().from(principleMastery)
+      .where(and(eq(principleMastery.userId, userId), eq(principleMastery.topicId, topicId)))
+      .orderBy(asc(principleMastery.masteryScore));
+  }
+
+  async upsertPrincipleMastery(insertMastery: InsertPrincipleMastery): Promise<PrincipleMastery> {
+    const [mastery] = await db
+      .insert(principleMastery)
+      .values(insertMastery)
+      .onConflictDoUpdate({
+        target: [principleMastery.userId, principleMastery.principleId],
+        set: {
+          masteryScore: insertMastery.masteryScore,
+          timesReviewed: insertMastery.timesReviewed,
+          timesCorrect: insertMastery.timesCorrect,
+          lastReviewedAt: insertMastery.lastReviewedAt,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return mastery;
+  }
+
+  // Spaced Repetition
+  async getReviewSchedule(userId: string, principleId: string): Promise<ReviewSchedule | undefined> {
+    const [schedule] = await db.select().from(reviewSchedule)
+      .where(and(eq(reviewSchedule.userId, userId), eq(reviewSchedule.principleId, principleId)));
+    return schedule || undefined;
+  }
+
+  async getDueReviews(userId: string, limit = 20): Promise<ReviewSchedule[]> {
+    return db.select().from(reviewSchedule)
+      .where(and(
+        eq(reviewSchedule.userId, userId),
+        lte(reviewSchedule.dueAt, new Date()),
+        eq(reviewSchedule.status, "pending")
+      ))
+      .orderBy(asc(reviewSchedule.dueAt))
+      .limit(limit);
+  }
+
+  async upsertReviewSchedule(insertSchedule: InsertReviewSchedule): Promise<ReviewSchedule> {
+    const [schedule] = await db
+      .insert(reviewSchedule)
+      .values(insertSchedule)
+      .onConflictDoUpdate({
+        target: [reviewSchedule.userId, reviewSchedule.principleId],
+        set: {
+          dueAt: insertSchedule.dueAt,
+          easeFactor: insertSchedule.easeFactor,
+          interval: insertSchedule.interval,
+          repetitions: insertSchedule.repetitions,
+          status: insertSchedule.status,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return schedule;
+  }
+
+  async updateReviewSchedule(id: string, updates: Partial<ReviewSchedule>): Promise<ReviewSchedule | undefined> {
+    const [schedule] = await db.update(reviewSchedule)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(reviewSchedule.id, id))
+      .returning();
+    return schedule || undefined;
+  }
+
+  // Tutor Sessions
+  async createTutorSession(session: InsertTutorSession): Promise<TutorSession> {
+    const [newSession] = await db.insert(tutorSessions).values(session).returning();
+    return newSession;
+  }
+
+  async getTutorSession(sessionId: string): Promise<TutorSession | undefined> {
+    const [session] = await db.select().from(tutorSessions).where(eq(tutorSessions.id, sessionId));
+    return session || undefined;
+  }
+
+  async getTutorSessionsByUser(userId: string): Promise<TutorSession[]> {
+    return db.select().from(tutorSessions)
+      .where(eq(tutorSessions.userId, userId))
+      .orderBy(desc(tutorSessions.updatedAt));
+  }
+
+  async getTutorSessionByTopicAndPrinciple(userId: string, topicId: string, principleId?: string): Promise<TutorSession | undefined> {
+    const conditions = principleId
+      ? and(eq(tutorSessions.userId, userId), eq(tutorSessions.topicId, topicId), eq(tutorSessions.principleId, principleId))
+      : and(eq(tutorSessions.userId, userId), eq(tutorSessions.topicId, topicId));
+    const [session] = await db.select().from(tutorSessions).where(conditions);
+    return session || undefined;
+  }
+
+  // Tutor Messages
+  async createTutorMessage(message: InsertTutorMessage): Promise<TutorMessage> {
+    const [newMessage] = await db.insert(tutorMessages).values(message).returning();
+    return newMessage;
+  }
+
+  async getTutorMessagesBySession(sessionId: string): Promise<TutorMessage[]> {
+    return db.select().from(tutorMessages)
+      .where(eq(tutorMessages.sessionId, sessionId))
+      .orderBy(asc(tutorMessages.createdAt));
   }
 }
 
