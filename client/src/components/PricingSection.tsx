@@ -117,7 +117,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto">
           {pricingTiers.map((tier, index) => (
             <motion.div
               key={tier.id}
