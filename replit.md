@@ -131,10 +131,11 @@ Preferred communication style: Simple, everyday language.
   - Sample topics: Fully free (all principles and quizzes available)
   - User-generated topics: First 2 principles free preview, rest locked
   - Pay-per-topic: $1.99 per topic (unlocks all principles and quiz)
-  - Pro subscription: $9.99/month for unlimited topics
+  - Pro annual: $99/year for unlimited topics (one-time payment, expires after 1 year)
+- Pro subscription includes: AI Tutor Chat, Quiz Analytics, Spaced Repetition Review
 - Checkout flow with success/cancel pages
-- Topic access control based on sample status, plan, and purchase status
-- Stripe customer and subscription management
+- Topic access control based on sample status, plan, expiration date, and purchase status
+- Stripe customer management with proExpiresAt tracking for annual subscriptions
 
 **Sample Topics System**
 - Sample topics marked with `isSample: true` flag in database

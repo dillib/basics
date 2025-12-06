@@ -493,21 +493,19 @@ export async function registerRoutes(
         customerId = customer.id;
       }
 
-      const products = await storage.listStripeProductsWithPrices();
-      const proProduct = (products as any[]).find(
-        (p: any) => p.product_metadata?.type === 'pro_subscription' && p.price_id
-      );
-
-      if (!proProduct) {
-        return res.status(500).json({ message: "Pro subscription pricing not configured" });
-      }
-
       const baseUrl = `${req.protocol}://${req.get('host')}`;
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         payment_method_types: ['card'],
         line_items: [{
-          price: proProduct.price_id,
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: 'BasicsTutor Pro - Annual',
+              description: 'Unlimited access to all topics, AI Tutor, Analytics, and Spaced Repetition for 1 year',
+            },
+            unit_amount: 9900,
+          },
           quantity: 1,
         }],
         mode: 'payment',
