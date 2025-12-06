@@ -1,10 +1,27 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { generateTopicContent, generateQuizQuestions } from "./ai";
 import { insertTopicSchema } from "@shared/schema";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
+
+const isProUser = async (req: any, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    const user = await storage.getUser(userId);
+    if (!user || user.plan !== "pro") {
+      return res.status(403).json({ message: "Pro subscription required for this feature" });
+    }
+    next();
+  } catch (error) {
+    console.error("Error checking Pro status:", error);
+    res.status(500).json({ message: "Failed to verify subscription status" });
+  }
+};
 
 export async function registerRoutes(
   httpServer: Server,
@@ -728,8 +745,8 @@ export async function registerRoutes(
     }
   });
 
-  // Get user's analytics overview
-  app.get('/api/analytics/overview', isAuthenticated, async (req: any, res) => {
+  // Get user's analytics overview (Pro feature)
+  app.get('/api/analytics/overview', isAuthenticated, isProUser, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
 
@@ -773,8 +790,8 @@ export async function registerRoutes(
     }
   });
 
-  // Get quiz attempts for a specific topic
-  app.get('/api/analytics/topic/:topicId', isAuthenticated, async (req: any, res) => {
+  // Get quiz attempts for a specific topic (Pro feature)
+  app.get('/api/analytics/topic/:topicId', isAuthenticated, isProUser, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { topicId } = req.params;
@@ -791,8 +808,8 @@ export async function registerRoutes(
     }
   });
 
-  // Get weak principles for user
-  app.get('/api/analytics/weak-principles', isAuthenticated, async (req: any, res) => {
+  // Get weak principles for user (Pro feature)
+  app.get('/api/analytics/weak-principles', isAuthenticated, isProUser, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const masteryData = await storage.getPrincipleMasteryByUser(userId);
@@ -826,8 +843,8 @@ export async function registerRoutes(
   // SPACED REPETITION ROUTES
   // =====================
 
-  // Get due reviews for user
-  app.get('/api/reviews/due', isAuthenticated, async (req: any, res) => {
+  // Get due reviews for user (Pro feature)
+  app.get('/api/reviews/due', isAuthenticated, isProUser, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const limit = parseInt(req.query.limit as string) || 20;
@@ -866,7 +883,7 @@ export async function registerRoutes(
   });
 
   // Grade a review (SM-2 algorithm)
-  app.post('/api/reviews/:reviewId/grade', isAuthenticated, async (req: any, res) => {
+  app.post('/api/reviews/:reviewId/grade', isAuthenticated, isProUser, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { reviewId } = req.params;
@@ -950,7 +967,7 @@ export async function registerRoutes(
   });
 
   // Get review stats
-  app.get('/api/reviews/stats', isAuthenticated, async (req: any, res) => {
+  app.get('/api/reviews/stats', isAuthenticated, isProUser, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const dueReviews = await storage.getDueReviews(userId, 100);
@@ -975,7 +992,7 @@ export async function registerRoutes(
   // =====================
 
   // Create or get existing tutor session
-  app.post('/api/tutor/session', isAuthenticated, async (req: any, res) => {
+  app.post('/api/tutor/session', isAuthenticated, isProUser, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { topicId, principleId } = req.body;
@@ -1019,7 +1036,7 @@ export async function registerRoutes(
   });
 
   // Send message to AI tutor
-  app.post('/api/tutor/session/:sessionId/message', isAuthenticated, async (req: any, res) => {
+  app.post('/api/tutor/session/:sessionId/message', isAuthenticated, isProUser, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const { sessionId } = req.params;
@@ -1057,7 +1074,13 @@ export async function registerRoutes(
 
       // Generate AI response using Gemini
       const { GoogleGenAI } = await import('@google/genai');
-      const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY || process.env.AI_INTEGRATIONS_GOOGLE_GEMINI_API_KEY || '' });
+      const ai = new GoogleGenAI({ 
+        apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
+        httpOptions: {
+          apiVersion: "",
+          baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
+        },
+      });
 
       const systemPrompt = `You are an expert tutor helping a student understand "${topic?.title || 'this topic'}". 
 Your role is to:
@@ -1080,13 +1103,13 @@ ${principles.slice(0, 5).map(p => `- ${p.title}: ${p.explanation?.slice(0, 100)}
       }));
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash-exp',
-        contents: [
-          { role: 'user', parts: [{ text: systemPrompt }] },
-          { role: 'model', parts: [{ text: 'I understand. I\'m ready to help the student learn using first principles and clear explanations.' }] },
-          ...chatHistory,
-          { role: 'user', parts: [{ text: content }] },
-        ],
+        model: 'gemini-2.5-flash',
+        contents: chatHistory.length > 0 
+          ? [...chatHistory, { role: 'user', parts: [{ text: content }] }]
+          : [{ role: 'user', parts: [{ text: content }] }],
+        config: {
+          systemInstruction: systemPrompt,
+        },
       });
 
       const aiResponse = response.text || "I'm sorry, I couldn't generate a response. Please try again.";
@@ -1106,7 +1129,7 @@ ${principles.slice(0, 5).map(p => `- ${p.title}: ${p.explanation?.slice(0, 100)}
   });
 
   // Get tutor session history
-  app.get('/api/tutor/session/:sessionId', isAuthenticated, async (req: any, res) => {
+  app.get('/api/tutor/session/:sessionId', isAuthenticated, isProUser, async (req: any, res) => {
     try {
       const { sessionId } = req.params;
 
@@ -1125,7 +1148,7 @@ ${principles.slice(0, 5).map(p => `- ${p.title}: ${p.explanation?.slice(0, 100)}
   });
 
   // Get all tutor sessions for user
-  app.get('/api/tutor/sessions', isAuthenticated, async (req: any, res) => {
+  app.get('/api/tutor/sessions', isAuthenticated, isProUser, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
       const sessions = await storage.getTutorSessionsByUser(userId);

@@ -3,7 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   BarChart3, 
   Brain, 
@@ -12,7 +14,8 @@ import {
   Clock,
   AlertTriangle,
   CheckCircle,
-  BookOpen
+  BookOpen,
+  Lock
 } from "lucide-react";
 
 interface AnalyticsOverview {
@@ -40,16 +43,37 @@ interface WeakPrinciple {
 
 export default function AnalyticsPanel() {
   const [, setLocation] = useLocation();
+  const { user, isLoading: userLoading } = useAuth();
 
   const { data: analytics, isLoading: analyticsLoading } = useQuery<AnalyticsOverview>({
     queryKey: ['/api/analytics/overview'],
+    enabled: user?.plan === "pro",
   });
 
   const { data: weakPrinciples = [], isLoading: weakLoading } = useQuery<WeakPrinciple[]>({
     queryKey: ['/api/analytics/weak-principles'],
+    enabled: user?.plan === "pro",
   });
 
-  const isLoading = analyticsLoading || weakLoading;
+  const isLoading = userLoading || analyticsLoading || weakLoading;
+
+  if (!userLoading && user?.plan !== "pro") {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+        <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
+          <Lock className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <h2 className="text-xl font-semibold mb-2">Pro Feature</h2>
+        <p className="text-muted-foreground mb-6 max-w-md">
+          Analytics is a Pro-only feature. Upgrade to track your quiz performance, 
+          identify weak areas, and see your learning progress over time.
+        </p>
+        <Button onClick={() => setLocation("/pricing")} data-testid="button-upgrade-analytics">
+          Upgrade to Pro
+        </Button>
+      </div>
+    );
+  }
 
   const formatTime = (seconds: number) => {
     if (seconds < 60) return `${seconds}s`;

@@ -24,7 +24,7 @@ import {
   MessageCircle
 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { Topic, Principle, Progress as ProgressType } from "@shared/schema";
+import type { Topic, Principle, Progress as ProgressType, User } from "@shared/schema";
 import Quiz from "./Quiz";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -46,7 +46,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
   const [progressInitialized, setProgressInitialized] = useState(false);
   const [isTutorChatOpen, setIsTutorChatOpen] = useState(false);
   const [currentPrincipleForChat, setCurrentPrincipleForChat] = useState<Principle | null>(null);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
 
   const { data: topic, isLoading: topicLoading, error: topicError } = useQuery<Topic>({
@@ -647,7 +647,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
         </div>
       </div>
 
-      {isAuthenticated && topic && (
+      {isAuthenticated && topic && user?.plan === "pro" && (
         <>
           {!isTutorChatOpen && (
             <Button

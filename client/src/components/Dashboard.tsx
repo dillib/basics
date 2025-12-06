@@ -116,8 +116,10 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                 <nav className="space-y-1">
                   {[
                     { icon: BookOpen, label: "Overview", value: "overview" },
-                    { icon: BarChart3, label: "Analytics", value: "analytics" },
-                    { icon: RotateCcw, label: "Review", value: "review" },
+                    ...(user?.plan === "pro" ? [
+                      { icon: BarChart3, label: "Analytics", value: "analytics", isPro: true },
+                      { icon: RotateCcw, label: "Review", value: "review", isPro: true },
+                    ] : []),
                     { icon: Star, label: "My Topics", value: "topics" },
                     { icon: CreditCard, label: "Subscription", value: "subscription" },
                     { icon: Settings, label: "Settings", value: "settings" },

@@ -7,6 +7,8 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useLocation } from "wouter";
 import { 
   Brain, 
   RotateCcw, 
@@ -15,7 +17,8 @@ import {
   ChevronRight,
   Lightbulb,
   Clock,
-  Star
+  Star,
+  Lock
 } from "lucide-react";
 
 interface ReviewStats {
@@ -53,14 +56,36 @@ export default function ReviewPanel() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
+  const { user, isLoading: userLoading } = useAuth();
 
   const { data: stats, isLoading: statsLoading } = useQuery<ReviewStats>({
     queryKey: ['/api/reviews/stats'],
+    enabled: user?.plan === "pro",
   });
 
   const { data: dueReviews = [], isLoading: reviewsLoading } = useQuery<ReviewItem[]>({
     queryKey: ['/api/reviews/due'],
+    enabled: user?.plan === "pro",
   });
+
+  if (!userLoading && user?.plan !== "pro") {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+        <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
+          <Lock className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <h2 className="text-xl font-semibold mb-2">Pro Feature</h2>
+        <p className="text-muted-foreground mb-6 max-w-md">
+          Spaced Repetition Review is a Pro-only feature. Upgrade to use scientifically-proven 
+          review scheduling that helps you remember concepts long-term.
+        </p>
+        <Button onClick={() => setLocation("/pricing")} data-testid="button-upgrade-review">
+          Upgrade to Pro
+        </Button>
+      </div>
+    );
+  }
 
   const gradeMutation = useMutation({
     mutationFn: async ({ reviewId, quality }: { reviewId: string; quality: number }) => {
@@ -89,7 +114,7 @@ export default function ReviewPanel() {
     },
   });
 
-  const isLoading = statsLoading || reviewsLoading;
+  const isLoading = userLoading || statsLoading || reviewsLoading;
   const currentReview = dueReviews[currentIndex];
 
   const handleGrade = (quality: number) => {
