@@ -205,6 +205,15 @@
  */
 @layer utilities {
 
+  /* Brighten button on hover */
+  @apply [--button-brightness:1.1];
+  button {
+    @apply transition-all;
+  }
+  button:hover:not(:disabled) {
+    filter: brightness(var(--button-brightness));
+  }
+
   /* Hide ugly search cancel button in Chrome until we can style it properly */
   input[type="search"]::-webkit-search-cancel-button {
     @apply hidden;
