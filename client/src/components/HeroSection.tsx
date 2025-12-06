@@ -26,7 +26,7 @@ const fadeUpVariants = {
 function AnimatedWords({ text, className, baseDelay = 0, isGradient = false }: { text: string; className?: string; baseDelay?: number; isGradient?: boolean }) {
   const words = text.split(" ");
   return (
-    <span className={`inline-flex flex-wrap justify-center gap-x-[0.25em] ${className || ''}`}>
+    <div className={`flex flex-col items-center justify-center ${className || ''}`}>
       {words.map((word, index) => (
         <motion.span
           key={index}
@@ -37,12 +37,12 @@ function AnimatedWords({ text, className, baseDelay = 0, isGradient = false }: {
             delay: baseDelay + index * 0.08,
             ease: [0.25, 0.4, 0.25, 1],
           }}
-          className={isGradient ? 'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent' : ''}
+          className={`leading-tight ${isGradient ? 'bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent' : ''}`}
         >
           {word}
         </motion.span>
       ))}
-    </span>
+    </div>
   );
 }
 
@@ -76,11 +76,8 @@ export default function HeroSection({ onGenerateTopic, onTopicClick, isGeneratin
             Learn smarter, not harder
           </motion.p>
 
-          <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-semibold tracking-tight text-foreground mb-8 leading-tight" spellCheck={false}>
-            <AnimatedWords text="Master any topic" baseDelay={0.1} />
-            <span className="block mt-12">
-              <AnimatedWords text="starting from the fundamentals" baseDelay={0.4} isGradient={true} />
-            </span>
+          <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-semibold tracking-tight text-foreground mb-8" spellCheck={false}>
+            <AnimatedWords text="Master any topic starting from the fundamentals" baseDelay={0.1} isGradient={false} />
           </h1>
 
           <motion.p 
