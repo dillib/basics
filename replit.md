@@ -149,6 +149,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+**December 6, 2025**
+- Implemented 3 Pro-exclusive features with full authorization:
+  - **Quiz Performance Analytics**: Dashboard with charts showing quiz attempts, average scores, weak areas by topic
+  - **Spaced Repetition Review**: SM-2 algorithm implementation for optimal review scheduling, flashcard-style interface
+  - **AI Tutor Chat**: Context-aware chat using Gemini 2.5 Flash, knows current topic/principle, maintains conversation history
+- Added new database tables: quiz_attempts, principle_mastery, review_schedule, tutor_sessions, tutor_messages
+- Added isProUser middleware to protect Pro-only backend routes
+- Updated Dashboard with conditional Analytics and Review tabs (Pro-only)
+- Added floating AI Tutor chat button on TopicLearningPage (Pro-only)
+- Updated Pricing page feature cards to highlight new Pro features
+- All Pro features return upgrade CTAs for non-Pro users
+
 **December 3, 2025**
 - Implemented complete freemium model with sample topics system:
   - Added `isSample` boolean column to topics table
@@ -225,6 +237,24 @@ Preferred communication style: Simple, everyday language.
 - GET `/api/checkout/verify/:sessionId` - Verify payment and update user access
 - GET `/api/user/purchases` - Get user's topic purchases
 - GET `/api/user/can-access-topic/:topicId` - Check if user can access a topic
+
+**Pro Features - Analytics** (requires Pro subscription)
+- GET `/api/analytics/overview` - Get quiz performance overview stats
+- GET `/api/analytics/attempts` - Get list of quiz attempts with details
+- GET `/api/analytics/progress` - Get learning progress trends over time
+- POST `/api/analytics/quiz-attempt` - Record a quiz attempt
+
+**Pro Features - Spaced Repetition** (requires Pro subscription)
+- GET `/api/reviews/stats` - Get review queue stats (due count, total tracked)
+- GET `/api/reviews/due` - Get principles due for review
+- POST `/api/reviews/:reviewId/grade` - Grade a review (0-5 quality score, SM-2 algorithm)
+- POST `/api/reviews/bootstrap` - Initialize review schedule for a topic
+
+**Pro Features - AI Tutor** (requires Pro subscription)
+- POST `/api/tutor/session` - Create or get tutor session for a topic
+- POST `/api/tutor/session/:sessionId/message` - Send message to AI tutor
+- GET `/api/tutor/session/:sessionId` - Get session with message history
+- GET `/api/tutor/sessions` - Get all tutor sessions for user
 
 ## Known Limitations
 
