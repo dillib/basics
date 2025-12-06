@@ -17,10 +17,13 @@ import {
   ChevronRight,
   Settings,
   CreditCard,
-  Bell,
   LogOut,
-  Sparkles
+  Sparkles,
+  BarChart3,
+  RotateCcw
 } from "lucide-react";
+import AnalyticsPanel from "./AnalyticsPanel";
+import ReviewPanel from "./ReviewPanel";
 import type { Topic, Progress as ProgressType, User } from "@shared/schema";
 
 interface DashboardProps {
@@ -113,6 +116,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                 <nav className="space-y-1">
                   {[
                     { icon: BookOpen, label: "Overview", value: "overview" },
+                    { icon: BarChart3, label: "Analytics", value: "analytics" },
+                    { icon: RotateCcw, label: "Review", value: "review" },
                     { icon: Star, label: "My Topics", value: "topics" },
                     { icon: CreditCard, label: "Subscription", value: "subscription" },
                     { icon: Settings, label: "Settings", value: "settings" },
@@ -145,16 +150,22 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
           </aside>
 
           <main className="flex-1">
-            <div className="mb-8">
-              <h1 className="text-2xl sm:text-3xl font-bold mb-2" data-testid="text-dashboard-title">
-                Welcome back, {userName.split(" ")[0]}!
-              </h1>
-              <p className="text-muted-foreground">
-                {stats.topicsCompleted > 0 
-                  ? `You've completed ${stats.topicsCompleted} topic${stats.topicsCompleted > 1 ? 's' : ''}. Keep learning!`
-                  : "Start your learning journey by exploring topics."}
-              </p>
-            </div>
+            {activeTab === "analytics" ? (
+              <AnalyticsPanel />
+            ) : activeTab === "review" ? (
+              <ReviewPanel />
+            ) : (
+              <>
+                <div className="mb-8">
+                  <h1 className="text-2xl sm:text-3xl font-bold mb-2" data-testid="text-dashboard-title">
+                    Welcome back, {userName.split(" ")[0]}!
+                  </h1>
+                  <p className="text-muted-foreground">
+                    {stats.topicsCompleted > 0 
+                      ? `You've completed ${stats.topicsCompleted} topic${stats.topicsCompleted > 1 ? 's' : ''}. Keep learning!`
+                      : "Start your learning journey by exploring topics."}
+                  </p>
+                </div>
 
             {isLoading ? (
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -316,6 +327,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                 )}
               </TabsContent>
             </Tabs>
+              </>
+            )}
           </main>
         </div>
       </div>

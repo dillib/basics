@@ -20,13 +20,15 @@ import {
   AlertCircle,
   Sparkles,
   Lock,
-  CreditCard
+  CreditCard,
+  MessageCircle
 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Topic, Principle, Progress as ProgressType } from "@shared/schema";
 import Quiz from "./Quiz";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import TutorChat from "./TutorChat";
 
 interface TopicLearningPageProps {
   topicId?: string;
@@ -42,6 +44,8 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
   const [completedPrinciples, setCompletedPrinciples] = useState<Set<string>>(new Set());
   const [showQuiz, setShowQuiz] = useState(false);
   const [progressInitialized, setProgressInitialized] = useState(false);
+  const [isTutorChatOpen, setIsTutorChatOpen] = useState(false);
+  const [currentPrincipleForChat, setCurrentPrincipleForChat] = useState<Principle | null>(null);
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
 
@@ -642,6 +646,32 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
           </aside>
         </div>
       </div>
+
+      {isAuthenticated && topic && (
+        <>
+          {!isTutorChatOpen && (
+            <Button
+              size="lg"
+              className="fixed bottom-4 right-4 h-14 w-14 rounded-full shadow-lg z-40"
+              onClick={() => {
+                setCurrentPrincipleForChat(null);
+                setIsTutorChatOpen(true);
+              }}
+              data-testid="button-open-tutor-chat"
+            >
+              <MessageCircle className="h-6 w-6" />
+            </Button>
+          )}
+          <TutorChat
+            topicId={topic.id}
+            topicTitle={topic.title}
+            principleId={currentPrincipleForChat?.id}
+            principleTitle={currentPrincipleForChat?.title}
+            isOpen={isTutorChatOpen}
+            onClose={() => setIsTutorChatOpen(false)}
+          />
+        </>
+      )}
     </div>
   );
 }
