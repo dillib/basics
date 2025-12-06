@@ -50,7 +50,7 @@ export default function HeroSection({ onGenerateTopic, onTopicClick, isGeneratin
           >
             <Sparkles className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium text-primary" data-testid="text-hero-tagline">
-              AI-powered first principles learning
+              Try free sample topics - no signup required
             </span>
           </motion.div>
 
