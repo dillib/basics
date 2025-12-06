@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { Star, Mail } from "lucide-react";
-import { SiX, SiGithub, SiLinkedin, SiDiscord } from "react-icons/si";
+import { SiX, SiDiscord } from "react-icons/si";
 
 const footerLinks = {
   product: [
@@ -21,8 +21,6 @@ const footerLinks = {
 
 const socialLinks = [
   { icon: SiX, href: "https://twitter.com", label: "X" },
-  { icon: SiGithub, href: "https://github.com", label: "GitHub" },
-  { icon: SiLinkedin, href: "https://linkedin.com", label: "LinkedIn" },
   { icon: SiDiscord, href: "https://discord.com", label: "Discord" },
 ];
 
