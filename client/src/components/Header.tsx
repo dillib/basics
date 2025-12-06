@@ -2,9 +2,10 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "./ThemeProvider";
-import { Menu, X, Sun, Moon, Star } from "lucide-react";
+import { Menu, X, Sun, Moon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { User } from "@shared/schema";
+import pencilLogo from "@assets/generated_images/smiling_upright_purple_pencil.png";
 
 interface HeaderProps {
   isLoggedIn?: boolean;
@@ -28,9 +29,7 @@ export default function Header({ isLoggedIn = false, onLogin, onLogout, user, is
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between gap-4 px-6">
         <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600">
-            <Star className="h-5 w-5 text-white fill-white" />
-          </div>
+          <img src={pencilLogo} alt="BasicsTutor" className="h-9 w-9 object-contain" />
           <span className="text-lg font-semibold" data-testid="text-logo">BasicsTutor.com</span>
         </Link>
 

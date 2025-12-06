@@ -1,6 +1,7 @@
 import { Link } from "wouter";
-import { Star, Mail } from "lucide-react";
+import { Mail } from "lucide-react";
 import { SiX, SiDiscord } from "react-icons/si";
+import pencilLogo from "@assets/generated_images/smiling_upright_purple_pencil.png";
 
 const footerLinks = {
   product: [
@@ -31,9 +32,7 @@ export default function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-12 mb-16">
           <div className="col-span-2">
             <Link href="/" className="flex items-center gap-3 mb-6">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600">
-                <Star className="h-5 w-5 text-white fill-white" />
-              </div>
+              <img src={pencilLogo} alt="BasicsTutor" className="h-10 w-10 object-contain" />
               <span className="text-xl font-semibold" data-testid="text-footer-logo">BasicsTutor.com</span>
             </Link>
             <p className="text-muted-foreground mb-6 max-w-xs leading-relaxed">
