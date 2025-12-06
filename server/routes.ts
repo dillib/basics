@@ -16,6 +16,9 @@ const isProUser = async (req: any, res: Response, next: NextFunction) => {
     if (!user || user.plan !== "pro") {
       return res.status(403).json({ message: "Pro subscription required for this feature" });
     }
+    if (user.proExpiresAt && new Date(user.proExpiresAt) < new Date()) {
+      return res.status(403).json({ message: "Your Pro subscription has expired. Please renew to continue using Pro features." });
+    }
     next();
   } catch (error) {
     console.error("Error checking Pro status:", error);
@@ -472,8 +475,9 @@ export async function registerRoutes(
         return res.status(404).json({ message: "User not found" });
       }
 
-      if (user.plan === 'pro') {
-        return res.status(400).json({ message: "Already subscribed to Pro" });
+      const isProActive = user.plan === 'pro' && (!user.proExpiresAt || new Date(user.proExpiresAt) > new Date());
+      if (isProActive) {
+        return res.status(400).json({ message: "You already have an active Pro subscription" });
       }
 
       const stripe = await getUncachableStripeClient();
@@ -506,12 +510,12 @@ export async function registerRoutes(
           price: proProduct.price_id,
           quantity: 1,
         }],
-        mode: 'subscription',
+        mode: 'payment',
         success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}&plan=pro`,
         cancel_url: `${baseUrl}/checkout/cancel`,
         metadata: {
           userId,
-          type: 'pro_subscription',
+          type: 'pro_annual',
         },
       });
 
@@ -551,8 +555,10 @@ export async function registerRoutes(
         });
       }
 
-      if (metadata.type === 'pro_subscription') {
-        await storage.updateUser(userId, { plan: 'pro' });
+      if (metadata.type === 'pro_subscription' || metadata.type === 'pro_annual') {
+        const expiresAt = new Date();
+        expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+        await storage.updateUser(userId, { plan: 'pro', proExpiresAt: expiresAt });
         if (session.subscription) {
           await storage.updateUserStripeInfo(userId, { 
             stripeSubscriptionId: session.subscription as string 
@@ -560,7 +566,8 @@ export async function registerRoutes(
         }
         return res.json({ 
           success: true, 
-          type: 'pro_subscription' 
+          type: 'pro_annual',
+          expiresAt: expiresAt.toISOString()
         });
       }
 

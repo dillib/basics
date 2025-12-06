@@ -37,11 +37,11 @@ const pricingTiers: PricingTier[] = [
   {
     id: "pro",
     name: "Pro",
-    price: "$9.99",
-    period: "/month",
+    price: "$99",
+    period: "/year",
     description: "Unlimited learning with AI-powered tools",
     features: [
-      "Unlimited topic access",
+      "Unlimited topic access for 1 year",
       "AI Tutor Chat for personalized help",
       "Quiz Performance Analytics",
       "Spaced Repetition Review System",
@@ -49,7 +49,7 @@ const pricingTiers: PricingTier[] = [
       "Priority access to new features",
     ],
     highlighted: true,
-    buttonText: "Subscribe to Pro",
+    buttonText: "Get Pro for $99/year",
   },
 ];
 

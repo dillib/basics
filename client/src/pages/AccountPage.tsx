@@ -15,7 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { User, Mail, CreditCard, Shield, LogOut, ExternalLink, Crown, Sparkles, Share2, MessageSquare, Trash2 } from "lucide-react";
+import { User, Mail, CreditCard, Shield, LogOut, ExternalLink, Crown, Sparkles, Share2, MessageSquare, Trash2, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { User as UserType } from "@shared/schema";
@@ -261,9 +261,23 @@ export default function AccountPage() {
                 )}
 
                 {user.plan === "pro" && (
-                  <p className="text-sm text-muted-foreground" data-testid="text-pro-message">
-                    You have unlimited access to all topics. Thank you for being a Pro member!
-                  </p>
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground" data-testid="text-pro-message">
+                      You have unlimited access to all topics. Thank you for being a Pro member!
+                    </p>
+                    {user.proExpiresAt && (
+                      <div className="flex items-center gap-2 text-sm" data-testid="pro-expiration">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">
+                          Pro access expires: {new Date(user.proExpiresAt).toLocaleDateString('en-US', { 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric' 
+                          })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </Card>

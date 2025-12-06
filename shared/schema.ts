@@ -20,6 +20,7 @@ export const users = pgTable("users", {
   lastName: text("last_name"),
   profileImageUrl: text("profile_image_url"),
   plan: text("plan").default("free"),
+  proExpiresAt: timestamp("pro_expires_at"),
   topicsUsed: integer("topics_used").default(0),
   stripeCustomerId: varchar("stripe_customer_id", { length: 255 }),
   stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }),
