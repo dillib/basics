@@ -20,20 +20,6 @@ interface PricingTier {
 
 const pricingTiers: PricingTier[] = [
   {
-    id: "free",
-    name: "Free",
-    price: "$0",
-    period: "",
-    description: "Try one complete topic",
-    features: [
-      "1 complete learning path",
-      "First principles breakdowns",
-      "Interactive quizzes",
-      "Basic progress tracking",
-    ],
-    buttonText: "Get started",
-  },
-  {
     id: "pay-per-topic",
     name: "Pay Per Topic",
     price: "$1.99",
@@ -96,11 +82,6 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
   });
 
   const handlePlanSelect = (planId: string) => {
-    if (planId === "free") {
-      setLocation("/");
-      return;
-    }
-
     if (planId === "pay-per-topic") {
       setLocation("/");
       return;
@@ -132,7 +113,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
             Simple, transparent pricing
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Start free. Upgrade when you're ready. Cancel anytime.
+            Try sample topics free. Pick the plan that works for you.
           </p>
         </motion.div>
 
