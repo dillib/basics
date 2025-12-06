@@ -76,9 +76,9 @@ export default function HeroSection({ onGenerateTopic, onTopicClick, isGeneratin
             Learn smarter, not harder
           </motion.p>
 
-          <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-semibold tracking-tight text-foreground mb-8 leading-[2.2]" spellCheck={false}>
+          <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-semibold tracking-tight text-foreground mb-8 leading-[3]" spellCheck={false}>
             <AnimatedWords text="Master any topic" baseDelay={0.1} />
-            <span className="block mt-4">
+            <span className="block mt-8">
               <AnimatedWords text="starting from the fundamentals" baseDelay={0.4} isGradient={true} />
             </span>
           </h1>
