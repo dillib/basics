@@ -1338,5 +1338,213 @@ ${principles.slice(0, 5).map(p => `- ${p.title}: ${p.explanation?.slice(0, 100)}
     }
   });
 
+  // ============ SUPPORT ROUTES ============
+  
+  // Submit a support request (public - no auth required)
+  app.post('/api/support', async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { email, type, priority, subject, description } = req.body;
+      
+      if (!email || !type || !subject || !description) {
+        return res.status(400).json({ message: "Missing required fields: email, type, subject, description" });
+      }
+      
+      const validTypes = ['support', 'bug', 'feature', 'feedback'];
+      if (!validTypes.includes(type)) {
+        return res.status(400).json({ message: "Invalid type. Must be: support, bug, feature, or feedback" });
+      }
+      
+      const validPriorities = ['low', 'normal', 'high', 'critical'];
+      if (priority && !validPriorities.includes(priority)) {
+        return res.status(400).json({ message: "Invalid priority. Must be: low, normal, high, or critical" });
+      }
+      
+      const request = await storage.createSupportRequest({
+        userId: userId || null,
+        email,
+        type,
+        priority: priority || 'normal',
+        subject,
+        description,
+      });
+      
+      res.status(201).json(request);
+    } catch (error) {
+      console.error("Error creating support request:", error);
+      res.status(500).json({ message: "Failed to create support request" });
+    }
+  });
+  
+  // Get user's own support requests
+  app.get('/api/support/mine', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const requests = await storage.getSupportRequestsByUser(userId);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching support requests:", error);
+      res.status(500).json({ message: "Failed to fetch support requests" });
+    }
+  });
+  
+  // Get a specific support request (user can view their own)
+  app.get('/api/support/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const request = await storage.getSupportRequest(req.params.id);
+      
+      if (!request) {
+        return res.status(404).json({ message: "Support request not found" });
+      }
+      
+      // Check if user owns this request or is admin
+      const user = await storage.getUser(userId);
+      if (request.userId !== userId && !user?.isAdmin) {
+        return res.status(403).json({ message: "Not authorized to view this request" });
+      }
+      
+      res.json(request);
+    } catch (error) {
+      console.error("Error fetching support request:", error);
+      res.status(500).json({ message: "Failed to fetch support request" });
+    }
+  });
+  
+  // Get messages for a support request
+  app.get('/api/support/:id/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const request = await storage.getSupportRequest(req.params.id);
+      
+      if (!request) {
+        return res.status(404).json({ message: "Support request not found" });
+      }
+      
+      // Check if user owns this request or is admin
+      const user = await storage.getUser(userId);
+      if (request.userId !== userId && !user?.isAdmin) {
+        return res.status(403).json({ message: "Not authorized to view this request" });
+      }
+      
+      const messages = await storage.getSupportMessagesByRequest(req.params.id);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching support messages:", error);
+      res.status(500).json({ message: "Failed to fetch support messages" });
+    }
+  });
+  
+  // Add a message to a support request (user or admin)
+  app.post('/api/support/:id/messages', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { message } = req.body;
+      
+      if (!message) {
+        return res.status(400).json({ message: "Message is required" });
+      }
+      
+      const request = await storage.getSupportRequest(req.params.id);
+      if (!request) {
+        return res.status(404).json({ message: "Support request not found" });
+      }
+      
+      // Check if user owns this request or is admin
+      const user = await storage.getUser(userId);
+      if (request.userId !== userId && !user?.isAdmin) {
+        return res.status(403).json({ message: "Not authorized to message on this request" });
+      }
+      
+      const authorType = user?.isAdmin ? 'admin' : 'user';
+      
+      const newMessage = await storage.createSupportMessage({
+        requestId: req.params.id,
+        authorType,
+        authorId: userId,
+        message,
+      });
+      
+      res.status(201).json(newMessage);
+    } catch (error) {
+      console.error("Error creating support message:", error);
+      res.status(500).json({ message: "Failed to create support message" });
+    }
+  });
+  
+  // ============ ADMIN SUPPORT ROUTES ============
+  
+  // Get all support requests (admin)
+  app.get('/api/admin/support', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const status = req.query.status as string | undefined;
+      const type = req.query.type as string | undefined;
+      const priority = req.query.priority as string | undefined;
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+      
+      const filters = { status, type, priority, startDate, endDate };
+      const requests = await storage.getAllSupportRequests(filters, limit, offset);
+      const total = await storage.getSupportRequestCount(filters);
+      
+      res.json({ requests, total, limit, offset });
+    } catch (error) {
+      console.error("Error fetching support requests:", error);
+      res.status(500).json({ message: "Failed to fetch support requests" });
+    }
+  });
+  
+  // Update a support request (admin)
+  app.patch('/api/admin/support/:id', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { status, priority, assignedAdminId } = req.body;
+      
+      const updates: any = {};
+      if (status) {
+        const validStatuses = ['open', 'in_progress', 'resolved', 'closed'];
+        if (!validStatuses.includes(status)) {
+          return res.status(400).json({ message: "Invalid status" });
+        }
+        updates.status = status;
+        if (status === 'resolved' || status === 'closed') {
+          updates.resolvedAt = new Date();
+        }
+      }
+      if (priority) {
+        const validPriorities = ['low', 'normal', 'high', 'critical'];
+        if (!validPriorities.includes(priority)) {
+          return res.status(400).json({ message: "Invalid priority" });
+        }
+        updates.priority = priority;
+      }
+      if (assignedAdminId !== undefined) {
+        updates.assignedAdminId = assignedAdminId || null;
+      }
+      
+      const request = await storage.updateSupportRequest(req.params.id, updates);
+      if (!request) {
+        return res.status(404).json({ message: "Support request not found" });
+      }
+      
+      res.json(request);
+    } catch (error) {
+      console.error("Error updating support request:", error);
+      res.status(500).json({ message: "Failed to update support request" });
+    }
+  });
+  
+  // Get admin users (for assignment dropdown)
+  app.get('/api/admin/admins', isAuthenticated, isAdmin, async (_req: any, res) => {
+    try {
+      const admins = await storage.getAdminUsers();
+      res.json(admins);
+    } catch (error) {
+      console.error("Error fetching admin users:", error);
+      res.status(500).json({ message: "Failed to fetch admin users" });
+    }
+  });
+
   return httpServer;
 }
