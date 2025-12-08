@@ -184,7 +184,7 @@ function AdminUsers() {
   const limit = 20;
 
   const { data, isLoading } = useQuery<UsersResponse>({
-    queryKey: ['/api/admin/users', { limit, offset: page * limit }],
+    queryKey: [`/api/admin/users?limit=${limit}&offset=${page * limit}`],
   });
 
   const toggleAdminMutation = useMutation({
@@ -192,7 +192,9 @@ function AdminUsers() {
       return apiRequest('PATCH', `/api/admin/users/${userId}/admin`, { isAdmin });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        typeof query.queryKey[0] === 'string' && query.queryKey[0].startsWith('/api/admin/users')
+      });
       toast({ title: "User updated", description: "Admin status changed successfully." });
     },
     onError: () => {
@@ -206,7 +208,9 @@ function AdminUsers() {
       return apiRequest('PATCH', `/api/admin/users/${userId}/pro`, { isPro, expiresAt });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        typeof query.queryKey[0] === 'string' && query.queryKey[0].startsWith('/api/admin/users')
+      });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/stats'] });
       toast({ title: "User updated", description: "Pro status changed successfully." });
     },
@@ -335,7 +339,7 @@ function AdminTopics() {
   const limit = 20;
 
   const { data, isLoading } = useQuery<TopicsResponse>({
-    queryKey: ['/api/admin/topics', { limit, offset: page * limit }],
+    queryKey: [`/api/admin/topics?limit=${limit}&offset=${page * limit}`],
   });
 
   const updateTopicMutation = useMutation({
@@ -343,7 +347,9 @@ function AdminTopics() {
       return apiRequest('PATCH', `/api/admin/topics/${topicId}`, updates);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/topics'] });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        typeof query.queryKey[0] === 'string' && query.queryKey[0].startsWith('/api/admin/topics')
+      });
       queryClient.invalidateQueries({ queryKey: ['/api/sample-topics'] });
       toast({ title: "Topic updated", description: "Topic settings changed successfully." });
     },
@@ -357,7 +363,9 @@ function AdminTopics() {
       return apiRequest('DELETE', `/api/admin/topics/${topicId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/topics'] });
+      queryClient.invalidateQueries({ predicate: (query) => 
+        typeof query.queryKey[0] === 'string' && query.queryKey[0].startsWith('/api/admin/topics')
+      });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/stats'] });
       toast({ title: "Topic deleted", description: "Topic has been permanently deleted." });
     },
@@ -497,7 +505,7 @@ function AdminRevenue() {
   });
 
   const { data, isLoading } = useQuery<PurchasesResponse>({
-    queryKey: ['/api/admin/purchases', { limit, offset: page * limit }],
+    queryKey: [`/api/admin/purchases?limit=${limit}&offset=${page * limit}`],
   });
 
   const formatCurrency = (cents: number) => {
