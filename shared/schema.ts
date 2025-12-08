@@ -285,3 +285,54 @@ export type InsertTutorSession = z.infer<typeof insertTutorSessionSchema>;
 export type TutorSession = typeof tutorSessions.$inferSelect;
 export type InsertTutorMessage = z.infer<typeof insertTutorMessageSchema>;
 export type TutorMessage = typeof tutorMessages.$inferSelect;
+
+// Support Requests - User feedback, bug reports, feature requests
+export const supportRequests = pgTable("support_requests", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id", { length: 255 }).references(() => users.id),
+  email: text("email").notNull(),
+  type: varchar("type", { length: 50 }).notNull(), // support, bug, feature, feedback
+  priority: varchar("priority", { length: 50 }).default("normal"), // low, normal, high, critical
+  status: varchar("status", { length: 50 }).default("open"), // open, in_progress, resolved, closed
+  subject: text("subject").notNull(),
+  description: text("description").notNull(),
+  assignedAdminId: varchar("assigned_admin_id", { length: 255 }).references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  resolvedAt: timestamp("resolved_at"),
+}, (table) => [
+  index("support_requests_user_idx").on(table.userId),
+  index("support_requests_status_idx").on(table.status),
+  index("support_requests_type_idx").on(table.type),
+]);
+
+export const supportRequestsRelations = relations(supportRequests, ({ one, many }) => ({
+  user: one(users, { fields: [supportRequests.userId], references: [users.id] }),
+  assignedAdmin: one(users, { fields: [supportRequests.assignedAdminId], references: [users.id] }),
+  messages: many(supportMessages),
+}));
+
+// Support Messages - Threaded conversation on support requests
+export const supportMessages = pgTable("support_messages", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
+  requestId: varchar("request_id", { length: 255 }).references(() => supportRequests.id).notNull(),
+  authorType: varchar("author_type", { length: 50 }).notNull(), // user, admin, system
+  authorId: varchar("author_id", { length: 255 }).references(() => users.id),
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("support_messages_request_idx").on(table.requestId),
+]);
+
+export const supportMessagesRelations = relations(supportMessages, ({ one }) => ({
+  request: one(supportRequests, { fields: [supportMessages.requestId], references: [supportRequests.id] }),
+  author: one(users, { fields: [supportMessages.authorId], references: [users.id] }),
+}));
+
+export const insertSupportRequestSchema = createInsertSchema(supportRequests).omit({ id: true, createdAt: true, updatedAt: true, resolvedAt: true });
+export const insertSupportMessageSchema = createInsertSchema(supportMessages).omit({ id: true, createdAt: true });
+
+export type InsertSupportRequest = z.infer<typeof insertSupportRequestSchema>;
+export type SupportRequest = typeof supportRequests.$inferSelect;
+export type InsertSupportMessage = z.infer<typeof insertSupportMessageSchema>;
+export type SupportMessage = typeof supportMessages.$inferSelect;

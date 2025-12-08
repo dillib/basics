@@ -1,6 +1,7 @@
 import { 
   users, topics, principles, quizzes, questions, progress, topicPurchases,
   quizAttempts, principleMastery, reviewSchedule, tutorSessions, tutorMessages,
+  supportRequests, supportMessages,
   type User, type InsertUser, 
   type Topic, type InsertTopic,
   type Principle, type InsertPrinciple,
@@ -12,7 +13,9 @@ import {
   type PrincipleMastery, type InsertPrincipleMastery,
   type ReviewSchedule, type InsertReviewSchedule,
   type TutorSession, type InsertTutorSession,
-  type TutorMessage, type InsertTutorMessage
+  type TutorMessage, type InsertTutorMessage,
+  type SupportRequest, type InsertSupportRequest,
+  type SupportMessage, type InsertSupportMessage
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, inArray, sql, lte, gte, asc } from "drizzle-orm";
@@ -92,6 +95,21 @@ export interface IStorage {
   setUserAdmin(userId: string, isAdmin: boolean): Promise<User | undefined>;
   setUserPro(userId: string, isPro: boolean, expiresAt?: Date): Promise<User | undefined>;
   deleteTopicById(id: string): Promise<void>;
+  
+  // Support Requests
+  createSupportRequest(request: InsertSupportRequest): Promise<SupportRequest>;
+  getSupportRequest(id: string): Promise<SupportRequest | undefined>;
+  getSupportRequestsByUser(userId: string): Promise<SupportRequest[]>;
+  getAllSupportRequests(filters?: { status?: string; type?: string; priority?: string; startDate?: Date; endDate?: Date }, limit?: number, offset?: number): Promise<SupportRequest[]>;
+  getSupportRequestCount(filters?: { status?: string; type?: string; priority?: string; startDate?: Date; endDate?: Date }): Promise<number>;
+  updateSupportRequest(id: string, updates: Partial<SupportRequest>): Promise<SupportRequest | undefined>;
+  
+  // Support Messages
+  createSupportMessage(message: InsertSupportMessage): Promise<SupportMessage>;
+  getSupportMessagesByRequest(requestId: string): Promise<SupportMessage[]>;
+  
+  // Admin Users (for assignment dropdown)
+  getAdminUsers(): Promise<User[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -592,6 +610,89 @@ export class DatabaseStorage implements IStorage {
     await db.delete(progress).where(eq(progress.topicId, id));
     await db.delete(topicPurchases).where(eq(topicPurchases.topicId, id));
     await db.delete(topics).where(eq(topics.id, id));
+  }
+
+  // Support Request Methods
+  async createSupportRequest(request: InsertSupportRequest): Promise<SupportRequest> {
+    const [created] = await db.insert(supportRequests).values(request).returning();
+    return created;
+  }
+
+  async getSupportRequest(id: string): Promise<SupportRequest | undefined> {
+    const [request] = await db.select().from(supportRequests).where(eq(supportRequests.id, id));
+    return request || undefined;
+  }
+
+  async getSupportRequestsByUser(userId: string): Promise<SupportRequest[]> {
+    return db.select().from(supportRequests)
+      .where(eq(supportRequests.userId, userId))
+      .orderBy(desc(supportRequests.createdAt));
+  }
+
+  async getAllSupportRequests(
+    filters?: { status?: string; type?: string; priority?: string; startDate?: Date; endDate?: Date },
+    limit = 50,
+    offset = 0
+  ): Promise<SupportRequest[]> {
+    const conditions = [];
+    if (filters?.status) conditions.push(eq(supportRequests.status, filters.status));
+    if (filters?.type) conditions.push(eq(supportRequests.type, filters.type));
+    if (filters?.priority) conditions.push(eq(supportRequests.priority, filters.priority));
+    if (filters?.startDate) conditions.push(gte(supportRequests.createdAt, filters.startDate));
+    if (filters?.endDate) conditions.push(lte(supportRequests.createdAt, filters.endDate));
+
+    const query = db.select().from(supportRequests);
+    if (conditions.length > 0) {
+      return query.where(and(...conditions))
+        .orderBy(desc(supportRequests.createdAt))
+        .limit(limit)
+        .offset(offset);
+    }
+    return query.orderBy(desc(supportRequests.createdAt)).limit(limit).offset(offset);
+  }
+
+  async getSupportRequestCount(
+    filters?: { status?: string; type?: string; priority?: string; startDate?: Date; endDate?: Date }
+  ): Promise<number> {
+    const conditions = [];
+    if (filters?.status) conditions.push(eq(supportRequests.status, filters.status));
+    if (filters?.type) conditions.push(eq(supportRequests.type, filters.type));
+    if (filters?.priority) conditions.push(eq(supportRequests.priority, filters.priority));
+    if (filters?.startDate) conditions.push(gte(supportRequests.createdAt, filters.startDate));
+    if (filters?.endDate) conditions.push(lte(supportRequests.createdAt, filters.endDate));
+
+    const query = db.select({ count: sql<number>`count(*)` }).from(supportRequests);
+    if (conditions.length > 0) {
+      const result = await query.where(and(...conditions));
+      return Number(result[0]?.count || 0);
+    }
+    const result = await query;
+    return Number(result[0]?.count || 0);
+  }
+
+  async updateSupportRequest(id: string, updates: Partial<SupportRequest>): Promise<SupportRequest | undefined> {
+    const [updated] = await db.update(supportRequests)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(supportRequests.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  // Support Message Methods
+  async createSupportMessage(message: InsertSupportMessage): Promise<SupportMessage> {
+    const [created] = await db.insert(supportMessages).values(message).returning();
+    return created;
+  }
+
+  async getSupportMessagesByRequest(requestId: string): Promise<SupportMessage[]> {
+    return db.select().from(supportMessages)
+      .where(eq(supportMessages.requestId, requestId))
+      .orderBy(asc(supportMessages.createdAt));
+  }
+
+  // Admin Users
+  async getAdminUsers(): Promise<User[]> {
+    return db.select().from(users).where(eq(users.isAdmin, true));
   }
 }
 
