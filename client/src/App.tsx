@@ -20,6 +20,7 @@ import TermsPage from "@/pages/TermsPage";
 import PrivacyPage from "@/pages/PrivacyPage";
 import AccountPage from "@/pages/AccountPage";
 import AdminPage from "@/pages/AdminPage";
+import SupportPage from "@/pages/SupportPage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -38,6 +39,7 @@ function Router() {
       <Route path="/privacy" component={PrivacyPage} />
       <Route path="/account" component={AccountPage} />
       <Route path="/admin" component={AdminPage} />
+      <Route path="/support" component={SupportPage} />
       <Route component={NotFound} />
     </Switch>
   );
