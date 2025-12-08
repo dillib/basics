@@ -15,7 +15,7 @@ import {
   type TutorMessage, type InsertTutorMessage
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, inArray, sql, lte, asc } from "drizzle-orm";
+import { eq, and, desc, inArray, sql, lte, gte, asc } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -83,11 +83,11 @@ export interface IStorage {
   getTutorMessagesBySession(sessionId: string): Promise<TutorMessage[]>;
   
   // Admin Methods
-  getAllUsers(limit?: number, offset?: number): Promise<User[]>;
-  getUserCount(): Promise<number>;
-  getAllTopics(limit?: number, offset?: number): Promise<Topic[]>;
-  getTopicCount(): Promise<number>;
-  getAllTopicPurchases(limit?: number, offset?: number): Promise<TopicPurchase[]>;
+  getAllUsers(limit?: number, offset?: number, startDate?: Date, endDate?: Date): Promise<User[]>;
+  getUserCount(startDate?: Date, endDate?: Date): Promise<number>;
+  getAllTopics(limit?: number, offset?: number, startDate?: Date, endDate?: Date): Promise<Topic[]>;
+  getTopicCount(startDate?: Date, endDate?: Date): Promise<number>;
+  getAllTopicPurchases(limit?: number, offset?: number, startDate?: Date, endDate?: Date): Promise<TopicPurchase[]>;
   getRevenueStats(): Promise<{ totalRevenue: number; topicPurchases: number; proSubscriptions: number }>;
   setUserAdmin(userId: string, isAdmin: boolean): Promise<User | undefined>;
   setUserPro(userId: string, isPro: boolean, expiresAt?: Date): Promise<User | undefined>;
@@ -471,35 +471,77 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Admin Methods
-  async getAllUsers(limit = 50, offset = 0): Promise<User[]> {
-    return db.select().from(users)
-      .orderBy(desc(users.createdAt))
-      .limit(limit)
-      .offset(offset);
+  async getAllUsers(limit = 50, offset = 0, startDate?: Date, endDate?: Date): Promise<User[]> {
+    const conditions = [];
+    if (startDate) conditions.push(gte(users.createdAt, startDate));
+    if (endDate) conditions.push(lte(users.createdAt, endDate));
+    
+    const query = db.select().from(users);
+    if (conditions.length > 0) {
+      return query.where(and(...conditions))
+        .orderBy(desc(users.createdAt))
+        .limit(limit)
+        .offset(offset);
+    }
+    return query.orderBy(desc(users.createdAt)).limit(limit).offset(offset);
   }
 
-  async getUserCount(): Promise<number> {
-    const result = await db.select({ count: sql<number>`count(*)` }).from(users);
+  async getUserCount(startDate?: Date, endDate?: Date): Promise<number> {
+    const conditions = [];
+    if (startDate) conditions.push(gte(users.createdAt, startDate));
+    if (endDate) conditions.push(lte(users.createdAt, endDate));
+    
+    const query = db.select({ count: sql<number>`count(*)` }).from(users);
+    if (conditions.length > 0) {
+      const result = await query.where(and(...conditions));
+      return Number(result[0]?.count || 0);
+    }
+    const result = await query;
     return Number(result[0]?.count || 0);
   }
 
-  async getAllTopics(limit = 50, offset = 0): Promise<Topic[]> {
-    return db.select().from(topics)
-      .orderBy(desc(topics.createdAt))
-      .limit(limit)
-      .offset(offset);
+  async getAllTopics(limit = 50, offset = 0, startDate?: Date, endDate?: Date): Promise<Topic[]> {
+    const conditions = [];
+    if (startDate) conditions.push(gte(topics.createdAt, startDate));
+    if (endDate) conditions.push(lte(topics.createdAt, endDate));
+    
+    const query = db.select().from(topics);
+    if (conditions.length > 0) {
+      return query.where(and(...conditions))
+        .orderBy(desc(topics.createdAt))
+        .limit(limit)
+        .offset(offset);
+    }
+    return query.orderBy(desc(topics.createdAt)).limit(limit).offset(offset);
   }
 
-  async getTopicCount(): Promise<number> {
-    const result = await db.select({ count: sql<number>`count(*)` }).from(topics);
+  async getTopicCount(startDate?: Date, endDate?: Date): Promise<number> {
+    const conditions = [];
+    if (startDate) conditions.push(gte(topics.createdAt, startDate));
+    if (endDate) conditions.push(lte(topics.createdAt, endDate));
+    
+    const query = db.select({ count: sql<number>`count(*)` }).from(topics);
+    if (conditions.length > 0) {
+      const result = await query.where(and(...conditions));
+      return Number(result[0]?.count || 0);
+    }
+    const result = await query;
     return Number(result[0]?.count || 0);
   }
 
-  async getAllTopicPurchases(limit = 50, offset = 0): Promise<TopicPurchase[]> {
-    return db.select().from(topicPurchases)
-      .orderBy(desc(topicPurchases.purchasedAt))
-      .limit(limit)
-      .offset(offset);
+  async getAllTopicPurchases(limit = 50, offset = 0, startDate?: Date, endDate?: Date): Promise<TopicPurchase[]> {
+    const conditions = [];
+    if (startDate) conditions.push(gte(topicPurchases.purchasedAt, startDate));
+    if (endDate) conditions.push(lte(topicPurchases.purchasedAt, endDate));
+    
+    const query = db.select().from(topicPurchases);
+    if (conditions.length > 0) {
+      return query.where(and(...conditions))
+        .orderBy(desc(topicPurchases.purchasedAt))
+        .limit(limit)
+        .offset(offset);
+    }
+    return query.orderBy(desc(topicPurchases.purchasedAt)).limit(limit).offset(offset);
   }
 
   async getRevenueStats(): Promise<{ totalRevenue: number; topicPurchases: number; proSubscriptions: number }> {

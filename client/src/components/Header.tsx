@@ -36,7 +36,9 @@ export default function Header({ isLoggedIn = false, onLogin, onLogout, user, is
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between gap-4 px-6">
         <Link href="/" className="flex items-center gap-2">
-          <img src={pencilLogo} alt="BasicsTutor" className="h-9 w-9 object-contain" />
+          <div className="h-9 w-9 rounded-lg bg-primary/10 dark:bg-primary/20 p-0.5 flex items-center justify-center">
+            <img src={pencilLogo} alt="BasicsTutor" className="h-full w-full object-contain rounded-md" />
+          </div>
           <span className="text-lg font-semibold" data-testid="text-logo">BasicsTutor.com</span>
         </Link>
 

@@ -10,12 +10,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DateRangePicker } from "@/components/ui/date-picker";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Users, BookOpen, DollarSign, TrendingUp, 
-  Shield, Crown, Trash2, LayoutDashboard
+  Shield, Crown, Trash2, LayoutDashboard, Calendar
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import type { User, Topic, TopicPurchase } from "@shared/schema";
 
 interface AdminStats {
@@ -182,10 +183,24 @@ function AdminUsers() {
   const { toast } = useToast();
   const [page, setPage] = useState(0);
   const limit = 20;
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
+
+  const dateParams = [
+    startDate ? `startDate=${startDate.toISOString()}` : '',
+    endDate ? `endDate=${endDate.toISOString()}` : ''
+  ].filter(Boolean).join('&');
+  const dateQueryString = dateParams ? `&${dateParams}` : '';
 
   const { data, isLoading } = useQuery<UsersResponse>({
-    queryKey: [`/api/admin/users?limit=${limit}&offset=${page * limit}`],
+    queryKey: [`/api/admin/users?limit=${limit}&offset=${page * limit}${dateQueryString}`],
   });
+
+  const clearDateFilter = () => {
+    setStartDate(undefined);
+    setEndDate(undefined);
+    setPage(0);
+  };
 
   const toggleAdminMutation = useMutation({
     mutationFn: async ({ userId, isAdmin }: { userId: string; isAdmin: boolean }) => {
@@ -239,13 +254,31 @@ function AdminUsers() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5" />
-          User Management
-        </CardTitle>
-        <CardDescription>
-          Showing {users.length} of {total} users
-        </CardDescription>
+        <div className="flex flex-row items-start justify-between gap-4 flex-wrap">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              User Management
+            </CardTitle>
+            <CardDescription>
+              Showing {users.length} of {total} users
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm text-muted-foreground">Filter by join date:</span>
+            <DateRangePicker
+              startDate={startDate}
+              endDate={endDate}
+              onStartDateChange={(d) => { setStartDate(d); setPage(0); }}
+              onEndDateChange={(d) => { setEndDate(d); setPage(0); }}
+            />
+            {(startDate || endDate) && (
+              <Button variant="outline" size="sm" onClick={clearDateFilter} data-testid="button-clear-user-date-filter">
+                Clear
+              </Button>
+            )}
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <Table>
@@ -337,10 +370,24 @@ function AdminTopics() {
   const { toast } = useToast();
   const [page, setPage] = useState(0);
   const limit = 20;
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
+
+  const dateParams = [
+    startDate ? `startDate=${startDate.toISOString()}` : '',
+    endDate ? `endDate=${endDate.toISOString()}` : ''
+  ].filter(Boolean).join('&');
+  const dateQueryString = dateParams ? `&${dateParams}` : '';
 
   const { data, isLoading } = useQuery<TopicsResponse>({
-    queryKey: [`/api/admin/topics?limit=${limit}&offset=${page * limit}`],
+    queryKey: [`/api/admin/topics?limit=${limit}&offset=${page * limit}${dateQueryString}`],
   });
+
+  const clearDateFilter = () => {
+    setStartDate(undefined);
+    setEndDate(undefined);
+    setPage(0);
+  };
 
   const updateTopicMutation = useMutation({
     mutationFn: async ({ topicId, updates }: { topicId: string; updates: { isSample?: boolean; isPublic?: boolean } }) => {
@@ -394,13 +441,31 @@ function AdminTopics() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <BookOpen className="h-5 w-5" />
-          Content Management
-        </CardTitle>
-        <CardDescription>
-          Showing {topics.length} of {total} topics
-        </CardDescription>
+        <div className="flex flex-row items-start justify-between gap-4 flex-wrap">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5" />
+              Content Management
+            </CardTitle>
+            <CardDescription>
+              Showing {topics.length} of {total} topics
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm text-muted-foreground">Filter by creation date:</span>
+            <DateRangePicker
+              startDate={startDate}
+              endDate={endDate}
+              onStartDateChange={(d) => { setStartDate(d); setPage(0); }}
+              onEndDateChange={(d) => { setEndDate(d); setPage(0); }}
+            />
+            {(startDate || endDate) && (
+              <Button variant="outline" size="sm" onClick={clearDateFilter} data-testid="button-clear-topic-date-filter">
+                Clear
+              </Button>
+            )}
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <Table>
@@ -499,17 +564,30 @@ function AdminTopics() {
 function AdminRevenue() {
   const [page, setPage] = useState(0);
   const limit = 20;
+  const [startDate, setStartDate] = useState<Date | undefined>(startOfMonth(subMonths(new Date(), 1)));
+  const [endDate, setEndDate] = useState<Date | undefined>(endOfMonth(new Date()));
+
+  const dateParams = [
+    startDate ? `startDate=${startDate.toISOString()}` : '',
+    endDate ? `endDate=${endDate.toISOString()}` : ''
+  ].filter(Boolean).join('&');
+  const dateQueryString = dateParams ? `&${dateParams}` : '';
 
   const { data: stats } = useQuery<AdminStats>({
     queryKey: ['/api/admin/stats'],
   });
 
   const { data, isLoading } = useQuery<PurchasesResponse>({
-    queryKey: [`/api/admin/purchases?limit=${limit}&offset=${page * limit}`],
+    queryKey: [`/api/admin/purchases?limit=${limit}&offset=${page * limit}${dateQueryString}`],
   });
 
   const formatCurrency = (cents: number) => {
     return `$${(cents / 100).toFixed(2)}`;
+  };
+
+  const clearDateFilter = () => {
+    setStartDate(undefined);
+    setEndDate(undefined);
   };
 
   if (isLoading) {
@@ -529,6 +607,29 @@ function AdminRevenue() {
 
   return (
     <div className="space-y-6">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap space-y-0 pb-4">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Date Range Filter
+            </CardTitle>
+            <CardDescription>Filter purchases by date range</CardDescription>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <DateRangePicker
+              startDate={startDate}
+              endDate={endDate}
+              onStartDateChange={setStartDate}
+              onEndDateChange={setEndDate}
+            />
+            <Button variant="outline" size="sm" onClick={clearDateFilter} data-testid="button-clear-date-filter">
+              Clear
+            </Button>
+          </div>
+        </CardHeader>
+      </Card>
+
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">

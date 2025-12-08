@@ -1222,8 +1222,11 @@ ${principles.slice(0, 5).map(p => `- ${p.title}: ${p.explanation?.slice(0, 100)}
     try {
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
-      const users = await storage.getAllUsers(limit, offset);
-      const total = await storage.getUserCount();
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+      
+      const users = await storage.getAllUsers(limit, offset, startDate, endDate);
+      const total = await storage.getUserCount(startDate, endDate);
       res.json({ users, total, limit, offset });
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -1274,8 +1277,11 @@ ${principles.slice(0, 5).map(p => `- ${p.title}: ${p.explanation?.slice(0, 100)}
     try {
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
-      const topics = await storage.getAllTopics(limit, offset);
-      const total = await storage.getTopicCount();
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+      
+      const topics = await storage.getAllTopics(limit, offset, startDate, endDate);
+      const total = await storage.getTopicCount(startDate, endDate);
       res.json({ topics, total, limit, offset });
     } catch (error) {
       console.error("Error fetching topics:", error);
@@ -1321,7 +1327,10 @@ ${principles.slice(0, 5).map(p => `- ${p.title}: ${p.explanation?.slice(0, 100)}
     try {
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
-      const purchases = await storage.getAllTopicPurchases(limit, offset);
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+      
+      const purchases = await storage.getAllTopicPurchases(limit, offset, startDate, endDate);
       res.json({ purchases, limit, offset });
     } catch (error) {
       console.error("Error fetching purchases:", error);
