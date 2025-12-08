@@ -2,8 +2,15 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "./ThemeProvider";
-import { Menu, X, Sun, Moon } from "lucide-react";
+import { Menu, X, Sun, Moon, Settings } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import type { User } from "@shared/schema";
 import pencilLogo from "@assets/generated_images/smiling_upright_purple_pencil.png";
 
@@ -74,16 +81,41 @@ export default function Header({ isLoggedIn = false, onLogin, onLogout, user, is
                 </Button>
               </Link>
               {user && (
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={user.profileImageUrl || undefined} style={{ objectFit: 'cover' }} />
-                  <AvatarFallback className="text-xs">
-                    {user.firstName?.[0] || user.email?.[0]?.toUpperCase() || 'U'}
-                  </AvatarFallback>
-                </Avatar>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="rounded-full hover-elevate" data-testid="button-user-menu">
+                      <Avatar className="h-8 w-8 cursor-pointer">
+                        <AvatarImage src={user.profileImageUrl || undefined} style={{ objectFit: 'cover' }} />
+                        <AvatarFallback className="text-xs">
+                          {user.firstName?.[0] || user.email?.[0]?.toUpperCase() || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" data-testid="menu-user-profile">
+                    <DropdownMenuItem asChild>
+                      <Link href="/account" data-testid="link-user-account">
+                        Account Settings
+                      </Link>
+                    </DropdownMenuItem>
+                    {user.isAdmin && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild>
+                          <Link href="/admin" className="flex items-center gap-2" data-testid="link-admin-dashboard">
+                            <Settings className="h-4 w-4" />
+                            Admin Dashboard
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={onLogout} data-testid="button-logout">
+                      Sign out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
-              <Button variant="outline" size="sm" className="rounded-full" onClick={onLogout} data-testid="button-logout">
-                Sign out
-              </Button>
             </div>
           ) : (
             <div className="hidden md:flex items-center gap-3">
@@ -135,6 +167,19 @@ export default function Header({ isLoggedIn = false, onLogin, onLogout, user, is
                       Dashboard
                     </Button>
                   </Link>
+                  <Link href="/account" onClick={() => setIsMenuOpen(false)}>
+                    <Button variant="ghost" className="w-full justify-start rounded-xl" data-testid="link-mobile-account">
+                      Account Settings
+                    </Button>
+                  </Link>
+                  {user?.isAdmin && (
+                    <Link href="/admin" onClick={() => setIsMenuOpen(false)}>
+                      <Button variant="ghost" className="w-full justify-start rounded-xl flex items-center gap-2" data-testid="link-mobile-admin">
+                        <Settings className="h-4 w-4" />
+                        Admin Dashboard
+                      </Button>
+                    </Link>
+                  )}
                   <Button variant="outline" className="rounded-xl" onClick={onLogout} data-testid="button-mobile-logout">
                     Sign out
                   </Button>
