@@ -26,6 +26,23 @@ const isProUser = async (req: any, res: Response, next: NextFunction) => {
   }
 };
 
+const isAdmin = async (req: any, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.claims?.sub;
+    if (!userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    const user = await storage.getUser(userId);
+    if (!user || !user.isAdmin) {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+    next();
+  } catch (error) {
+    console.error("Error checking admin status:", error);
+    res.status(500).json({ message: "Failed to verify admin status" });
+  }
+};
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -1161,6 +1178,154 @@ ${principles.slice(0, 5).map(p => `- ${p.title}: ${p.explanation?.slice(0, 100)}
     } catch (error) {
       console.error("Error fetching tutor sessions:", error);
       res.status(500).json({ message: "Failed to fetch sessions" });
+    }
+  });
+
+  // =====================
+  // ADMIN ROUTES
+  // =====================
+
+  // Check if current user is admin
+  app.get('/api/admin/check', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json({ isAdmin: user?.isAdmin === true });
+    } catch (error) {
+      console.error("Error checking admin status:", error);
+      res.status(500).json({ message: "Failed to check admin status" });
+    }
+  });
+
+  // Admin overview stats
+  app.get('/api/admin/stats', isAuthenticated, isAdmin, async (_req, res) => {
+    try {
+      const userCount = await storage.getUserCount();
+      const topicCount = await storage.getTopicCount();
+      const revenueStats = await storage.getRevenueStats();
+      
+      res.json({
+        totalUsers: userCount,
+        totalTopics: topicCount,
+        totalRevenue: revenueStats.totalRevenue,
+        topicPurchases: revenueStats.topicPurchases,
+        proSubscriptions: revenueStats.proSubscriptions,
+      });
+    } catch (error) {
+      console.error("Error fetching admin stats:", error);
+      res.status(500).json({ message: "Failed to fetch stats" });
+    }
+  });
+
+  // Get all users (admin)
+  app.get('/api/admin/users', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const users = await storage.getAllUsers(limit, offset);
+      const total = await storage.getUserCount();
+      res.json({ users, total, limit, offset });
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  // Update user admin status
+  app.patch('/api/admin/users/:userId/admin', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { isAdmin: makeAdmin } = req.body;
+      
+      const user = await storage.setUserAdmin(userId, makeAdmin);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json(user);
+    } catch (error) {
+      console.error("Error updating user admin status:", error);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  // Update user Pro status
+  app.patch('/api/admin/users/:userId/pro', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const { isPro, expiresAt } = req.body;
+      
+      const user = await storage.setUserPro(
+        userId, 
+        isPro, 
+        expiresAt ? new Date(expiresAt) : undefined
+      );
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json(user);
+    } catch (error) {
+      console.error("Error updating user Pro status:", error);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  // Get all topics (admin)
+  app.get('/api/admin/topics', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const topics = await storage.getAllTopics(limit, offset);
+      const total = await storage.getTopicCount();
+      res.json({ topics, total, limit, offset });
+    } catch (error) {
+      console.error("Error fetching topics:", error);
+      res.status(500).json({ message: "Failed to fetch topics" });
+    }
+  });
+
+  // Update topic (admin) - mark as sample, toggle public
+  app.patch('/api/admin/topics/:topicId', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { topicId } = req.params;
+      const { isSample, isPublic } = req.body;
+      
+      const updates: any = {};
+      if (typeof isSample === 'boolean') updates.isSample = isSample;
+      if (typeof isPublic === 'boolean') updates.isPublic = isPublic;
+      
+      const topic = await storage.updateTopic(topicId, updates);
+      if (!topic) {
+        return res.status(404).json({ message: "Topic not found" });
+      }
+      res.json(topic);
+    } catch (error) {
+      console.error("Error updating topic:", error);
+      res.status(500).json({ message: "Failed to update topic" });
+    }
+  });
+
+  // Delete topic (admin)
+  app.delete('/api/admin/topics/:topicId', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { topicId } = req.params;
+      await storage.deleteTopicById(topicId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting topic:", error);
+      res.status(500).json({ message: "Failed to delete topic" });
+    }
+  });
+
+  // Get all purchases (admin)
+  app.get('/api/admin/purchases', isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const purchases = await storage.getAllTopicPurchases(limit, offset);
+      res.json({ purchases, limit, offset });
+    } catch (error) {
+      console.error("Error fetching purchases:", error);
+      res.status(500).json({ message: "Failed to fetch purchases" });
     }
   });
 

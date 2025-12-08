@@ -81,6 +81,17 @@ export interface IStorage {
   // Tutor Messages
   createTutorMessage(message: InsertTutorMessage): Promise<TutorMessage>;
   getTutorMessagesBySession(sessionId: string): Promise<TutorMessage[]>;
+  
+  // Admin Methods
+  getAllUsers(limit?: number, offset?: number): Promise<User[]>;
+  getUserCount(): Promise<number>;
+  getAllTopics(limit?: number, offset?: number): Promise<Topic[]>;
+  getTopicCount(): Promise<number>;
+  getAllTopicPurchases(limit?: number, offset?: number): Promise<TopicPurchase[]>;
+  getRevenueStats(): Promise<{ totalRevenue: number; topicPurchases: number; proSubscriptions: number }>;
+  setUserAdmin(userId: string, isAdmin: boolean): Promise<User | undefined>;
+  setUserPro(userId: string, isPro: boolean, expiresAt?: Date): Promise<User | undefined>;
+  deleteTopicById(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -457,6 +468,88 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(tutorMessages)
       .where(eq(tutorMessages.sessionId, sessionId))
       .orderBy(asc(tutorMessages.createdAt));
+  }
+
+  // Admin Methods
+  async getAllUsers(limit = 50, offset = 0): Promise<User[]> {
+    return db.select().from(users)
+      .orderBy(desc(users.createdAt))
+      .limit(limit)
+      .offset(offset);
+  }
+
+  async getUserCount(): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` }).from(users);
+    return Number(result[0]?.count || 0);
+  }
+
+  async getAllTopics(limit = 50, offset = 0): Promise<Topic[]> {
+    return db.select().from(topics)
+      .orderBy(desc(topics.createdAt))
+      .limit(limit)
+      .offset(offset);
+  }
+
+  async getTopicCount(): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` }).from(topics);
+    return Number(result[0]?.count || 0);
+  }
+
+  async getAllTopicPurchases(limit = 50, offset = 0): Promise<TopicPurchase[]> {
+    return db.select().from(topicPurchases)
+      .orderBy(desc(topicPurchases.purchasedAt))
+      .limit(limit)
+      .offset(offset);
+  }
+
+  async getRevenueStats(): Promise<{ totalRevenue: number; topicPurchases: number; proSubscriptions: number }> {
+    const completedPurchases = await db.select({ 
+      sum: sql<number>`COALESCE(SUM(amount), 0)`,
+      count: sql<number>`count(*)`
+    }).from(topicPurchases).where(eq(topicPurchases.status, "completed"));
+    
+    const proUsers = await db.select({ count: sql<number>`count(*)` })
+      .from(users)
+      .where(eq(users.plan, "pro"));
+    
+    const topicRevenue = Number(completedPurchases[0]?.sum || 0);
+    const topicCount = Number(completedPurchases[0]?.count || 0);
+    const proCount = Number(proUsers[0]?.count || 0);
+    const proRevenue = proCount * 9900; // $99 per pro subscription
+    
+    return {
+      totalRevenue: topicRevenue + proRevenue,
+      topicPurchases: topicCount,
+      proSubscriptions: proCount,
+    };
+  }
+
+  async setUserAdmin(userId: string, isAdmin: boolean): Promise<User | undefined> {
+    const [user] = await db.update(users)
+      .set({ isAdmin })
+      .where(eq(users.id, userId))
+      .returning();
+    return user || undefined;
+  }
+
+  async setUserPro(userId: string, isPro: boolean, expiresAt?: Date): Promise<User | undefined> {
+    const updates: Partial<User> = {
+      plan: isPro ? "pro" : "free",
+      proExpiresAt: isPro ? (expiresAt || null) : null,
+    };
+    const [user] = await db.update(users)
+      .set(updates)
+      .where(eq(users.id, userId))
+      .returning();
+    return user || undefined;
+  }
+
+  async deleteTopicById(id: string): Promise<void> {
+    await db.delete(principles).where(eq(principles.topicId, id));
+    await db.delete(quizzes).where(eq(quizzes.topicId, id));
+    await db.delete(progress).where(eq(progress.topicId, id));
+    await db.delete(topicPurchases).where(eq(topicPurchases.topicId, id));
+    await db.delete(topics).where(eq(topics.id, id));
   }
 }
 
