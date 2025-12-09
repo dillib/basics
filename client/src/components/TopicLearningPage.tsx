@@ -107,6 +107,11 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
     },
   });
 
+  // Scroll to top when navigating to topic page
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [slug]);
+
   // Initialize completed principles from saved progress
   useEffect(() => {
     if (!topic?.id || principles.length === 0 || !isAuthenticated) return;
@@ -354,7 +359,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                                   Locked
                                 </Badge>
                               )}
-                              {!isSampleTopic && index < 2 && !isLocked && (
+                              {!isSampleTopic && index < 2 && !canAccessAllPrinciples && (
                                 <Badge variant="default" className="ml-2 text-xs bg-green-600">
                                   Free
                                 </Badge>
