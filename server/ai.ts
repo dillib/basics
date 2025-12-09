@@ -18,12 +18,31 @@ interface GeneratedPrinciple {
   keyTakeaways: string[];
 }
 
+interface MindMapNode {
+  id: string;
+  label: string;
+  type: "topic" | "principle" | "concept";
+  summary?: string;
+}
+
+interface MindMapEdge {
+  source: string;
+  target: string;
+  label?: string;
+}
+
+interface MindMapData {
+  nodes: MindMapNode[];
+  edges: MindMapEdge[];
+}
+
 interface TopicContent {
   description: string;
   category: string;
   difficulty: string;
   estimatedMinutes: number;
   principles: GeneratedPrinciple[];
+  mindMap: MindMapData;
 }
 
 export async function generateTopicContent(topicTitle: string): Promise<TopicContent> {
@@ -38,6 +57,8 @@ For each principle:
 2. Build up to more complex ideas
 3. Use real-world analogies to make abstract concepts tangible
 4. Include key takeaways
+
+Also generate a mind map that visualizes the topic structure and relationships between concepts.
 
 Return a JSON object with this structure:
 {
@@ -54,10 +75,27 @@ Return a JSON object with this structure:
       "visualData": { "type": "...", "description": "Description for the visual" },
       "keyTakeaways": ["Key point 1", "Key point 2", "Key point 3"]
     }
-  ]
+  ],
+  "mindMap": {
+    "nodes": [
+      { "id": "topic", "label": "Topic Title", "type": "topic", "summary": "Brief description" },
+      { "id": "p1", "label": "Principle 1", "type": "principle", "summary": "Brief summary" },
+      { "id": "c1", "label": "Key Concept", "type": "concept", "summary": "Brief summary" }
+    ],
+    "edges": [
+      { "source": "topic", "target": "p1", "label": "builds on" },
+      { "source": "p1", "target": "c1", "label": "explains" }
+    ]
+  }
 }
 
-Include 4-6 principles, ordered from most fundamental to more advanced. Each principle should build on the previous ones.`,
+Include 4-6 principles, ordered from most fundamental to more advanced. Each principle should build on the previous ones.
+
+For the mind map:
+- Include the main topic as the central node (type: "topic")
+- Include each principle as a node (type: "principle", id: "p1", "p2", etc.)
+- Add 1-2 key concepts per principle as child nodes (type: "concept")
+- Create edges showing relationships: topic->principles, principles->concepts, and cross-links between related principles`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -84,9 +122,40 @@ Include 4-6 principles, ordered from most fundamental to more advanced. Each pri
               },
               required: ["title", "explanation", "analogy", "keyTakeaways"]
             }
+          },
+          mindMap: {
+            type: Type.OBJECT,
+            properties: {
+              nodes: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    id: { type: Type.STRING },
+                    label: { type: Type.STRING },
+                    type: { type: Type.STRING },
+                    summary: { type: Type.STRING }
+                  },
+                  required: ["id", "label", "type"]
+                }
+              },
+              edges: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    source: { type: Type.STRING },
+                    target: { type: Type.STRING },
+                    label: { type: Type.STRING }
+                  },
+                  required: ["source", "target"]
+                }
+              }
+            },
+            required: ["nodes", "edges"]
           }
         },
-        required: ["description", "category", "difficulty", "estimatedMinutes", "principles"]
+        required: ["description", "category", "difficulty", "estimatedMinutes", "principles", "mindMap"]
       }
     }
   });

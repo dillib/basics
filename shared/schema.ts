@@ -45,6 +45,7 @@ export const topics = pgTable("topics", {
   imageUrl: text("image_url"),
   isPublic: boolean("is_public").default(false),
   isSample: boolean("is_sample").default(false),
+  mindMapData: jsonb("mind_map_data"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

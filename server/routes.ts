@@ -150,6 +150,7 @@ export async function registerRoutes(
         difficulty: content.difficulty,
         estimatedMinutes: content.estimatedMinutes,
         isPublic: true,
+        mindMapData: content.mindMap,
       });
       console.log(`[Topic Generate] Topic created with id: ${newTopic.id}`);
 
