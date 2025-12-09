@@ -32,7 +32,9 @@ export default function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-12 mb-16">
           <div className="col-span-2">
             <Link href="/" className="flex items-center gap-3 mb-6">
-              <img src={pencilLogo} alt="BasicsTutor" className="h-10 w-10 object-contain" />
+              <div className="h-9 w-9 rounded-lg bg-primary/10 dark:bg-primary/20 p-0.5 flex items-center justify-center">
+                <img src={pencilLogo} alt="BasicsTutor" className="h-full w-full object-contain rounded-md" />
+              </div>
               <span className="text-xl font-semibold" data-testid="text-footer-logo">BasicsTutor.com</span>
             </Link>
             <p className="text-muted-foreground mb-6 max-w-xs leading-relaxed">
