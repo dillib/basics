@@ -32,7 +32,7 @@ export default function Footer() {
       <div className="container mx-auto px-6 py-16 sm:py-20">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-12 mb-16">
           <div className="col-span-2">
-            <Link href="/" className="flex items-center gap-3 mb-6">
+            <Link href="/" className="flex items-center gap-3 mb-6" onClick={() => window.scrollTo(0, 0)}>
               <div className="h-9 w-9 rounded-lg bg-primary/10 dark:bg-primary/20 p-0.5 flex items-center justify-center">
                 <img src={pencilLogo} alt="BasicsTutor" className="h-full w-full object-contain rounded-md" />
               </div>
@@ -79,6 +79,7 @@ export default function Footer() {
                     href={link.href}
                     className="text-muted-foreground hover:text-foreground transition-colors"
                     data-testid={`link-footer-${link.label.toLowerCase().replace(/\s+/g, '-')}`}
+                    onClick={() => window.scrollTo(0, 0)}
                   >
                     {link.label}
                   </Link>
@@ -96,6 +97,7 @@ export default function Footer() {
                     href={link.href}
                     className="text-muted-foreground hover:text-foreground transition-colors"
                     data-testid={`link-footer-${link.label.toLowerCase().replace(/\s+/g, '-')}`}
+                    onClick={() => window.scrollTo(0, 0)}
                   >
                     {link.label}
                   </Link>
@@ -113,6 +115,7 @@ export default function Footer() {
                     href={link.href}
                     className="text-muted-foreground hover:text-foreground transition-colors"
                     data-testid={`link-footer-${link.label.toLowerCase().replace(/\s+/g, '-')}`}
+                    onClick={() => window.scrollTo(0, 0)}
                   >
                     {link.label}
                   </Link>
