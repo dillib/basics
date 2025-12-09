@@ -25,6 +25,7 @@ const difficultyColors: Record<string, string> = {
 export default function TopicsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [location] = useLocation();
   const [newTopicTitle, setNewTopicTitle] = useState(() => {
     // Check if there's a topic parameter in the URL
@@ -37,6 +38,11 @@ export default function TopicsPage() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
+  const { data: user } = useQuery<User>({
+    queryKey: ['/api/auth/user'],
+    retry: false,
+  });
 
   const { data: topics = [], isLoading } = useQuery<Topic[]>({
     queryKey: ['/api/topics'],
@@ -61,6 +67,16 @@ export default function TopicsPage() {
     const matchesSearch = topic.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (topic.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
     const matchesCategory = selectedCategory === "All" || topic.category === selectedCategory;
+    
+    // Filter by source
+    if (sourceFilter === "samples") {
+      if (!topic.isSample) return false;
+    } else if (sourceFilter === "community") {
+      if (topic.isSample || topic.userId === user?.id) return false;
+    } else if (sourceFilter === "mine") {
+      if (topic.userId !== user?.id) return false;
+    }
+    
     return matchesSearch && matchesCategory;
   });
 
@@ -150,6 +166,30 @@ export default function TopicsPage() {
           </div>
         </div>
 
+        <div className="mb-6">
+          <p className="text-sm font-medium text-muted-foreground mb-3">Filter by Source</p>
+          <Tabs value={sourceFilter} onValueChange={(val) => setSourceFilter(val as SourceFilter)} className="w-full">
+            <TabsList className="bg-transparent gap-2">
+              <TabsTrigger value="all" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-testid="tab-source-all">
+                All Topics
+              </TabsTrigger>
+              <TabsTrigger value="samples" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-testid="tab-source-samples">
+                Sample Topics
+              </TabsTrigger>
+              <TabsTrigger value="community" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-testid="tab-source-community">
+                <Users className="h-4 w-4 mr-2" />
+                Community
+              </TabsTrigger>
+              {user && (
+                <TabsTrigger value="mine" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-testid="tab-source-mine">
+                  <Star className="h-4 w-4 mr-2" />
+                  My Topics
+                </TabsTrigger>
+              )}
+            </TabsList>
+          </Tabs>
+        </div>
+
         <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="mb-8">
           <TabsList className="flex flex-wrap h-auto gap-2 bg-transparent">
             {categories.map((category) => (
@@ -188,10 +228,21 @@ export default function TopicsPage() {
                 data-testid={`card-topic-${topic.slug}`}
               >
                 <CardContent className="p-6">
-                  <div className="flex items-start justify-between gap-2 mb-4">
-                    <Badge variant="secondary" className="text-xs">
-                      {topic.category}
-                    </Badge>
+                  <div className="flex items-start justify-between gap-2 mb-4 flex-wrap">
+                    <div className="flex gap-2 flex-wrap">
+                      <Badge variant="secondary" className="text-xs">
+                        {topic.category}
+                      </Badge>
+                      {topic.isSample && (
+                        <Badge variant="outline" className="text-xs">Sample</Badge>
+                      )}
+                      {topic.userId === user?.id && (
+                        <Badge variant="default" className="text-xs flex items-center gap-1">
+                          <Star className="h-3 w-3" />
+                          Mine
+                        </Badge>
+                      )}
+                    </div>
                     {topic.difficulty && (
                       <Badge className={`text-xs ${difficultyColors[topic.difficulty.toLowerCase()] || ""}`}>
                         {topic.difficulty}

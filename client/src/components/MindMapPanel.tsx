@@ -193,8 +193,16 @@ function calculateNodePositions(data: MindMapData): { nodes: Node[]; edges: Edge
     });
   });
 
-  // Edges - clean styling without labels
-  const positionedEdges: Edge[] = data.edges.map((edge, i) => {
+  // Edges - clean styling without labels, filtering out principle-to-principle edges
+  const filteredEdges = data.edges.filter(edge => {
+    // Keep topic-to-principle and principle-to-concept edges, skip principle-to-principle
+    const sourcePrinciple = principleNodes.find(p => p.id === edge.source);
+    const targetPrinciple = principleNodes.find(p => p.id === edge.target);
+    // Skip if both source and target are principles (principle-to-principle)
+    return !(sourcePrinciple && targetPrinciple);
+  });
+
+  const positionedEdges: Edge[] = filteredEdges.map((edge, i) => {
     const isFromTopic = edge.source === topicNode?.id;
     return {
       id: `edge-${i}`,
