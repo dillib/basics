@@ -20,7 +20,8 @@ import {
   LogOut,
   Sparkles,
   BarChart3,
-  RotateCcw
+  RotateCcw,
+  LifeBuoy
 } from "lucide-react";
 import AnalyticsPanel from "./AnalyticsPanel";
 import ReviewPanel from "./ReviewPanel";
@@ -138,6 +139,14 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                       {item.label}
                     </button>
                   ))}
+                  <button
+                    className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-muted-foreground hover-elevate"
+                    onClick={() => setLocation('/support')}
+                    data-testid="button-nav-support"
+                  >
+                    <LifeBuoy className="h-4 w-4" />
+                    Support
+                  </button>
                   <button
                     className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-muted-foreground hover-elevate"
                     onClick={onLogout}
