@@ -49,7 +49,12 @@ function Router() {
 
 function AppContent() {
   const { user, isAuthenticated, isLoading } = useAuth();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
+
+  // Scroll to top on route change
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location]);
 
   // Handle redirect after login
   useEffect(() => {

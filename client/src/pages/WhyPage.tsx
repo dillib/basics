@@ -91,7 +91,7 @@ const testimonialQuotes = [
     author: "Physics Student",
   },
   {
-    quote: "ChatGPT gave me information. BasicsTutor gave me understanding. There's a huge difference.",
+    quote: "AI chatbots gave me information. BasicsTutor gave me understanding. There's a huge difference.",
     author: "Self-Learner",
   },
   {
@@ -110,8 +110,8 @@ export default function WhyPage() {
               Why BasicsTutor?
             </Badge>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight mb-6" data-testid="text-why-title">
-              ChatGPT tells you things.<br />
-              <span className="text-primary">BasicsTutor teaches you things.</span>
+              AI gives you answers.<br />
+              <span className="text-primary">BasicsTutor gives you understanding.</span>
             </h1>
             <p className="text-lg sm:text-xl text-muted-foreground leading-relaxed max-w-3xl mx-auto mb-10">
               AI chatbots are amazing for quick answers. But if you want to truly understand a subject—to build 
