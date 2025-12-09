@@ -29,6 +29,7 @@ import Quiz from "./Quiz";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import TutorChat from "./TutorChat";
+import MindMapPanel from "./MindMapPanel";
 
 interface TopicLearningPageProps {
   topicId?: string;
@@ -596,10 +597,20 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                 </Card>
               )}
             </div>
+
+            {/* Mind Map Section - Pro Feature */}
+            {isAuthenticated && user?.plan === "pro" && (topic as any)?.mindMapData && (
+              <div className="mb-12" data-testid="section-mind-map">
+                <MindMapPanel 
+                  data={(topic as any).mindMapData}
+                  topicTitle={topic.title}
+                />
+              </div>
+            )}
           </main>
 
           <aside className="hidden lg:block w-72 shrink-0">
-            <div className="sticky top-20">
+            <div className="sticky top-20 space-y-4">
               <Card className="border-card-border">
                 <CardHeader>
                   <CardTitle className="text-base">Table of Contents</CardTitle>
@@ -644,6 +655,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
               </Card>
             </div>
           </aside>
+
         </div>
       </div>
 
