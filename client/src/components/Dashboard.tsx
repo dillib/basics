@@ -165,6 +165,128 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               <AnalyticsPanel />
             ) : activeTab === "review" ? (
               <ReviewPanel />
+            ) : activeTab === "topics" ? (
+              <>
+                <div className="mb-8">
+                  <h1 className="text-2xl sm:text-3xl font-bold mb-2" data-testid="text-my-topics-title">
+                    My Topics
+                  </h1>
+                  <p className="text-muted-foreground">
+                    Topics you've created and generated.
+                  </p>
+                </div>
+                <div className="space-y-4">
+                  {isLoading ? (
+                    [1, 2, 3].map((i) => (
+                      <Card key={i} className="border-card-border">
+                        <CardContent className="p-4">
+                          <Skeleton className="h-6 w-full" />
+                        </CardContent>
+                      </Card>
+                    ))
+                  ) : topics.length === 0 ? (
+                    <Card className="border-card-border">
+                      <CardContent className="p-8 text-center">
+                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mx-auto mb-4">
+                          <Star className="h-8 w-8 text-primary" />
+                        </div>
+                        <h3 className="text-lg font-semibold mb-2">No Topics Yet</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Create your first topic by searching on the homepage.
+                        </p>
+                        <Button onClick={() => setLocation('/')} data-testid="button-create-topic">
+                          Create a Topic
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    topics.map((topic) => {
+                      const progress = progressList.find(p => p.topicId === topic.id);
+                      const progressPercent = progress 
+                        ? Math.round(((progress.principlesCompleted || 0) / (progress.totalPrinciples || 1)) * 100)
+                        : 0;
+                      
+                      return (
+                        <Card 
+                          key={topic.id}
+                          className="border-card-border hover-elevate cursor-pointer"
+                          onClick={() => setLocation(`/topic/${topic.slug}`)}
+                          data-testid={`card-my-topic-${topic.id}`}
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex items-center gap-4">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                                <BookOpen className="h-5 w-5 text-primary" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <Badge variant="secondary" className="text-xs">{topic.category}</Badge>
+                                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    {topic.estimatedMinutes} min
+                                  </span>
+                                </div>
+                                <h3 className="font-semibold truncate">{topic.title}</h3>
+                                {progress && (
+                                  <div className="flex items-center gap-3 mt-2">
+                                    <Progress value={progressPercent} className="flex-1 h-2" />
+                                    <span className="text-sm font-medium text-muted-foreground">{progressPercent}%</span>
+                                  </div>
+                                )}
+                              </div>
+                              <Button variant="ghost" size="icon">
+                                <ChevronRight className="h-5 w-5" />
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })
+                  )}
+                </div>
+              </>
+            ) : activeTab === "subscription" ? (
+              <>
+                <div className="mb-8">
+                  <h1 className="text-2xl sm:text-3xl font-bold mb-2">Subscription</h1>
+                  <p className="text-muted-foreground">
+                    Manage your subscription and billing.
+                  </p>
+                </div>
+                <Card className="border-card-border">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold mb-1">Current Plan</h3>
+                        <Badge variant={user?.plan === "pro" ? "default" : "secondary"}>
+                          {user?.plan === "pro" ? "Pro Plan" : "Free Plan"}
+                        </Badge>
+                      </div>
+                      {user?.plan !== "pro" && (
+                        <Button onClick={() => setLocation('/pricing')}>
+                          Upgrade to Pro
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            ) : activeTab === "settings" ? (
+              <>
+                <div className="mb-8">
+                  <h1 className="text-2xl sm:text-3xl font-bold mb-2">Settings</h1>
+                  <p className="text-muted-foreground">
+                    Manage your account settings.
+                  </p>
+                </div>
+                <Card className="border-card-border">
+                  <CardContent className="p-6">
+                    <Button variant="outline" onClick={() => setLocation('/account')}>
+                      Go to Account Settings
+                    </Button>
+                  </CardContent>
+                </Card>
+              </>
             ) : (
               <>
                 <div className="mb-8">
