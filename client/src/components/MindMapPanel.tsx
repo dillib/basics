@@ -52,14 +52,16 @@ function calculateNodePositions(data: MindMapData): { nodes: Node[]; edges: Edge
     return { nodes: [], edges: [] };
   }
 
-  const centerX = 400;
-  const centerY = 300;
-  const principleRadius = 200;
-  const conceptRadius = 100;
-
+  const centerX = 450;
+  const centerY = 350;
+  
   const topicNode = data.nodes.find(n => n.type === "topic");
   const principleNodes = data.nodes.filter(n => n.type === "principle");
   const conceptNodes = data.nodes.filter(n => n.type === "concept");
+
+  // Dynamic radius based on number of principles (more principles = larger radius)
+  const principleRadius = Math.max(220, 180 + principleNodes.length * 25);
+  const conceptRadius = 90;
 
   const positionedNodes: Node[] = [];
 
@@ -67,6 +69,7 @@ function calculateNodePositions(data: MindMapData): { nodes: Node[]; edges: Edge
   const hasPrinciples = principleNodes.length > 0;
   const angleStep = hasPrinciples ? (2 * Math.PI) / principleNodes.length : 0;
 
+  // Central topic node - smaller and cleaner
   if (topicNode) {
     positionedNodes.push({
       id: topicNode.id,
@@ -78,25 +81,26 @@ function calculateNodePositions(data: MindMapData): { nodes: Node[]; edges: Edge
       },
       style: {
         background: nodeColors.topic.bg,
-        border: `2px solid ${nodeColors.topic.border}`,
+        border: `3px solid ${nodeColors.topic.border}`,
         color: nodeColors.topic.text,
         borderRadius: "50%",
-        width: 140,
-        height: 140,
+        width: 120,
+        height: 120,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         textAlign: "center" as const,
         fontWeight: 600,
-        fontSize: "14px",
-        padding: "12px",
-        boxShadow: "0 4px 12px rgba(124, 58, 237, 0.3)",
+        fontSize: "13px",
+        padding: "10px",
+        boxShadow: "0 4px 16px rgba(124, 58, 237, 0.35)",
       },
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
     });
   }
 
+  // Principle nodes - arranged in a circle around topic
   principleNodes.forEach((node, i) => {
     const angle = angleStep * i - Math.PI / 2;
     const x = centerX + principleRadius * Math.cos(angle);
@@ -114,23 +118,24 @@ function calculateNodePositions(data: MindMapData): { nodes: Node[]; edges: Edge
         background: nodeColors.principle.bg,
         border: `2px solid ${nodeColors.principle.border}`,
         color: nodeColors.principle.text,
-        borderRadius: "12px",
-        width: 130,
-        minHeight: 60,
+        borderRadius: "10px",
+        width: 110,
+        minHeight: 50,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         textAlign: "center" as const,
         fontWeight: 500,
-        fontSize: "12px",
-        padding: "10px",
-        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.08)",
+        fontSize: "11px",
+        padding: "8px",
+        boxShadow: "0 2px 6px rgba(0, 0, 0, 0.06)",
       },
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
     });
   });
 
+  // Group concepts by their parent principle
   const conceptsByPrinciple = new Map<string, MindMapNode[]>();
   data.edges.forEach(edge => {
     const sourceIsPrinciple = principleNodes.some(p => p.id === edge.source);
@@ -143,13 +148,15 @@ function calculateNodePositions(data: MindMapData): { nodes: Node[]; edges: Edge
     }
   });
 
+  // Position concept nodes around their parent principles
   principleNodes.forEach((principle, i) => {
     const principleAngle = angleStep * i - Math.PI / 2;
     const principleX = centerX + principleRadius * Math.cos(principleAngle);
     const principleY = centerY + principleRadius * Math.sin(principleAngle);
 
     const concepts = conceptsByPrinciple.get(principle.id) || [];
-    const conceptAngleSpread = Math.PI / 4;
+    // Spread concepts in an arc away from center, with more spread for more concepts
+    const conceptAngleSpread = Math.min(Math.PI / 3, (concepts.length * Math.PI) / 8);
     const conceptAngleStep = concepts.length > 1 ? conceptAngleSpread / (concepts.length - 1) : 0;
     const startAngle = principleAngle - conceptAngleSpread / 2;
 
@@ -170,15 +177,15 @@ function calculateNodePositions(data: MindMapData): { nodes: Node[]; edges: Edge
           background: nodeColors.concept.bg,
           border: `1px solid ${nodeColors.concept.border}`,
           color: nodeColors.concept.text,
-          borderRadius: "8px",
-          width: 100,
-          minHeight: 40,
+          borderRadius: "6px",
+          width: 85,
+          minHeight: 32,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           textAlign: "center" as const,
-          fontSize: "11px",
-          padding: "6px",
+          fontSize: "10px",
+          padding: "4px 6px",
         },
         sourcePosition: Position.Right,
         targetPosition: Position.Left,
@@ -186,29 +193,27 @@ function calculateNodePositions(data: MindMapData): { nodes: Node[]; edges: Edge
     });
   });
 
-  const positionedEdges: Edge[] = data.edges.map((edge, i) => ({
-    id: `edge-${i}`,
-    source: edge.source,
-    target: edge.target,
-    label: edge.label,
-    type: "smoothstep",
-    animated: edge.source === topicNode?.id,
-    style: { 
-      stroke: edge.source === topicNode?.id ? "hsl(262, 83%, 58%)" : "hsl(262, 30%, 75%)",
-      strokeWidth: edge.source === topicNode?.id ? 2 : 1,
-    },
-    labelStyle: { 
-      fontSize: "10px", 
-      fill: "hsl(262, 30%, 50%)",
-      fontWeight: 400,
-    },
-    markerEnd: {
-      type: MarkerType.ArrowClosed,
-      color: edge.source === topicNode?.id ? "hsl(262, 83%, 58%)" : "hsl(262, 30%, 75%)",
-      width: 15,
-      height: 15,
-    },
-  }));
+  // Edges - clean styling without labels
+  const positionedEdges: Edge[] = data.edges.map((edge, i) => {
+    const isFromTopic = edge.source === topicNode?.id;
+    return {
+      id: `edge-${i}`,
+      source: edge.source,
+      target: edge.target,
+      type: "smoothstep",
+      animated: isFromTopic,
+      style: { 
+        stroke: isFromTopic ? "hsl(262, 83%, 58%)" : "hsl(262, 25%, 80%)",
+        strokeWidth: isFromTopic ? 2 : 1,
+      },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: isFromTopic ? "hsl(262, 83%, 58%)" : "hsl(262, 25%, 80%)",
+        width: 12,
+        height: 12,
+      },
+    };
+  });
 
   return { nodes: positionedNodes, edges: positionedEdges };
 }
