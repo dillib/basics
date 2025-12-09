@@ -27,7 +27,7 @@ export default function CTASection({ onGetStarted }: CTASectionProps) {
           </h2>
           <p className="text-xl text-muted-foreground mb-10 leading-relaxed">
             Create your first topic and begin your AI-powered learning journey. 
-            Explore the fundamentals at your own pace. No credit card required.
+            Explore the fundamentals at your own pace.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button
