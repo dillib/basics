@@ -21,6 +21,7 @@ import PrivacyPage from "@/pages/PrivacyPage";
 import AccountPage from "@/pages/AccountPage";
 import AdminPage from "@/pages/AdminPage";
 import SupportPage from "@/pages/SupportPage";
+import WhyPage from "@/pages/WhyPage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -40,6 +41,7 @@ function Router() {
       <Route path="/account" component={AccountPage} />
       <Route path="/admin" component={AdminPage} />
       <Route path="/support" component={SupportPage} />
+      <Route path="/why" component={WhyPage} />
       <Route component={NotFound} />
     </Switch>
   );

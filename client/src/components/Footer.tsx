@@ -5,6 +5,7 @@ import pencilLogo from "@assets/generated_images/smiling_upright_purple_pencil.p
 
 const footerLinks = {
   product: [
+    { label: "Why BasicsTutor", href: "/why" },
     { label: "Topics", href: "/topics" },
     { label: "Pricing", href: "/pricing" },
     { label: "Dashboard", href: "/dashboard" },
