@@ -319,3 +319,44 @@
 .animate-gradient {
   animation: gradient-shift 6s ease infinite;
 }
+
+/* React Flow Controls Styling - Make +/- zoom buttons more visible */
+.react-flow__controls {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  padding: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.react-flow__controls-button {
+  width: 32px !important;
+  height: 32px !important;
+  background: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+  border: none !important;
+  border-radius: 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+.react-flow__controls-button:hover {
+  background: hsl(var(--primary) / 0.9) !important;
+  transform: scale(1.05);
+}
+
+.react-flow__controls-button svg {
+  width: 18px !important;
+  height: 18px !important;
+  fill: currentColor !important;
+}
+
+.react-flow__controls-button path {
+  fill: currentColor !important;
+}
