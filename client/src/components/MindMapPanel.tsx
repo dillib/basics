@@ -9,12 +9,13 @@ import {
   useEdgesState,
   MarkerType,
   Position,
+  NodeMouseHandler,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Download, Maximize2, Minimize2, ZoomIn, ZoomOut, RefreshCw } from "lucide-react";
+import { Download, Maximize2, Minimize2, X, RefreshCw } from "lucide-react";
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
 
@@ -229,11 +230,21 @@ function calculateNodePositions(data: MindMapData): { nodes: Node[]; edges: Edge
 export default function MindMapPanel({ data, topicTitle }: MindMapPanelProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [selectedNode, setSelectedNode] = useState<MindMapNode | null>(null);
   const flowRef = useRef<HTMLDivElement>(null);
 
   const { nodes: initialNodes, edges: initialEdges } = calculateNodePositions(data);
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+  const getNodeData = (id: string): MindMapNode | undefined => {
+    return data.nodes.find(n => n.id === id);
+  };
+
+  const handleNodeClick: NodeMouseHandler = useCallback((_, node) => {
+    const nodeData = getNodeData(node.id);
+    setSelectedNode(nodeData || null);
+  }, [data.nodes]);
 
   const resetLayout = useCallback(() => {
     const { nodes: newNodes, edges: newEdges } = calculateNodePositions(data);
@@ -272,9 +283,66 @@ export default function MindMapPanel({ data, topicTitle }: MindMapPanelProps) {
       pdf.text(`${topicTitle} - Mind Map`, pageWidth / 2, margin + 8, { align: "center" });
 
       const imgWidth = pageWidth - margin * 2;
-      const imgHeight = pageHeight - margin * 2 - 15;
+      const imgHeight = pageHeight - margin * 2 - 20;
       
       pdf.addImage(dataUrl, "PNG", margin, margin + 12, imgWidth, imgHeight);
+
+      // Add principles and concepts summary
+      pdf.addPage();
+      let yPosition = margin + 10;
+      
+      pdf.setFontSize(14);
+      pdf.setFont("helvetica", "bold");
+      pdf.text("Topic Details", margin, yPosition);
+      yPosition += 8;
+
+      const principles = data.nodes.filter(n => n.type === "principle");
+      const concepts = data.nodes.filter(n => n.type === "concept");
+
+      if (principles.length > 0) {
+        pdf.setFontSize(11);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("Principles:", margin, yPosition);
+        yPosition += 6;
+        
+        pdf.setFontSize(9);
+        pdf.setFont("helvetica", "normal");
+        principles.forEach(p => {
+          const text = `• ${p.label}${p.summary ? ': ' + p.summary.substring(0, 50) + '...' : ''}`;
+          const lines = pdf.splitTextToSize(text, pageWidth - margin * 2) as string[];
+          lines.forEach((line: string) => {
+            pdf.text(line, margin + 2, yPosition);
+            yPosition += 4;
+          });
+          if (yPosition > pageHeight - margin - 10) {
+            pdf.addPage();
+            yPosition = margin;
+          }
+        });
+        yPosition += 4;
+      }
+
+      if (concepts.length > 0) {
+        pdf.setFontSize(11);
+        pdf.setFont("helvetica", "bold");
+        pdf.text("Concepts:", margin, yPosition);
+        yPosition += 6;
+        
+        pdf.setFontSize(9);
+        pdf.setFont("helvetica", "normal");
+        concepts.forEach(c => {
+          const text = `• ${c.label}${c.summary ? ': ' + c.summary.substring(0, 50) + '...' : ''}`;
+          const lines = pdf.splitTextToSize(text, pageWidth - margin * 2) as string[];
+          lines.forEach((line: string) => {
+            pdf.text(line, margin + 2, yPosition);
+            yPosition += 4;
+          });
+          if (yPosition > pageHeight - margin - 10) {
+            pdf.addPage();
+            yPosition = margin;
+          }
+        });
+      }
 
       pdf.setFontSize(8);
       pdf.setFont("helvetica", "normal");
@@ -286,14 +354,14 @@ export default function MindMapPanel({ data, topicTitle }: MindMapPanelProps) {
     } finally {
       setIsExporting(false);
     }
-  }, [topicTitle]);
+  }, [topicTitle, data.nodes]);
 
   return (
     <Card className={`transition-all duration-300 ${isExpanded ? "fixed inset-4 z-50" : ""}`}>
       <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
         <div className="flex items-center gap-2">
           <CardTitle className="text-lg">Mind Map</CardTitle>
-          <Badge variant="secondary" className="text-xs">Pro</Badge>
+          <Badge variant="secondary" className="text-xs">Pro • Click nodes for details</Badge>
         </div>
         <div className="flex items-center gap-1">
           <Button
@@ -331,29 +399,64 @@ export default function MindMapPanel({ data, topicTitle }: MindMapPanelProps) {
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        <div
-          ref={flowRef}
-          className={`w-full ${isExpanded ? "h-[calc(100vh-8rem)]" : "h-[400px]"} rounded-b-lg overflow-hidden`}
-        >
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            fitView
-            fitViewOptions={{ padding: 0.2 }}
-            minZoom={0.3}
-            maxZoom={2}
-            attributionPosition="bottom-left"
+        <div className="flex h-full">
+          <div
+            ref={flowRef}
+            className={`flex-1 ${isExpanded ? "h-[calc(100vh-8rem)]" : "h-[400px]"} rounded-b-lg overflow-hidden`}
           >
-            <Controls 
-              showZoom={true}
-              showFitView={true}
-              showInteractive={false}
-              position="bottom-right"
-            />
-            <Background color="hsl(262, 20%, 92%)" gap={20} />
-          </ReactFlow>
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onNodeClick={handleNodeClick}
+              fitView
+              fitViewOptions={{ padding: 0.2 }}
+              minZoom={0.3}
+              maxZoom={2}
+              attributionPosition="bottom-left"
+            >
+              <Controls 
+                showZoom={true}
+                showFitView={true}
+                showInteractive={false}
+                position="bottom-right"
+              />
+              <Background color="hsl(262, 20%, 92%)" gap={20} />
+            </ReactFlow>
+          </div>
+          
+          {selectedNode && (
+            <div className="w-72 border-l border-border overflow-auto bg-card p-4 space-y-4">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <Badge variant={selectedNode.type === "topic" ? "default" : "secondary"} className="mb-2">
+                    {selectedNode.type}
+                  </Badge>
+                  <h3 className="font-semibold text-sm leading-tight">{selectedNode.label}</h3>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 shrink-0"
+                  onClick={() => setSelectedNode(null)}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              {selectedNode.summary && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase">Summary</p>
+                  <p className="text-sm text-foreground leading-relaxed">{selectedNode.summary}</p>
+                </div>
+              )}
+              
+              <div className="text-xs text-muted-foreground pt-2 border-t">
+                <p>Click another node to view its details</p>
+              </div>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
