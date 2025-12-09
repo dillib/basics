@@ -39,7 +39,8 @@ Preferred communication style: Simple, everyday language.
 ### System Design
 - **Freemium Model**: Sample topics are fully free. User-generated topics offer first 2 principles free, with pay-per-topic or Pro subscription to unlock more.
 - **Pricing Tiers**: Pay-per-topic ($1.99), Pro annual ($99/year) including AI Tutor Chat, Quiz Analytics, Spaced Repetition Review.
-- **Admin Dashboard**: Comprehensive admin interface with user, topic, and revenue management.
+- **Admin Dashboard**: Comprehensive admin interface with user, topic, revenue, and support management.
+- **Support System**: User-facing support page for submitting requests (support, bug, feature, feedback) with type/priority selection. Admin Support tab with ticket listing, status filtering, assignment, and threaded messaging.
 - **Support Infrastructure**: Dedicated Contact, Help Center, Terms of Service, Privacy Policy, and Account Settings pages.
 
 ## External Dependencies
