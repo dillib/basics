@@ -7,12 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Clock, Plus, Loader2, Sparkles } from "lucide-react";
+import { Search, Clock, Plus, Loader2, Sparkles, Star, Users } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { Topic } from "@shared/schema";
+import type { Topic, User } from "@shared/schema";
 import Footer from "@/components/Footer";
 
 const categories = ["All", "Physics", "Technology", "Business", "Philosophy", "Psychology", "Economics", "Biology", "Mathematics"];
+
+type SourceFilter = "all" | "samples" | "community" | "mine";
 
 const difficultyColors: Record<string, string> = {
   beginner: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
