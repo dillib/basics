@@ -14,10 +14,13 @@ import { DateRangePicker } from "@/components/ui/date-picker";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Users, BookOpen, DollarSign, TrendingUp, 
-  Shield, Crown, Trash2, LayoutDashboard, Calendar
+  Shield, Crown, Trash2, LayoutDashboard, Calendar,
+  MessageSquare, AlertCircle, Clock, CheckCircle2, Loader2, Send
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
-import type { User, Topic, TopicPurchase } from "@shared/schema";
+import type { User, Topic, TopicPurchase, SupportRequest, SupportMessage } from "@shared/schema";
 
 interface AdminStats {
   totalUsers: number;
@@ -43,6 +46,13 @@ interface TopicsResponse {
 
 interface PurchasesResponse {
   purchases: TopicPurchase[];
+  limit: number;
+  offset: number;
+}
+
+interface SupportRequestsResponse {
+  requests: SupportRequest[];
+  total: number;
   limit: number;
   offset: number;
 }
@@ -727,6 +737,402 @@ function AdminRevenue() {
   );
 }
 
+const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive"; icon: typeof Clock }> = {
+  open: { label: "Open", variant: "default", icon: Clock },
+  in_progress: { label: "In Progress", variant: "secondary", icon: Loader2 },
+  resolved: { label: "Resolved", variant: "outline", icon: CheckCircle2 },
+  closed: { label: "Closed", variant: "outline", icon: CheckCircle2 },
+};
+
+const priorityConfig: Record<string, { label: string; className: string }> = {
+  low: { label: "Low", className: "text-muted-foreground" },
+  normal: { label: "Normal", className: "text-foreground" },
+  high: { label: "High", className: "text-orange-600 dark:text-orange-400" },
+  critical: { label: "Critical", className: "text-red-600 dark:text-red-400" },
+};
+
+const typeConfig: Record<string, { label: string; icon: typeof MessageSquare }> = {
+  support: { label: "Support", icon: AlertCircle },
+  bug: { label: "Bug Report", icon: AlertCircle },
+  feature: { label: "Feature Request", icon: MessageSquare },
+  feedback: { label: "Feedback", icon: MessageSquare },
+};
+
+function AdminSupport() {
+  const { toast } = useToast();
+  const [page, setPage] = useState(0);
+  const limit = 20;
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [typeFilter, setTypeFilter] = useState<string>("");
+  const [priorityFilter, setPriorityFilter] = useState<string>("");
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
+  const [selectedRequest, setSelectedRequest] = useState<SupportRequest | null>(null);
+  const [replyMessage, setReplyMessage] = useState("");
+
+  const filterParams = [
+    statusFilter ? `status=${statusFilter}` : '',
+    typeFilter ? `type=${typeFilter}` : '',
+    priorityFilter ? `priority=${priorityFilter}` : '',
+    startDate ? `startDate=${startDate.toISOString()}` : '',
+    endDate ? `endDate=${endDate.toISOString()}` : ''
+  ].filter(Boolean).join('&');
+  const filterQueryString = filterParams ? `&${filterParams}` : '';
+
+  const { data, isLoading, refetch } = useQuery<SupportRequestsResponse>({
+    queryKey: [`/api/admin/support?limit=${limit}&offset=${page * limit}${filterQueryString}`],
+  });
+
+  const { data: messages, isLoading: messagesLoading, refetch: refetchMessages } = useQuery<SupportMessage[]>({
+    queryKey: [`/api/support/${selectedRequest?.id}/messages`],
+    enabled: !!selectedRequest,
+  });
+
+  const { data: adminUsers } = useQuery<User[]>({
+    queryKey: ['/api/admin/admins'],
+  });
+
+  const updateRequestMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: any }) => {
+      return apiRequest('PATCH', `/api/admin/support/${id}`, updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/support'] });
+      refetch();
+      toast({ title: "Request updated", description: "The support request has been updated." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Update failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const sendMessageMutation = useMutation({
+    mutationFn: async ({ id, message }: { id: string; message: string }) => {
+      return apiRequest('POST', `/api/support/${id}/messages`, { message });
+    },
+    onSuccess: () => {
+      setReplyMessage("");
+      refetchMessages();
+      toast({ title: "Reply sent", description: "Your reply has been sent." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to send reply", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const clearFilters = () => {
+    setStatusFilter("");
+    setTypeFilter("");
+    setPriorityFilter("");
+    setStartDate(undefined);
+    setEndDate(undefined);
+    setPage(0);
+  };
+
+  const hasFilters = statusFilter || typeFilter || priorityFilter || startDate || endDate;
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-48" />
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-16 w-full" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="grid lg:grid-cols-3 gap-6">
+      <div className="lg:col-span-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" />
+              Support Requests
+            </CardTitle>
+            <CardDescription>
+              Manage user support tickets, feedback, and feature requests
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap items-center gap-3 mb-6">
+              <Select value={statusFilter} onValueChange={(val) => { setStatusFilter(val); setPage(0); }}>
+                <SelectTrigger className="w-[140px]" data-testid="select-status-filter">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="open">Open</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="resolved">Resolved</SelectItem>
+                  <SelectItem value="closed">Closed</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={typeFilter} onValueChange={(val) => { setTypeFilter(val); setPage(0); }}>
+                <SelectTrigger className="w-[140px]" data-testid="select-type-filter">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="support">Support</SelectItem>
+                  <SelectItem value="bug">Bug Report</SelectItem>
+                  <SelectItem value="feature">Feature</SelectItem>
+                  <SelectItem value="feedback">Feedback</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={priorityFilter} onValueChange={(val) => { setPriorityFilter(val); setPage(0); }}>
+                <SelectTrigger className="w-[140px]" data-testid="select-priority-filter">
+                  <SelectValue placeholder="Priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="normal">Normal</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <DateRangePicker
+                startDate={startDate}
+                endDate={endDate}
+                onStartDateChange={(date) => { setStartDate(date); setPage(0); }}
+                onEndDateChange={(date) => { setEndDate(date); setPage(0); }}
+              />
+
+              {hasFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters} data-testid="button-clear-support-filters">
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+
+            {data?.requests && data.requests.length > 0 ? (
+              <div className="space-y-3">
+                {data.requests.map((request) => {
+                  const status = statusConfig[request.status || 'open'];
+                  const priority = priorityConfig[request.priority || 'normal'];
+                  const type = typeConfig[request.type || 'support'];
+                  const isSelected = selectedRequest?.id === request.id;
+                  
+                  return (
+                    <div
+                      key={request.id}
+                      className={`border rounded-lg p-4 cursor-pointer transition-colors ${isSelected ? 'border-primary bg-muted/50' : 'hover-elevate'}`}
+                      onClick={() => setSelectedRequest(request)}
+                      data-testid={`card-support-${request.id}`}
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant={status.variant} className="text-xs">
+                            {status.label}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {type.label}
+                          </Badge>
+                          <span className={`text-xs font-medium ${priority.className}`}>
+                            {priority.label}
+                          </span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {request.createdAt ? format(new Date(request.createdAt), 'MMM d, yyyy HH:mm') : 'N/A'}
+                        </span>
+                      </div>
+                      <h3 className="font-medium mb-1">{request.subject}</h3>
+                      <p className="text-sm text-muted-foreground line-clamp-2">{request.description}</p>
+                      <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                        <span>{request.email}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No support requests found</p>
+              </div>
+            )}
+
+            {data && data.total > limit && (
+              <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(Math.max(0, page - 1))}
+                  disabled={page === 0}
+                  data-testid="button-support-prev"
+                >
+                  Previous
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Page {page + 1} of {Math.ceil(data.total / limit)}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(page + 1)}
+                  disabled={(page + 1) * limit >= data.total}
+                  data-testid="button-support-next"
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div>
+        {selectedRequest ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Request Details</CardTitle>
+              <CardDescription>{selectedRequest.subject}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Email</span>
+                  <span className="font-medium">{selectedRequest.email}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Status</span>
+                  <Select
+                    value={selectedRequest.status || 'open'}
+                    onValueChange={(val) => updateRequestMutation.mutate({ id: selectedRequest.id, updates: { status: val } })}
+                  >
+                    <SelectTrigger className="w-[130px] h-8" data-testid="select-update-status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="open">Open</SelectItem>
+                      <SelectItem value="in_progress">In Progress</SelectItem>
+                      <SelectItem value="resolved">Resolved</SelectItem>
+                      <SelectItem value="closed">Closed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Priority</span>
+                  <Select
+                    value={selectedRequest.priority || 'normal'}
+                    onValueChange={(val) => updateRequestMutation.mutate({ id: selectedRequest.id, updates: { priority: val } })}
+                  >
+                    <SelectTrigger className="w-[130px] h-8" data-testid="select-update-priority">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="normal">Normal</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="critical">Critical</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Assigned To</span>
+                  <Select
+                    value={selectedRequest.assignedAdminId || "unassigned"}
+                    onValueChange={(val) => updateRequestMutation.mutate({ id: selectedRequest.id, updates: { assignedAdminId: val === "unassigned" ? null : val } })}
+                  >
+                    <SelectTrigger className="w-[130px] h-8" data-testid="select-assign-admin">
+                      <SelectValue placeholder="Unassigned" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      {adminUsers?.map((admin) => (
+                        <SelectItem key={admin.id} value={admin.id}>
+                          {admin.firstName || admin.email}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t">
+                <h4 className="font-medium mb-2">Description</h4>
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  {selectedRequest.description}
+                </p>
+              </div>
+
+              <div className="pt-4 border-t">
+                <h4 className="font-medium mb-3">Messages</h4>
+                {messagesLoading ? (
+                  <div className="flex justify-center py-4">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : messages && messages.length > 0 ? (
+                  <div className="space-y-3 max-h-[200px] overflow-y-auto">
+                    {messages.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={`p-3 rounded-lg text-sm ${msg.authorType === 'admin' ? 'bg-primary/10 ml-4' : 'bg-muted mr-4'}`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-medium text-xs">
+                            {msg.authorType === 'admin' ? 'Admin' : 'User'}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {msg.createdAt ? format(new Date(msg.createdAt), 'MMM d, HH:mm') : ''}
+                          </span>
+                        </div>
+                        <p>{msg.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No messages yet</p>
+                )}
+              </div>
+
+              <div className="pt-4 border-t">
+                <Textarea
+                  placeholder="Type your reply..."
+                  value={replyMessage}
+                  onChange={(e) => setReplyMessage(e.target.value)}
+                  className="mb-2"
+                  data-testid="textarea-admin-reply"
+                />
+                <Button
+                  size="sm"
+                  onClick={() => sendMessageMutation.mutate({ id: selectedRequest.id, message: replyMessage })}
+                  disabled={!replyMessage.trim() || sendMessageMutation.isPending}
+                  data-testid="button-send-reply"
+                >
+                  {sendMessageMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4 mr-1" />
+                      Send Reply
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardContent className="py-8 text-center">
+              <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">Select a request to view details</p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
@@ -808,7 +1214,7 @@ export default function AdminPage() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 max-w-lg">
+        <TabsList className="grid w-full grid-cols-5 max-w-2xl">
           <TabsTrigger value="overview" data-testid="tab-overview">
             Overview
           </TabsTrigger>
@@ -820,6 +1226,9 @@ export default function AdminPage() {
           </TabsTrigger>
           <TabsTrigger value="revenue" data-testid="tab-revenue">
             Revenue
+          </TabsTrigger>
+          <TabsTrigger value="support" data-testid="tab-support">
+            Support
           </TabsTrigger>
         </TabsList>
 
@@ -837,6 +1246,10 @@ export default function AdminPage() {
 
         <TabsContent value="revenue" id="revenue">
           <AdminRevenue />
+        </TabsContent>
+
+        <TabsContent value="support" id="support">
+          <AdminSupport />
         </TabsContent>
       </Tabs>
     </div>
