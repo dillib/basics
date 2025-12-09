@@ -360,3 +360,17 @@
 .react-flow__controls-button path {
   fill: currentColor !important;
 }
+
+/* Mind map node hover effects */
+.react-flow__node {
+  cursor: pointer;
+}
+
+.react-flow__node:hover {
+  filter: brightness(1.1);
+  transform: scale(1.05);
+}
+
+.react-flow__node[data-testid*="node"] {
+  transition: all 0.2s ease;
+}
