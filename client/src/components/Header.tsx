@@ -29,7 +29,7 @@ export default function Header({ isLoggedIn = false, onLogin, onLogout, user, is
 
   const navLinks = [
     { href: "/why", label: "The Method" },
-    { href: "/topics", label: "Browse Topics" },
+    { href: "/topics", label: "Topic Library" },
     { href: "/pricing", label: "Pricing" },
   ];
 

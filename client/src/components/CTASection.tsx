@@ -22,12 +22,12 @@ export default function CTASection({ onGetStarted }: CTASectionProps) {
           className="text-center max-w-3xl mx-auto"
         >
           <h2 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight mb-6">
-            Ready to build real understanding?
-            <span className="block text-primary">Start learning from first principles</span>
+            Your classroom reference library.
+            <span className="block text-primary">Built on first principles.</span>
           </h2>
           <p className="text-xl text-muted-foreground mb-10 leading-relaxed">
-            Create your first topic and begin your AI-powered learning journey. 
-            Explore the fundamentals at your own pace.
+            Look up any topic, download printable reference sheets, and build 
+            deep understanding — whether you're teaching or learning.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button
@@ -39,11 +39,11 @@ export default function CTASection({ onGetStarted }: CTASectionProps) {
               }}
               data-testid="button-cta-get-started"
             >
-              Get started for free
+              Browse topic library
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
             <p className="text-sm text-muted-foreground">
-              No credit card required
+              Free sample topics available
             </p>
           </div>
         </motion.div>

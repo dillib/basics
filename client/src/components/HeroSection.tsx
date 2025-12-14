@@ -50,7 +50,7 @@ export default function HeroSection({ onGenerateTopic, onTopicClick, isGeneratin
           >
             <Sparkles className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium text-primary" data-testid="text-hero-tagline">
-              Try free sample topics - no signup required
+              The go-to dictionary for first principles
             </span>
           </motion.div>
 
@@ -62,9 +62,9 @@ export default function HeroSection({ onGenerateTopic, onTopicClick, isGeneratin
             className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold tracking-tight text-foreground mb-6"
             data-testid="text-hero-headline"
           >
-            Master any topic by{" "}
+            Look up any topic.{" "}
             <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-              understanding the fundamentals
+              Understand the fundamentals.
             </span>
           </motion.h1>
 
@@ -75,8 +75,8 @@ export default function HeroSection({ onGenerateTopic, onTopicClick, isGeneratin
             custom={0.2}
             className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed"
           >
-            Enter any topic and let AI break it down into core principles. 
-            Build deep understanding with interactive quizzes and personalized learning paths.
+            Your AI-powered reference for breaking down any subject into first principles. 
+            Perfect for teachers preparing lessons or students building deep understanding.
           </motion.p>
 
           <motion.form 
@@ -93,7 +93,7 @@ export default function HeroSection({ onGenerateTopic, onTopicClick, isGeneratin
                 <Search className="absolute left-5 h-5 w-5 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="What do you want to learn?"
+                  placeholder="Look up any topic..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="h-14 pl-12 pr-36 text-base bg-transparent border-0 rounded-full focus-visible:ring-0 focus-visible:ring-offset-0"
@@ -114,7 +114,7 @@ export default function HeroSection({ onGenerateTopic, onTopicClick, isGeneratin
                     </>
                   ) : (
                     <>
-                      Start learning
+                      Get reference
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </>
                   )}
@@ -130,8 +130,8 @@ export default function HeroSection({ onGenerateTopic, onTopicClick, isGeneratin
             animate="visible"
             custom={0.4}
           >
-            <span className="text-sm text-muted-foreground">Try:</span>
-            {["Quantum Physics", "Machine Learning", "Economics", "Philosophy"].map((topic) => (
+            <span className="text-sm text-muted-foreground">Popular:</span>
+            {["Photosynthesis", "Newton's Laws", "Supply & Demand", "The Scientific Method"].map((topic) => (
               <button
                 key={topic}
                 onClick={() => {
@@ -160,19 +160,19 @@ export default function HeroSection({ onGenerateTopic, onTopicClick, isGeneratin
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-500/10">
                 <Zap className="h-4 w-4 text-green-500" />
               </div>
-              <span>Free sample topics</span>
+              <span>Printable reference sheets</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/10">
                 <BookOpen className="h-4 w-4 text-blue-500" />
               </div>
-              <span>Interactive quizzes</span>
+              <span>Classroom ready</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-500/10">
                 <Users className="h-4 w-4 text-purple-500" />
               </div>
-              <span>AI-powered tutoring</span>
+              <span>For teachers & students</span>
             </div>
           </motion.div>
         </div>
