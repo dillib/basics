@@ -11,6 +11,7 @@ import { Search, Clock, Plus, Loader2, Sparkles, Star, Users, Shield, FileText }
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Topic, User } from "@shared/schema";
 import Footer from "@/components/Footer";
+import GenerationProgress from "@/components/GenerationProgress";
 
 const categories = ["All", "Physics", "Technology", "Business", "Philosophy", "Psychology", "Economics", "Biology", "Mathematics"];
 
@@ -149,6 +150,11 @@ export default function TopicsPage() {
                     {(generateTopicMutation.error as any)?.message || "Failed to generate topic. Please try again."}
                   </p>
                 )}
+                
+                <GenerationProgress 
+                  isGenerating={generateTopicMutation.isPending} 
+                  topicTitle={newTopicTitle}
+                />
               </form>
             </CardContent>
           </Card>
