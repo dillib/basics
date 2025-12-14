@@ -31,6 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import TutorChat from "./TutorChat";
 import MindMapPanel from "./MindMapPanel";
 import ReferenceSheetGenerator from "./ReferenceSheetGenerator";
+import QualityBadge from "./QualityBadge";
 
 interface TopicLearningPageProps {
   topicId?: string;
@@ -337,6 +338,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
               <p className="text-lg text-muted-foreground mb-4">{topic.description}</p>
               <div className="flex flex-wrap items-center gap-4">
                 <Badge>{topic.difficulty}</Badge>
+                <QualityBadge topic={topic} />
                 <div className="flex items-center gap-1 text-sm text-muted-foreground">
                   <Clock className="h-4 w-4" />
                   <span>{formatTime(topic.estimatedMinutes || 30)} to complete</span>

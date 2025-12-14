@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Clock, Plus, Loader2, Sparkles, Star, Users } from "lucide-react";
+import { Search, Clock, Plus, Loader2, Sparkles, Star, Users, Shield, FileText } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Topic, User } from "@shared/schema";
 import Footer from "@/components/Footer";
@@ -257,11 +257,30 @@ export default function TopicsPage() {
                     {topic.description}
                   </p>
 
-                  <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                     <div className="flex items-center gap-1">
                       <Clock className="h-3.5 w-3.5" />
                       <span>{formatTime(topic.estimatedMinutes)}</span>
                     </div>
+                    <div className="flex items-center gap-1" title="Reference sheet available">
+                      <FileText className="h-3.5 w-3.5 text-primary" />
+                      <span>Sheet</span>
+                    </div>
+                    {(topic as any).confidenceScore != null && (topic as any).validationData != null && (
+                      <div className="flex items-center gap-1" title={`AI Confidence: ${(topic as any).confidenceScore}%`}>
+                        {(topic as any).confidenceScore >= 90 ? (
+                          <>
+                            <Shield className="h-3.5 w-3.5 text-green-500" />
+                            <span className="text-green-600 dark:text-green-400">Verified</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-3.5 w-3.5 text-blue-500" />
+                            <span className="text-blue-600 dark:text-blue-400">AI</span>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
