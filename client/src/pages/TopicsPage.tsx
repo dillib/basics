@@ -282,7 +282,7 @@ export default function TopicsPage() {
                         ) : (
                           <>
                             <Sparkles className="h-3.5 w-3.5 text-blue-500" />
-                            <span className="text-blue-600 dark:text-blue-400">AI</span>
+                            <span className="text-blue-600 dark:text-blue-400">AI Crafted</span>
                           </>
                         )}
                       </div>

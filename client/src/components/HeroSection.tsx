@@ -114,7 +114,7 @@ export default function HeroSection({ onGenerateTopic, onTopicClick, isGeneratin
                     </>
                   ) : (
                     <>
-                      Get reference
+                      Look it up
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </>
                   )}
