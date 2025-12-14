@@ -45,6 +45,18 @@ interface TopicContent {
   mindMap: MindMapData;
 }
 
+interface ValidationResult {
+  overallConfidence: number;
+  principleValidations: {
+    title: string;
+    confidence: number;
+    isAccurate: boolean;
+    concerns: string[];
+    suggestions: string[];
+  }[];
+  overallFeedback: string;
+}
+
 export async function generateTopicContent(topicTitle: string): Promise<TopicContent> {
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash",
@@ -161,6 +173,86 @@ For the mind map:
   });
 
   return JSON.parse(response.text || "{}") as TopicContent;
+}
+
+export async function validateTopicContent(
+  topicTitle: string, 
+  content: TopicContent
+): Promise<ValidationResult> {
+  const principlesSummary = content.principles.map((p, i) => 
+    `Principle ${i + 1}: "${p.title}"
+Explanation: ${p.explanation}
+Key Takeaways: ${p.keyTakeaways.join('; ')}`
+  ).join('\n\n');
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: `You are a fact-checker and educational content reviewer. Your job is to validate the accuracy and quality of educational content about "${topicTitle}".
+
+Review the following content for factual accuracy, completeness, and educational value:
+
+Topic: ${topicTitle}
+Category: ${content.category}
+Description: ${content.description}
+
+${principlesSummary}
+
+For each principle, evaluate:
+1. Factual accuracy (are the claims true and verifiable?)
+2. Completeness (does it cover the key aspects?)
+3. Clarity (is the explanation clear and understandable?)
+4. Educational value (does it build understanding effectively?)
+
+Return a JSON object with:
+{
+  "overallConfidence": 0-100 score for the entire topic,
+  "principleValidations": [
+    {
+      "title": "Principle title",
+      "confidence": 0-100 score,
+      "isAccurate": true/false,
+      "concerns": ["Any factual concerns or errors"],
+      "suggestions": ["Improvements that could be made"]
+    }
+  ],
+  "overallFeedback": "Brief summary of content quality and any major issues"
+}
+
+Be rigorous but fair. Flag any potential inaccuracies or misleading statements. A confidence score of 80+ means the content is reliable for educational purposes.`,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          overallConfidence: { type: Type.INTEGER },
+          principleValidations: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                title: { type: Type.STRING },
+                confidence: { type: Type.INTEGER },
+                isAccurate: { type: Type.BOOLEAN },
+                concerns: { 
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING }
+                },
+                suggestions: { 
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING }
+                }
+              },
+              required: ["title", "confidence", "isAccurate", "concerns", "suggestions"]
+            }
+          },
+          overallFeedback: { type: Type.STRING }
+        },
+        required: ["overallConfidence", "principleValidations", "overallFeedback"]
+      }
+    }
+  });
+
+  return JSON.parse(response.text || '{"overallConfidence": 0, "principleValidations": [], "overallFeedback": "Validation failed"}') as ValidationResult;
 }
 
 interface GeneratedQuestion {

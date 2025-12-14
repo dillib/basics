@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { generateTopicContent, generateQuizQuestions } from "./ai";
+import { generateTopicContent, generateQuizQuestions, validateTopicContent } from "./ai";
 import { insertTopicSchema } from "@shared/schema";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 
@@ -139,7 +139,19 @@ export async function registerRoutes(
       console.log(`[Topic Generate] Calling AI for "${title}"...`);
       const startTime = Date.now();
       const content = await generateTopicContent(title);
-      console.log(`[Topic Generate] AI completed in ${Date.now() - startTime}ms`);
+      console.log(`[Topic Generate] AI generation completed in ${Date.now() - startTime}ms`);
+
+      console.log(`[Topic Generate] Starting validation...`);
+      const validationStartTime = Date.now();
+      let validationResult = null;
+      let confidenceScore = null;
+      try {
+        validationResult = await validateTopicContent(title, content);
+        confidenceScore = validationResult.overallConfidence;
+        console.log(`[Topic Generate] Validation completed in ${Date.now() - validationStartTime}ms, confidence: ${confidenceScore}`);
+      } catch (validationError) {
+        console.error(`[Topic Generate] Validation failed:`, validationError);
+      }
 
       const newTopic = await storage.createTopic({
         userId: userId || null,
@@ -151,6 +163,8 @@ export async function registerRoutes(
         estimatedMinutes: content.estimatedMinutes,
         isPublic: true,
         mindMapData: content.mindMap,
+        confidenceScore,
+        validationData: validationResult,
       });
       console.log(`[Topic Generate] Topic created with id: ${newTopic.id}`);
 
