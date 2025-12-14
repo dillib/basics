@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Clock, Plus, Loader2, Sparkles, Star, Users, Shield, FileText } from "lucide-react";
+import { Search, Clock, Plus, Loader2, Sparkles, Star, Shield, FileText } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Topic, User } from "@shared/schema";
 import Footer from "@/components/Footer";
@@ -15,7 +15,7 @@ import GenerationProgress from "@/components/GenerationProgress";
 
 const categories = ["All", "Physics", "Technology", "Business", "Philosophy", "Psychology", "Economics", "Biology", "Mathematics"];
 
-type SourceFilter = "all" | "samples" | "community" | "mine";
+type SourceFilter = "all" | "samples" | "mine";
 
 const difficultyColors: Record<string, string> = {
   beginner: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
@@ -72,8 +72,6 @@ export default function TopicsPage() {
     // Filter by source
     if (sourceFilter === "samples") {
       if (!topic.isSample) return false;
-    } else if (sourceFilter === "community") {
-      if (topic.isSample || topic.userId === user?.id) return false;
     } else if (sourceFilter === "mine") {
       if (topic.userId !== user?.id) return false;
     }
@@ -181,10 +179,6 @@ export default function TopicsPage() {
               </TabsTrigger>
               <TabsTrigger value="samples" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-testid="tab-source-samples">
                 Sample Topics
-              </TabsTrigger>
-              <TabsTrigger value="community" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-testid="tab-source-community">
-                <Users className="h-4 w-4 mr-2" />
-                Community
               </TabsTrigger>
               {user && (
                 <TabsTrigger value="mine" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground" data-testid="tab-source-mine">
