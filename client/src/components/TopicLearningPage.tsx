@@ -30,6 +30,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import TutorChat from "./TutorChat";
 import MindMapPanel from "./MindMapPanel";
+import ReferenceSheetGenerator from "./ReferenceSheetGenerator";
 
 interface TopicLearningPageProps {
   topicId?: string;
@@ -269,6 +270,10 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   };
 
+  const accessiblePrinciples = canAccessAllPrinciples 
+    ? principles 
+    : principles.slice(0, isSampleTopic ? principles.length : 2);
+
   return (
     <div className="min-h-screen bg-background">
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border">
@@ -289,6 +294,11 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                 <span className="text-sm font-medium" data-testid="text-progress">{calculatedProgress}%</span>
               </div>
               <div className="flex items-center gap-1">
+                <ReferenceSheetGenerator 
+                  topic={topic} 
+                  principles={accessiblePrinciples} 
+                  variant="compact" 
+                />
                 <Button variant="ghost" size="icon" data-testid="button-bookmark">
                   <BookmarkPlus className="h-4 w-4" />
                 </Button>
@@ -331,6 +341,10 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                   <Clock className="h-4 w-4" />
                   <span>{formatTime(topic.estimatedMinutes || 30)} to complete</span>
                 </div>
+                <ReferenceSheetGenerator 
+                  topic={topic} 
+                  principles={accessiblePrinciples}
+                />
               </div>
             </div>
 
