@@ -3,11 +3,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowRight, Search, Loader2, Sparkles, Users, BookOpen, Zap } from "lucide-react";
 import { motion } from "framer-motion";
+import GenerationProgress from "./GenerationProgress";
 
 interface HeroSectionProps {
   onGenerateTopic?: (query: string) => void;
   onTopicClick?: (topic: string) => void;
   isGenerating?: boolean;
+  topicTitle?: string;
+  jobId?: string | null;
+  onComplete?: (result: any) => void;
+  onError?: (error: Error) => void;
 }
 
 const fadeUpVariants = {
@@ -23,7 +28,15 @@ const fadeUpVariants = {
   }),
 };
 
-export default function HeroSection({ onGenerateTopic, onTopicClick, isGenerating = false }: HeroSectionProps) {
+export default function HeroSection({ 
+  onGenerateTopic, 
+  onTopicClick, 
+  isGenerating = false,
+  topicTitle = "",
+  jobId = null,
+  onComplete,
+  onError
+}: HeroSectionProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleSearch = (e: React.FormEvent) => {
@@ -148,6 +161,17 @@ export default function HeroSection({ onGenerateTopic, onTopicClick, isGeneratin
               </button>
             ))}
           </motion.div>
+
+          {/* Generation Progress */}
+          {isGenerating && (
+            <GenerationProgress 
+              isGenerating={isGenerating && !jobId} // Show indeterminate if no jobId yet
+              jobId={jobId}
+              topicTitle={topicTitle || searchQuery}
+              onComplete={onComplete}
+              onError={onError}
+            />
+          )}
 
           <motion.div 
             className="flex flex-wrap items-center justify-center gap-6 sm:gap-10 text-sm text-muted-foreground"

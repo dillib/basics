@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
 import { 
   Search, 
   Lightbulb, 
@@ -7,16 +8,18 @@ import {
   Sparkles, 
   Shield, 
   CheckCircle2,
-  Loader2 
+  Loader2,
+  AlertCircle
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { apiRequest } from "@/lib/queryClient";
 
 interface GenerationStage {
   id: string;
   label: string;
   description: string;
   icon: typeof Search;
-  duration: number;
+  minProgress: number; // Map server progress to stages
 }
 
 const stages: GenerationStage[] = [
@@ -25,94 +28,99 @@ const stages: GenerationStage[] = [
     label: "Analyzing Topic",
     description: "Understanding your topic and its domain...",
     icon: Search,
-    duration: 2500,
+    minProgress: 0,
   },
   {
     id: "principles",
     label: "Identifying First Principles",
     description: "Breaking down into fundamental concepts...",
     icon: Lightbulb,
-    duration: 4000,
+    minProgress: 20,
   },
   {
-    id: "explanations",
+    id: "content",
     label: "Crafting Explanations",
     description: "Writing clear, accessible explanations...",
     icon: BookOpen,
-    duration: 5000,
-  },
-  {
-    id: "analogies",
-    label: "Adding Real-World Analogies",
-    description: "Creating relatable examples and comparisons...",
-    icon: Sparkles,
-    duration: 3500,
+    minProgress: 40,
   },
   {
     id: "validating",
     label: "Validating Accuracy",
     description: "Fact-checking and ensuring quality...",
     icon: Shield,
-    duration: 3500,
+    minProgress: 70,
   },
   {
     id: "finalizing",
     label: "Finalizing Content",
     description: "Preparing your personalized learning path...",
     icon: CheckCircle2,
-    duration: 2500,
+    minProgress: 90,
   },
 ];
 
 interface GenerationProgressProps {
-  isGenerating: boolean;
+  isGenerating?: boolean; // Legacy prop, can act as a fallback
+  jobId?: string | null;
   topicTitle: string;
+  onComplete?: (result: any) => void;
+  onError?: (error: Error) => void;
 }
 
-export default function GenerationProgress({ isGenerating, topicTitle }: GenerationProgressProps) {
-  const [currentStageIndex, setCurrentStageIndex] = useState(0);
-  const [stageProgress, setStageProgress] = useState(0);
-  const [completedStages, setCompletedStages] = useState<Set<string>>(new Set());
+export default function GenerationProgress({ 
+  isGenerating, 
+  jobId, 
+  topicTitle,
+  onComplete,
+  onError
+}: GenerationProgressProps) {
+  // If we have a jobId, we poll. If just isGenerating, we show indeterminate/fake loading (legacy).
+  const isPolling = !!jobId;
+  const active = isPolling || isGenerating;
+
+  // Poll status
+  const { data: statusData, isError, error } = useQuery({
+    queryKey: [`/api/topics/generate/status/${jobId}`],
+    queryFn: async () => {
+      if (!jobId) return null;
+      const res = await apiRequest("GET", `/api/topics/generate/status/${jobId}`);
+      if (!res.ok) throw new Error("Failed to check status");
+      return res.json();
+    },
+    enabled: !!jobId,
+    refetchInterval: (query) => {
+      const state = query.state.data?.state;
+      return (state === 'completed' || state === 'failed') ? false : 2000; // Poll every 2s
+    },
+  });
 
   useEffect(() => {
-    if (!isGenerating) {
-      setCurrentStageIndex(0);
-      setStageProgress(0);
-      setCompletedStages(new Set());
-      return;
+    if (statusData?.state === 'completed' && statusData?.result) {
+      onComplete?.(statusData.result);
     }
+    if (statusData?.state === 'failed' || isError) {
+      onError?.(error as Error || new Error(statusData?.error || "Generation failed"));
+    }
+  }, [statusData, isError, error, onComplete, onError]);
 
-    const currentStage = stages[currentStageIndex];
-    if (!currentStage) return;
+  // Determine current progress and stage
+  const serverProgress = statusData?.progress || 0;
+  
+  // Find current active stage based on progress
+  let currentStageIndex = 0;
+  if (isPolling) {
+    currentStageIndex = stages.findIndex((s, i) => {
+      const nextStage = stages[i + 1];
+      if (!nextStage) return true; // Last stage
+      return serverProgress >= s.minProgress && serverProgress < nextStage.minProgress;
+    });
+    if (currentStageIndex === -1) currentStageIndex = stages.length - 1;
+    // If completed, ensure we show last stage
+    if (statusData?.state === 'completed') currentStageIndex = stages.length - 1;
+  }
 
-    const progressInterval = setInterval(() => {
-      setStageProgress((prev) => {
-        const increment = 100 / (currentStage.duration / 100);
-        return Math.min(prev + increment, 100);
-      });
-    }, 100);
-
-    const stageTimer = setTimeout(() => {
-      setCompletedStages((prev) => new Set(Array.from(prev).concat(currentStage.id)));
-      setStageProgress(0);
-      
-      if (currentStageIndex < stages.length - 1) {
-        setCurrentStageIndex((prev) => prev + 1);
-      }
-    }, currentStage.duration);
-
-    return () => {
-      clearInterval(progressInterval);
-      clearTimeout(stageTimer);
-    };
-  }, [isGenerating, currentStageIndex]);
-
-  if (!isGenerating) return null;
-
-  const currentStage = stages[currentStageIndex];
-  const overallProgress = Math.round(
-    ((currentStageIndex + stageProgress / 100) / stages.length) * 100
-  );
+  if (!active) return null;
 
   return (
     <motion.div
@@ -125,16 +133,16 @@ export default function GenerationProgress({ isGenerating, topicTitle }: Generat
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
           <h4 className="font-semibold text-sm">Generating: {topicTitle}</h4>
-          <span className="text-xs text-muted-foreground">{overallProgress}%</span>
+          <span className="text-xs text-muted-foreground">{isPolling ? `${serverProgress}%` : 'Processing...'}</span>
         </div>
-        <Progress value={overallProgress} className="h-2" />
+        <Progress value={isPolling ? serverProgress : undefined} className="h-2" />
       </div>
 
       <div className="space-y-3">
         {stages.map((stage, index) => {
-          const isCompleted = completedStages.has(stage.id);
-          const isCurrent = index === currentStageIndex;
-          const isPending = index > currentStageIndex;
+          const isCompleted = isPolling ? index < currentStageIndex : false;
+          const isCurrent = isPolling ? index === currentStageIndex : index === 0;
+          const isPending = isPolling ? index > currentStageIndex : true;
           const StageIcon = stage.icon;
 
           return (
@@ -198,20 +206,21 @@ export default function GenerationProgress({ isGenerating, topicTitle }: Generat
                   )}
                 </AnimatePresence>
               </div>
-
-              {isCurrent && (
-                <div className="w-16">
-                  <Progress value={stageProgress} className="h-1" />
-                </div>
-              )}
             </motion.div>
           );
         })}
       </div>
 
+      {statusData?.state === 'failed' && (
+         <div className="mt-4 p-3 bg-destructive/10 text-destructive rounded-md flex items-center gap-2 text-sm">
+             <AlertCircle className="h-4 w-4" />
+             <span>Generation failed. Please try again.</span>
+         </div>
+      )}
+
       <div className="mt-4 pt-4 border-t border-border/50">
         <p className="text-xs text-muted-foreground text-center">
-          This usually takes 20-30 seconds. Your learning content is being carefully crafted.
+          {isPolling ? "Our AI is crafting your content in the background." : "Starting generation..."}
         </p>
       </div>
     </motion.div>

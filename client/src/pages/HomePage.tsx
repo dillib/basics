@@ -1,3 +1,4 @@
+import { useState } from "react";
 import HeroSection from "@/components/HeroSection";
 import TrustIndicators from "@/components/TrustIndicators";
 import FeaturedTopics from "@/components/FeaturedTopics";
@@ -14,8 +15,12 @@ export default function HomePage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
+  const [generatingTopic, setGeneratingTopic] = useState<string>("");
+  const [jobId, setJobId] = useState<string | null>(null);
+
   const generateTopicMutation = useMutation({
     mutationFn: async (title: string) => {
+      setGeneratingTopic(title);
       const response = await apiRequest("POST", "/api/topics/generate", { title });
       if (!response.ok) {
         const data = await response.json();
@@ -23,12 +28,17 @@ export default function HomePage() {
       }
       return response.json();
     },
-    onSuccess: (newTopic) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/topics'] });
-      queryClient.setQueryData(['/api/topics', newTopic.slug], newTopic);
-      setLocation(`/topic/${newTopic.slug}`);
+    onSuccess: (data) => {
+      if (data.existing) {
+        // If existing, direct redirect
+        setLocation(`/topic/${data.topic.slug}`);
+      } else {
+        // If job started, set ID to start polling
+        setJobId(data.jobId);
+      }
     },
     onError: (error: Error) => {
+      setGeneratingTopic("");
       toast({
         title: "Error",
         description: error.message || "Failed to generate topic. Please try again.",
@@ -39,6 +49,24 @@ export default function HomePage() {
 
   const handleGenerateTopic = (query: string) => {
     generateTopicMutation.mutate(query);
+  };
+  
+  const handleGenerationComplete = (result: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/topics'] });
+      // Short delay for user to see 100%
+      setTimeout(() => {
+          setLocation(`/topic/${result.slug}`);
+      }, 500);
+  };
+  
+  const handleGenerationError = (error: Error) => {
+      setGeneratingTopic("");
+      setJobId(null);
+      toast({
+        title: "Generation Failed",
+        description: error.message,
+        variant: "destructive",
+      });
   };
 
   const handleTopicClick = (topicId: string) => {
@@ -61,7 +89,11 @@ export default function HomePage() {
     <div className="min-h-screen">
       <HeroSection 
         onGenerateTopic={handleGenerateTopic} 
-        isGenerating={generateTopicMutation.isPending}
+        isGenerating={generateTopicMutation.isPending || !!jobId}
+        topicTitle={generatingTopic}
+        jobId={jobId}
+        onComplete={handleGenerationComplete}
+        onError={handleGenerationError}
       />
       <TrustIndicators />
       <FeaturedTopics onTopicClick={handleTopicClick} />
