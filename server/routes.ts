@@ -178,7 +178,7 @@ export async function registerRoutes(
       const validationResult = await validateTopicContent(title, content);
 
       const newTopic = await storage.createTopic({
-        userId: userId,
+        userId: null, // Anonymous users don't have a user record
         title,
         slug,
         description: content.description,
