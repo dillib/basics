@@ -23,7 +23,6 @@ async function migrate() {
 
     if (checkTable.rows[0].exists) {
       console.log("Tables already exist, skipping migration.");
-      await pool.end();
       return;
     }
 
@@ -227,8 +226,6 @@ async function migrate() {
   } catch (error) {
     console.error("Migration failed:", error);
     throw error;
-  } finally {
-    await pool.end();
   }
 }
 
