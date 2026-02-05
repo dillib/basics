@@ -101,7 +101,7 @@ export async function generateTopicContent(topicTitle: string): Promise<TopicCon
   }
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-1.5-flash",
     contents: `${SYSTEM_INSTRUCTION_HEADER}
 
 You are an expert educator who teaches using first principles thinking. 
@@ -231,7 +231,7 @@ KeyTakeaways: ${p.keyTakeaways.join('; ')}`
   ).join('\n\n');
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-1.5-flash",
     contents: `${SYSTEM_INSTRUCTION_HEADER}
 
 You are a fact-checker and educational content reviewer. Your job is to validate the accuracy and quality of educational content about "${topicTitle}".
@@ -320,7 +320,7 @@ export async function generateQuizQuestions(
   ).join('\n');
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-1.5-flash",
     contents: `${SYSTEM_INSTRUCTION_HEADER}
 
 You are creating a quiz to test understanding of "${topicTitle}" based on first principles.
