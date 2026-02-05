@@ -153,8 +153,11 @@ For the mind map:
 
   const result = await model.generateContent(prompt);
   const response = await result.response;
-  const text = response.text();
-
+  let text = response.text();
+  
+  // Remove markdown code blocks if present
+  text = text.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+  
   return JSON.parse(text || "{}") as TopicContent;
 }
 
@@ -210,7 +213,10 @@ Be rigorous but fair. Flag any potential inaccuracies or misleading statements. 
 
   const result = await model.generateContent(prompt);
   const response = await result.response;
-  const text = response.text();
+  let text = response.text();
+  
+  // Remove markdown code blocks if present
+  text = text.replace(/^```json\s*/, '').replace(/\s*```$/, '');
 
   return JSON.parse(text || '{"overallConfidence": 0, "principleValidations": [], "overallFeedback": "Validation failed"}') as ValidationResult;
 }
@@ -264,7 +270,10 @@ Return a JSON array of questions with this structure:
 
   const result = await model.generateContent(prompt);
   const response = await result.response;
-  const text = response.text();
+  let text = response.text();
+  
+  // Remove markdown code blocks if present
+  text = text.replace(/^```json\s*/, '').replace(/\s*```$/, '');
 
   const rawQuestions = JSON.parse(text || "[]");
   
