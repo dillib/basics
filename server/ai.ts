@@ -1,29 +1,24 @@
-import { GoogleGenAI, Type, HarmCategory, HarmBlockThreshold } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { Principle } from "@shared/schema";
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
-  httpOptions: {
-    baseUrl: "https://generativelanguage.googleapis.com",
-  },
-});
+const genAI = new GoogleGenerativeAI(process.env.AI_INTEGRATIONS_GEMINI_API_KEY || "");
 
 const safetySettings = [
   {
-    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+    category: "HARM_CATEGORY_HARASSMENT",
+    threshold: "BLOCK_MEDIUM_AND_ABOVE",
   },
   {
-    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+    category: "HARM_CATEGORY_HATE_SPEECH",
+    threshold: "BLOCK_MEDIUM_AND_ABOVE",
   },
   {
-    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+    category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+    threshold: "BLOCK_MEDIUM_AND_ABOVE",
   },
   {
-    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+    category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+    threshold: "BLOCK_MEDIUM_AND_ABOVE",
   },
 ];
 
@@ -100,9 +95,12 @@ export async function generateTopicContent(topicTitle: string): Promise<TopicCon
      throw new Error("Invalid input detected.");
   }
 
-  const response = await ai.models.generateContent({
-    model: "gemini-1.5-flash",
-    contents: `${SYSTEM_INSTRUCTION_HEADER}
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.5-flash",
+    safetySettings,
+  });
+
+  const prompt = `${SYSTEM_INSTRUCTION_HEADER}
 
 You are an expert educator who teaches using first principles thinking. 
     
@@ -151,73 +149,13 @@ For the mind map:
 - Include the main topic as the central node (type: "topic")
 - Include each principle as a node (type: "principle", id: "p1", "p2", etc.)
 - Add 1-2 key concepts per principle as child nodes (type: "concept")
-- Create edges showing relationships: topic->principles, principles->concepts, and cross-links between related principles`,
-    config: {
-      safetySettings,
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          description: { type: Type.STRING },
-          category: { type: Type.STRING },
-          difficulty: { type: Type.STRING },
-          estimatedMinutes: { type: Type.INTEGER },
-          principles: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                title: { type: Type.STRING },
-                explanation: { type: Type.STRING },
-                analogy: { type: Type.STRING },
-                visualType: { type: Type.STRING },
-                visualData: { type: Type.OBJECT },
-                keyTakeaways: { 
-                  type: Type.ARRAY,
-                  items: { type: Type.STRING }
-                }
-              },
-              required: ["title", "explanation", "analogy", "keyTakeaways"]
-            }
-          },
-          mindMap: {
-            type: Type.OBJECT,
-            properties: {
-              nodes: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    id: { type: Type.STRING },
-                    label: { type: Type.STRING },
-                    type: { type: Type.STRING },
-                    summary: { type: Type.STRING }
-                  },
-                  required: ["id", "label", "type"]
-                }
-              },
-              edges: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    source: { type: Type.STRING },
-                    target: { type: Type.STRING },
-                    label: { type: Type.STRING }
-                  },
-                  required: ["source", "target"]
-                }
-              }
-            },
-            required: ["nodes", "edges"]
-          }
-        },
-        required: ["description", "category", "difficulty", "estimatedMinutes", "principles", "mindMap"]
-      }
-    }
-  });
+- Create edges showing relationships: topic->principles, principles->concepts, and cross-links between related principles`;
 
-  return JSON.parse(response.text || "{}") as TopicContent;
+  const result = await model.generateContent(prompt);
+  const response = await result.response;
+  const text = response.text();
+
+  return JSON.parse(text || "{}") as TopicContent;
 }
 
 export async function validateTopicContent(
@@ -227,12 +165,15 @@ export async function validateTopicContent(
   const principlesSummary = content.principles.map((p, i) => 
     `Principle ${i + 1}: "${p.title}"
 Explanation: ${p.explanation}
-KeyTakeaways: ${p.keyTakeaways.join('; ')}`
+Key Takeaways: ${p.keyTakeaways.join('; ')}`
   ).join('\n\n');
 
-  const response = await ai.models.generateContent({
-    model: "gemini-1.5-flash",
-    contents: `${SYSTEM_INSTRUCTION_HEADER}
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.5-flash",
+    safetySettings,
+  });
+
+  const prompt = `${SYSTEM_INSTRUCTION_HEADER}
 
 You are a fact-checker and educational content reviewer. Your job is to validate the accuracy and quality of educational content about "${topicTitle}".
 
@@ -265,42 +206,13 @@ Return a JSON object with:
   "overallFeedback": "Brief summary of content quality and any major issues"
 }
 
-Be rigorous but fair. Flag any potential inaccuracies or misleading statements. A confidence score of 80+ means the content is reliable for educational purposes.`,
-    config: {
-      safetySettings,
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          overallConfidence: { type: Type.INTEGER },
-          principleValidations: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                title: { type: Type.STRING },
-                confidence: { type: Type.INTEGER },
-                isAccurate: { type: Type.BOOLEAN },
-                concerns: { 
-                  type: Type.ARRAY,
-                  items: { type: Type.STRING }
-                },
-                suggestions: { 
-                  type: Type.ARRAY,
-                  items: { type: Type.STRING }
-                }
-              },
-              required: ["title", "confidence", "isAccurate", "concerns", "suggestions"]
-            }
-          },
-          overallFeedback: { type: Type.STRING }
-        },
-        required: ["overallConfidence", "principleValidations", "overallFeedback"]
-      }
-    }
-  });
+Be rigorous but fair. Flag any potential inaccuracies or misleading statements. A confidence score of 80+ means the content is reliable for educational purposes.`;
 
-  return JSON.parse(response.text || '{"overallConfidence": 0, "principleValidations": [], "overallFeedback": "Validation failed"}') as ValidationResult;
+  const result = await model.generateContent(prompt);
+  const response = await result.response;
+  const text = response.text();
+
+  return JSON.parse(text || '{"overallConfidence": 0, "principleValidations": [], "overallFeedback": "Validation failed"}') as ValidationResult;
 }
 
 interface GeneratedQuestion {
@@ -319,9 +231,12 @@ export async function generateQuizQuestions(
     `${i + 1}. "${p.title}": ${p.explanation.substring(0, 200)}...`
   ).join('\n');
 
-  const response = await ai.models.generateContent({
-    model: "gemini-1.5-flash",
-    contents: `${SYSTEM_INSTRUCTION_HEADER}
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.5-flash",
+    safetySettings,
+  });
+
+  const prompt = `${SYSTEM_INSTRUCTION_HEADER}
 
 You are creating a quiz to test understanding of "${topicTitle}" based on first principles.
 
@@ -345,31 +260,13 @@ Return a JSON array of questions with this structure:
     "correctAnswer": 0-3 (index of correct option),
     "explanation": "Why this is the correct answer and what it demonstrates about the principle"
   }
-]`,
-    config: {
-      safetySettings,
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            principleIndex: { type: Type.INTEGER },
-            questionText: { type: Type.STRING },
-            options: { 
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            },
-            correctAnswer: { type: Type.INTEGER },
-            explanation: { type: Type.STRING }
-          },
-          required: ["questionText", "options", "correctAnswer", "explanation"]
-        }
-      }
-    }
-  });
+]`;
 
-  const rawQuestions = JSON.parse(response.text || "[]");
+  const result = await model.generateContent(prompt);
+  const response = await result.response;
+  const text = response.text();
+
+  const rawQuestions = JSON.parse(text || "[]");
   
   return rawQuestions.map((q: any) => ({
     principleId: principles[q.principleIndex]?.id,
