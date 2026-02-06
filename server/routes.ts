@@ -179,7 +179,12 @@ export async function registerRoutes(
 
       const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
       const existingTopic = await storage.getTopicBySlug(slug);
-      if (existingTopic) return res.json(existingTopic);
+      if (existingTopic) {
+        return res.json({
+          existing: true,
+          topic: existingTopic
+        });
+      }
 
       const content = await generateTopicContent(title);
       const validationResult = await validateTopicContent(title, content);
@@ -219,7 +224,11 @@ export async function registerRoutes(
         }
       }
 
-      res.json(newTopic);
+      // Return format expected by frontend (mark as "existing" since generation is synchronous)
+      res.json({
+        existing: true,
+        topic: newTopic
+      });
     } catch (error) {
       console.error("[Topic Generate] Error:", error);
       res.status(500).json({ message: error.message || "Failed to generate topic content" });
