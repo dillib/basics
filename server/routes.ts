@@ -460,8 +460,11 @@ export async function registerRoutes(
             authorType: isAdmin ? 'admin' : 'user',
             authorId: userId,
             message: req.body.message
-      });
-      res.json(message);
+        });
+        res.json(message);
+      } catch (error) {
+        return handleError(error, res, 'Support Message');
+      }
   });
 
   // -- ADMIN ROUTES --
