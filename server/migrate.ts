@@ -30,6 +30,14 @@ async function migrate() {
 
     // Create tables manually
     await pool.query(`
+      -- Sessions table for express-session
+      CREATE TABLE IF NOT EXISTS sessions (
+        sid VARCHAR PRIMARY KEY,
+        sess JSONB NOT NULL,
+        expire TIMESTAMP NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON sessions(expire);
+
       CREATE TABLE IF NOT EXISTS users (
         id VARCHAR(255) PRIMARY KEY,
         email TEXT,
@@ -226,7 +234,14 @@ async function migrate() {
   } catch (error) {
     console.error("Migration failed:", error);
     throw error;
+  } finally {
+    await pool.end();
   }
 }
 
-migrate();
+migrate()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error("Fatal migration error:", error);
+    process.exit(1);
+  });
