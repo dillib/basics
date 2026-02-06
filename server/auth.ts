@@ -1,11 +1,12 @@
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Strategy as LocalStrategy } from "passport-local";
-import express, { type Express } from "express";
+import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 import { users } from "@shared/schema";
+import type { AuthenticatedRequest } from "./types";
 
 export function setupAuth(app: Express) {
   const pgStore = connectPg(session);
@@ -17,7 +18,7 @@ export function setupAuth(app: Express) {
   app.set("trust proxy", 1);
   app.use(
     session({
-      secret: process.env.SESSION_SECRET || "super-secret-key",
+      secret: process.env.SESSION_SECRET!, // Validated at startup
       resave: false,
       saveUninitialized: false,
       store: sessionStore,
@@ -47,8 +48,9 @@ export function setupAuth(app: Express) {
             const email = profile.emails?.[0]?.value;
             const googleId = profile.id;
 
-            // Auto-promote admin
-            const isAdmin = email === "dillib@gmail.com";
+            // Auto-promote admin based on environment variable
+            const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean);
+            const isAdmin = email ? adminEmails.includes(email) : false;
 
             const user = await storage.upsertUser({
               id: googleId, // Use Google ID as stable ID
@@ -87,7 +89,7 @@ export function setupAuth(app: Express) {
     done(null, user);
   });
 
-  passport.deserializeUser((user: any, done) => {
+  passport.deserializeUser((user: Express.User, done) => {
     done(null, user);
   });
 
@@ -119,7 +121,7 @@ export function setupAuth(app: Express) {
     });
   });
 
-  app.get("/api/user", isAuthenticated, async (req: any, res) => {
+  app.get("/api/user", isAuthenticated, async (req: AuthenticatedRequest, res) => {
     const userId = req.user.claims.sub;
     const user = await storage.getUser(userId);
     res.json(user);
@@ -127,7 +129,7 @@ export function setupAuth(app: Express) {
 }
 
 // Middleware to check if user is authenticated
-export function isAuthenticated(req: any, res: any, next: any) {
+export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
   if (req.isAuthenticated()) {
     return next();
   }

@@ -4,42 +4,50 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./auth";
 import { generateTopicContent, generateQuizQuestions, validateTopicContent } from "./ai";
 import { getUncachableStripeClient } from "./stripeClient";
+import { type AuthenticatedRequest, type StripeWebhookRequest } from "./types";
+import { handleError, Errors } from "./errors";
+import {
+  validate,
+  SupportRequestSchema,
+  QuizAnswerSchema,
+  TopicGenerateSchema,
+  TopicUpdateSchema,
+  MessageSchema,
+  SupportRequestUpdateSchema,
+} from "./validation";
+import { config } from "./config";
 import Stripe from "stripe";
 
-const isProUser = async (req: any, res: Response, next: NextFunction) => {
+const isProUser = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.claims?.sub;
-    if (!userId) {
-      return res.status(401).json({ message: "Authentication required" });
-    }
+    if (!userId) throw Errors.unauthorized();
+
     const user = await storage.getUser(userId);
     if (!user || user.plan !== "pro") {
-      return res.status(403).json({ message: "Pro subscription required for this feature" });
+      throw Errors.forbidden("Pro subscription required for this feature");
     }
     if (user.proExpiresAt && new Date(user.proExpiresAt) < new Date()) {
-      return res.status(403).json({ message: "Your Pro subscription has expired. Please renew to continue using Pro features." });
+      throw Errors.forbidden("Your Pro subscription has expired. Please renew to continue using Pro features.");
     }
     next();
   } catch (error) {
-    console.error("Error checking Pro status:", error);
-    res.status(500).json({ message: "Failed to verify subscription status" });
+    handleError(error, res, 'Pro User Check');
   }
 };
 
-const isAdmin = async (req: any, res: Response, next: NextFunction) => {
+const isAdmin = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.claims?.sub;
-    if (!userId) {
-      return res.status(401).json({ message: "Authentication required" });
-    }
+    if (!userId) throw Errors.unauthorized();
+
     const user = await storage.getUser(userId);
     if (!user || !user.isAdmin) {
-      return res.status(403).json({ message: "Admin access required" });
+      throw Errors.forbidden("Admin access required");
     }
     next();
   } catch (error) {
-    console.error("Error checking admin status:", error);
-    res.status(500).json({ message: "Failed to verify admin status" });
+    handleError(error, res, 'Admin Check');
   }
 };
 
@@ -50,7 +58,7 @@ export async function registerRoutes(
   setupAuth(app);
 
   // -- STRIPE WEBHOOK --
-  app.post('/api/stripe/webhook', async (req: any, res) => {
+  app.post('/api/stripe/webhook', async (req: StripeWebhookRequest, res) => {
     const sig = req.headers['stripe-signature'];
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -64,7 +72,7 @@ export async function registerRoutes(
 
     try {
       event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-    } catch (err: any) {
+    } catch (err) {
       console.error(`Webhook signature verification failed.`, err.message);
       return res.status(400).send(`Webhook Error: ${err.message}`);
     }
@@ -120,13 +128,14 @@ export async function registerRoutes(
 
   // -- PUBLIC & AUTH API --
 
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  app.get('/api/auth/user', isAuthenticated, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
+      if (!user) throw Errors.notFound('User');
       res.json(user);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch user" });
+      return handleError(error, res, 'Fetch User');
     }
   });
 
@@ -153,13 +162,11 @@ export async function registerRoutes(
 
   // -- CONTENT GENERATION (User) --
 
-  app.post('/api/topics/generate', async (req: any, res) => {
+  app.post('/api/topics/generate', validate(TopicGenerateSchema), async (req: Request, res) => {
     try {
       // Temporarily allow anonymous topic generation for better UX
       const userId = req.user?.claims?.sub || 'anonymous-' + Date.now();
       const { title } = req.body;
-      
-      if (!title) return res.status(400).json({ message: "Topic title is required" });
 
       // Auth check temporarily disabled for testing
       // const user = await storage.getUser(userId);
@@ -203,10 +210,17 @@ export async function registerRoutes(
       }));
 
       await storage.createPrinciples(principleData);
-      await storage.updateUser(userId, { topicsUsed: (user.topicsUsed || 0) + 1 });
+
+      // Only update user stats for authenticated users (not anonymous)
+      if (!userId.startsWith('anonymous-')) {
+        const user = await storage.getUser(userId);
+        if (user) {
+          await storage.updateUser(userId, { topicsUsed: (user.topicsUsed || 0) + 1 });
+        }
+      }
 
       res.json(newTopic);
-    } catch (error: any) {
+    } catch (error) {
       console.error("[Topic Generate] Error:", error);
       res.status(500).json({ message: error.message || "Failed to generate topic content" });
     }
@@ -214,7 +228,7 @@ export async function registerRoutes(
 
   // -- QUIZZES & PROGRESS --
 
-  app.post('/api/topics/:topicId/quiz', async (req: any, res) => {
+  app.post('/api/topics/:topicId/quiz', async (req: Request, res) => {
     try {
       const { topicId } = req.params;
       const userId = req.user?.claims?.sub || null;
@@ -248,21 +262,25 @@ export async function registerRoutes(
     }
   });
 
-  app.post('/api/quiz/:quizId/answer', async (req: any, res) => {
-    const { quizId } = req.params;
-    const { questionId, answer } = req.body;
-    const questions = await storage.getQuestionsByQuiz(quizId);
-    const question = questions.find(q => q.id === questionId);
+  app.post('/api/quiz/:quizId/answer', validate(QuizAnswerSchema), async (req: AuthenticatedRequest, res) => {
+    try {
+      const { quizId } = req.params;
+      const { questionId, answer } = req.body;
+      const questions = await storage.getQuestionsByQuiz(quizId);
+      const question = questions.find(q => q.id === questionId);
 
-    if (!question) return res.status(404).json({ message: "Question not found" });
+      if (!question) throw Errors.notFound('Question');
 
-    const isCorrect = answer === question.correctAnswer;
-    await storage.updateQuestion(questionId, { userAnswer: answer, isCorrect });
+      const isCorrect = answer === question.correctAnswer;
+      await storage.updateQuestion(questionId, { userAnswer: answer, isCorrect });
 
-    res.json({ isCorrect, correctAnswer: question.correctAnswer, explanation: question.explanation });
+      res.json({ isCorrect, correctAnswer: question.correctAnswer, explanation: question.explanation });
+    } catch (error) {
+      return handleError(error, res, 'Quiz Answer');
+    }
   });
 
-  app.post('/api/quiz/:quizId/complete', async (req: any, res) => {
+  app.post('/api/quiz/:quizId/complete', async (req: AuthenticatedRequest, res) => {
     const userId = req.user?.claims?.sub || null;
     const { quizId } = req.params;
     const quiz = await storage.getQuiz(quizId);
@@ -285,19 +303,19 @@ export async function registerRoutes(
         totalPrinciples: principles.length,
         quizzesTaken: (currentProgress?.quizzesTaken || 0) + 1,
         bestScore: Math.max(score, currentProgress?.bestScore || 0),
-        completedAt: score >= 70 ? new Date() : null,
+        completedAt: score >= config.quiz.passingScore ? new Date() : null,
       });
     }
     res.json({ score, correctCount, totalQuestions: questions.length });
   });
 
-  app.get('/api/user/progress', isAuthenticated, async (req: any, res) => {
+  app.get('/api/user/progress', isAuthenticated, async (req: AuthenticatedRequest, res) => {
     const userId = req.user.claims.sub;
     const progressList = await storage.getProgressByUser(userId);
     res.json(progressList);
   });
 
-  app.get('/api/user/topics', isAuthenticated, async (req: any, res) => {
+  app.get('/api/user/topics', isAuthenticated, async (req: AuthenticatedRequest, res) => {
     const userId = req.user.claims.sub;
     const createdTopics = await storage.getTopicsByUser(userId);
     const progressList = await storage.getProgressByUser(userId);
@@ -312,7 +330,7 @@ export async function registerRoutes(
 
   // -- CHECKOUT --
 
-  app.post('/api/checkout/topic/:topicId', isAuthenticated, async (req: any, res) => {
+  app.post('/api/checkout/topic/:topicId', isAuthenticated, async (req: AuthenticatedRequest, res) => {
     try {
       const userId = req.user.claims.sub;
       const { topicId } = req.params;
@@ -331,7 +349,7 @@ export async function registerRoutes(
           price_data: {
              currency: 'usd',
              product_data: { name: `Topic: ${topic.title}`, description: 'Lifetime access' },
-             unit_amount: 199, // $1.99
+             unit_amount: config.pricing.topicPurchase,
           },
           quantity: 1,
         }],
@@ -342,7 +360,7 @@ export async function registerRoutes(
       });
 
       await storage.createTopicPurchase({
-        userId, topicId, stripeSessionId: session.id, amount: 199, currency: 'usd', status: 'pending',
+        userId, topicId, stripeSessionId: session.id, amount: config.pricing.topicPurchase, currency: 'usd', status: 'pending',
       });
 
       res.json({ url: session.url });
@@ -351,7 +369,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get('/api/checkout/verify/:sessionId', isAuthenticated, async (req: any, res) => {
+  app.get('/api/checkout/verify/:sessionId', isAuthenticated, async (req: AuthenticatedRequest, res) => {
     try {
       const { sessionId } = req.params;
       const stripe = await getUncachableStripeClient();
@@ -363,7 +381,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get('/api/user/can-access-topic/:topicId', isAuthenticated, async (req: any, res) => {
+  app.get('/api/user/can-access-topic/:topicId', isAuthenticated, async (req: AuthenticatedRequest, res) => {
       const userId = req.user.claims.sub;
       const { topicId } = req.params;
       const user = await storage.getUser(userId);
@@ -379,22 +397,26 @@ export async function registerRoutes(
 
   // -- SUPPORT --
 
-  app.post('/api/support', async (req: any, res) => {
-    const userId = req.user?.claims?.sub;
-    const { email, type, priority, subject, description } = req.body;
-    const request = await storage.createSupportRequest({
-      userId: userId || null, email, type, priority: priority || 'normal', subject, description
-    });
-    res.status(201).json(request);
+  app.post('/api/support', validate(SupportRequestSchema), async (req: Request, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      const { email, type, priority, subject, description } = req.body;
+      const request = await storage.createSupportRequest({
+        userId: userId || null, email, type, priority, subject, description
+      });
+      res.status(201).json(request);
+    } catch (error) {
+      return handleError(error, res, 'Support Request Creation');
+    }
   });
 
-  app.get('/api/support/mine', isAuthenticated, async (req: any, res) => {
+  app.get('/api/support/mine', isAuthenticated, async (req: AuthenticatedRequest, res) => {
     const userId = req.user.claims.sub;
     const requests = await storage.getSupportRequestsByUser(userId);
     res.json(requests);
   });
 
-  app.get('/api/support/:id', isAuthenticated, async (req: any, res) => {
+  app.get('/api/support/:id', isAuthenticated, async (req: AuthenticatedRequest, res) => {
      const userId = req.user.claims.sub;
      const request = await storage.getSupportRequest(req.params.id);
      if (!request) return res.status(404).json({message: "Not found"});
@@ -406,35 +428,45 @@ export async function registerRoutes(
      res.json(request);
   });
 
-  app.get('/api/support/:id/messages', isAuthenticated, async (req: any, res) => {
+  app.get('/api/support/:id/messages', isAuthenticated, async (req: AuthenticatedRequest, res) => {
+      const userId = req.user.claims.sub;
+      const request = await storage.getSupportRequest(req.params.id);
+      if (!request) return res.status(404).json({message: "Not found"});
+
+      const user = await storage.getUser(userId);
+      if (request.userId !== userId && !user?.isAdmin) {
+          return res.status(403).json({message: "Unauthorized"});
+      }
+
       const messages = await storage.getSupportMessagesByRequest(req.params.id);
       res.json(messages);
   });
   
-  app.post('/api/support/:id/messages', isAuthenticated, async (req: any, res) => {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
-      const request = await storage.getSupportRequest(req.params.id);
-      
-      if (!request) return res.status(404).json({message: "Request not found"});
-      
-      const isAuthor = request.userId === userId;
-      const isAdmin = user?.isAdmin;
-      
-      if (!isAuthor && !isAdmin) return res.status(403).json({message: "Unauthorized"});
+  app.post('/api/support/:id/messages', isAuthenticated, validate(MessageSchema), async (req: AuthenticatedRequest, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const user = await storage.getUser(userId);
+        const request = await storage.getSupportRequest(req.params.id);
 
-      const message = await storage.createSupportMessage({
-          requestId: req.params.id,
-          authorType: isAdmin ? 'admin' : 'user',
-          authorId: userId,
-          message: req.body.message
+        if (!request) throw Errors.notFound('Support request');
+
+        const isAuthor = request.userId === userId;
+        const isAdmin = user?.isAdmin;
+
+        if (!isAuthor && !isAdmin) throw Errors.forbidden('You can only reply to your own support requests');
+
+        const message = await storage.createSupportMessage({
+            requestId: req.params.id,
+            authorType: isAdmin ? 'admin' : 'user',
+            authorId: userId,
+            message: req.body.message
       });
       res.json(message);
   });
 
   // -- ADMIN ROUTES --
 
-  app.get('/api/admin/check', isAuthenticated, async (req: any, res) => {
+  app.get('/api/admin/check', isAuthenticated, async (req: AuthenticatedRequest, res) => {
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       res.json({ isAdmin: user?.isAdmin === true });
@@ -453,7 +485,7 @@ export async function registerRoutes(
       });
   });
 
-  app.get('/api/admin/users', isAuthenticated, isAdmin, async (req: any, res) => {
+  app.get('/api/admin/users', isAuthenticated, isAdmin, async (req: AuthenticatedRequest, res) => {
       const limit = parseInt(req.query.limit) || 50;
       const offset = parseInt(req.query.offset) || 0;
       const users = await storage.getAllUsers(limit, offset);
@@ -461,17 +493,17 @@ export async function registerRoutes(
       res.json({ users, total, limit, offset });
   });
 
-  app.patch('/api/admin/users/:userId/admin', isAuthenticated, isAdmin, async (req: any, res) => {
+  app.patch('/api/admin/users/:userId/admin', isAuthenticated, isAdmin, async (req: AuthenticatedRequest, res) => {
       const user = await storage.setUserAdmin(req.params.userId, req.body.isAdmin);
       res.json(user);
   });
 
-  app.patch('/api/admin/users/:userId/pro', isAuthenticated, isAdmin, async (req: any, res) => {
+  app.patch('/api/admin/users/:userId/pro', isAuthenticated, isAdmin, async (req: AuthenticatedRequest, res) => {
       const user = await storage.setUserPro(req.params.userId, req.body.isPro, req.body.expiresAt ? new Date(req.body.expiresAt) : undefined);
       res.json(user);
   });
 
-  app.get('/api/admin/topics', isAuthenticated, isAdmin, async (req: any, res) => {
+  app.get('/api/admin/topics', isAuthenticated, isAdmin, async (req: AuthenticatedRequest, res) => {
       const limit = parseInt(req.query.limit) || 50;
       const offset = parseInt(req.query.offset) || 0;
       const topics = await storage.getAllTopics(limit, offset);
@@ -479,17 +511,22 @@ export async function registerRoutes(
       res.json({ topics, total, limit, offset });
   });
 
-  app.patch('/api/admin/topics/:topicId', isAuthenticated, isAdmin, async (req: any, res) => {
-      const topic = await storage.updateTopic(req.params.topicId, req.body);
-      res.json(topic);
+  app.patch('/api/admin/topics/:topicId', isAuthenticated, isAdmin, validate(TopicUpdateSchema), async (req: AuthenticatedRequest, res) => {
+      try {
+        const topic = await storage.updateTopic(req.params.topicId, req.body);
+        if (!topic) throw Errors.notFound('Topic');
+        res.json(topic);
+      } catch (error) {
+        return handleError(error, res, 'Admin Topic Update');
+      }
   });
 
-  app.delete('/api/admin/topics/:topicId', isAuthenticated, isAdmin, async (req: any, res) => {
+  app.delete('/api/admin/topics/:topicId', isAuthenticated, isAdmin, async (req: AuthenticatedRequest, res) => {
       await storage.deleteTopicById(req.params.topicId);
       res.json({ success: true });
   });
   
-  app.get('/api/admin/support', isAuthenticated, isAdmin, async (req: any, res) => {
+  app.get('/api/admin/support', isAuthenticated, isAdmin, async (req: AuthenticatedRequest, res) => {
       const limit = parseInt(req.query.limit) || 50;
       const offset = parseInt(req.query.offset) || 0;
       // Filters would be parsed here
@@ -498,17 +535,22 @@ export async function registerRoutes(
       res.json({ requests, total, limit, offset });
   });
   
-  app.patch('/api/admin/support/:id', isAuthenticated, isAdmin, async (req: any, res) => {
-      const updated = await storage.updateSupportRequest(req.params.id, req.body);
-      res.json(updated);
+  app.patch('/api/admin/support/:id', isAuthenticated, isAdmin, validate(SupportRequestUpdateSchema), async (req: AuthenticatedRequest, res) => {
+      try {
+        const updated = await storage.updateSupportRequest(req.params.id, req.body);
+        if (!updated) throw Errors.notFound('Support request');
+        res.json(updated);
+      } catch (error) {
+        return handleError(error, res, 'Admin Support Update');
+      }
   });
 
-  app.get('/api/admin/purchases', isAuthenticated, isAdmin, async (req: any, res) => {
+  app.get('/api/admin/purchases', isAuthenticated, isAdmin, async (req: AuthenticatedRequest, res) => {
       const purchases = await storage.getAllTopicPurchases();
       res.json({ purchases });
   });
   
-  app.get('/api/admin/admins', isAuthenticated, isAdmin, async (req: any, res) => {
+  app.get('/api/admin/admins', isAuthenticated, isAdmin, async (req: AuthenticatedRequest, res) => {
       const admins = await storage.getAdminUsers();
       res.json(admins);
   });

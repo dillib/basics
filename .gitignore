@@ -9,3 +9,10 @@ vite.config.ts.*
 .env.*.local
 *.pem
 *.key
+
+# Test coverage
+coverage
+*.lcov
+
+# Assets (not needed in production)
+attached_assets/

@@ -57,6 +57,12 @@ interface SupportRequestsResponse {
   offset: number;
 }
 
+interface SupportRequestUpdates {
+  status?: string;
+  priority?: string;
+  resolvedAt?: string | null;
+}
+
 function AdminOverview() {
   const { data: stats, isLoading } = useQuery<AdminStats>({
     queryKey: ['/api/admin/stats'],
@@ -793,7 +799,7 @@ function AdminSupport() {
   });
 
   const updateRequestMutation = useMutation({
-    mutationFn: async ({ id, updates }: { id: string; updates: any }) => {
+    mutationFn: async ({ id, updates }: { id: string; updates: SupportRequestUpdates }) => {
       return apiRequest('PATCH', `/api/admin/support/${id}`, updates);
     },
     onSuccess: () => {
@@ -801,7 +807,7 @@ function AdminSupport() {
       refetch();
       toast({ title: "Request updated", description: "The support request has been updated." });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: "Update failed", description: error.message, variant: "destructive" });
     },
   });
@@ -815,7 +821,7 @@ function AdminSupport() {
       refetchMessages();
       toast({ title: "Reply sent", description: "Your reply has been sent." });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({ title: "Failed to send reply", description: error.message, variant: "destructive" });
     },
   });

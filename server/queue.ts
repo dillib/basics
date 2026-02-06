@@ -62,7 +62,7 @@ const worker = new Worker<TopicGenerationJob>(
         validationData: validationResult,
       });
 
-      const principleData = content.principles.map((p: any, index: number) => ({
+      const principleData = content.principles.map((p, index: number) => ({
         topicId: newTopic.id,
         orderIndex: index,
         title: p.title,
@@ -86,7 +86,7 @@ const worker = new Worker<TopicGenerationJob>(
       
       return { topicId: newTopic.id, slug: newTopic.slug };
 
-    } catch (error: any) {
+    } catch (error) {
       console.error(`[Worker] Job ${job.id} failed:`, error);
       throw error; // Let BullMQ handle the failure state
     }

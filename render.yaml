@@ -1,0 +1,65 @@
+services:
+  # Web Service (Main Application)
+  - type: web
+    name: basicstutor
+    runtime: node
+    plan: starter # Change to 'standard' for production
+    buildCommand: npm run build
+    startCommand: npm start
+    healthCheckPath: /api/topics
+    envVars:
+      # Node Environment
+      - key: NODE_ENV
+        value: production
+
+      # Database - Use Render PostgreSQL
+      - key: DATABASE_URL
+        fromDatabase:
+          name: basicstutor-db
+          property: connectionString
+
+      # Session Secret - Generate a random value
+      - key: SESSION_SECRET
+        generateValue: true
+
+      # Admin Emails - Set your admin emails
+      - key: ADMIN_EMAILS
+        sync: false
+
+      # Google OAuth - Set in Render Dashboard
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+
+      # Stripe - Set in Render Dashboard
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+
+      # AI Integration - Set in Render Dashboard
+      - key: GOOGLE_API_KEY
+        sync: false
+
+      # Optional: Redis for job queue
+      # - key: REDIS_URL
+      #   fromService:
+      #     type: redis
+      #     name: basicstutor-redis
+      #     property: connectionString
+
+# PostgreSQL Database
+databases:
+  - name: basicstutor-db
+    databaseName: basicstutor
+    plan: starter # Change to 'standard' for production
+    postgresMajorVersion: 16
+
+# Optional: Redis for job queue
+# - type: redis
+#   name: basicstutor-redis
+#   plan: starter
+#   maxmemoryPolicy: noeviction

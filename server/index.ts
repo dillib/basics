@@ -3,6 +3,8 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { getStripePublishableKey } from "./stripeClient";
+import { config, validateConfig, printConfigSummary } from "./config";
+import { registerShutdownHandlers } from "./shutdown";
 
 const app = express();
 const httpServer = createServer(app);
@@ -56,9 +58,23 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Validate configuration
+  try {
+    validateConfig();
+    if (!config.server.isProduction) {
+      printConfigSummary();
+    }
+  } catch (error) {
+    console.error('❌ Configuration Error:');
+    console.error(error instanceof Error ? error.message : error);
+    console.error('\nPlease check your .env file or environment configuration.');
+    console.error('See .env.example for required variables.');
+    process.exit(1);
+  }
+
   await registerRoutes(httpServer, app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
@@ -66,26 +82,28 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  if (process.env.NODE_ENV === "production") {
+  if (config.server.isProduction) {
     serveStatic(app);
   } else {
     // Serve static files from client/public in development mode
     const path = await import("path");
     app.use(express.static(path.resolve(import.meta.dirname, "..", "client", "public")));
-    
+
     const { setupVite } = await import("./vite");
     await setupVite(httpServer, app);
   }
 
-  const port = parseInt(process.env.PORT || "5000", 10);
   httpServer.listen(
     {
-      port,
+      port: config.server.port,
       host: "0.0.0.0",
       reusePort: true,
     },
     () => {
-      log(`serving on port ${port}`);
+      log(`serving on port ${config.server.port}`);
+
+      // Register graceful shutdown handlers
+      registerShutdownHandlers(httpServer);
     },
   );
 })();

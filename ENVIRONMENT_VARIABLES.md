@@ -13,6 +13,10 @@ GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 SESSION_SECRET=complex_random_string_for_session_encryption
 
+## Admin Access
+# Comma-separated list of admin email addresses (no spaces unless email requires it)
+ADMIN_EMAILS=admin@example.com,admin2@example.com
+
 ## Payments (Stripe)
 # Keys from: https://dashboard.stripe.com/apikeys
 STRIPE_PUBLISHABLE_KEY=pk_live_...
