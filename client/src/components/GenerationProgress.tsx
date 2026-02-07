@@ -152,12 +152,43 @@ export default function GenerationProgress({
       className="mt-6 p-6 bg-gradient-to-br from-primary/5 via-background to-accent/5 rounded-lg border border-primary/20"
       data-testid="generation-progress"
     >
-      <div className="mb-4">
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="font-semibold text-sm">Generating: {topicTitle}</h4>
-          <span className="text-xs text-muted-foreground">{isPolling ? `${serverProgress}%` : 'Processing...'}</span>
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h4 className="font-semibold text-base mb-1">Generating: {topicTitle}</h4>
+            <p className="text-xs text-muted-foreground">
+              {isPolling && serverProgress < 100
+                ? `~${Math.max(10, 60 - Math.floor(serverProgress / 2))} seconds remaining`
+                : serverProgress === 100
+                ? 'Almost done!'
+                : 'Starting...'}
+            </p>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-bold text-primary">
+              {isPolling ? `${serverProgress}%` : '0%'}
+            </div>
+            <div className="text-[10px] text-muted-foreground uppercase tracking-wide">
+              Complete
+            </div>
+          </div>
         </div>
-        <Progress value={isPolling ? serverProgress : undefined} className="h-2" />
+        <div className="relative overflow-hidden rounded-full">
+          <Progress value={isPolling ? serverProgress : undefined} className="h-3" />
+          {isPolling && serverProgress > 0 && serverProgress < 100 && (
+            <motion.div
+              className="absolute top-0 left-0 h-full w-1/3 bg-gradient-to-r from-transparent via-white/30 to-transparent pointer-events-none"
+              animate={{
+                left: ['-33%', '133%'],
+              }}
+              transition={{
+                repeat: Infinity,
+                duration: 1.5,
+                ease: 'linear',
+              }}
+            />
+          )}
+        </div>
       </div>
 
       <div className="space-y-3">

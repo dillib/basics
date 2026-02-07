@@ -95,12 +95,29 @@ export function setupAuth(app: Express) {
 
   // Routes
   app.get("/api/login", (req, res) => {
+    // Check if Google OAuth is configured
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      return res.status(500).json({
+        error: "Google OAuth not configured",
+        message: "Please configure GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables"
+      });
+    }
     // Redirect to Google Login
     res.redirect("/api/auth/google");
   });
 
   app.get(
     "/api/auth/google",
+    (req, res, next) => {
+      // Check if Google OAuth is configured
+      if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+        return res.status(500).json({
+          error: "Google OAuth not configured",
+          message: "Please configure GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in Render dashboard"
+        });
+      }
+      next();
+    },
     passport.authenticate("google", { scope: ["profile", "email"] })
   );
 
