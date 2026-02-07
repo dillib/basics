@@ -12,12 +12,12 @@ import { useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { trackAnonymousTopic } from "@/lib/anonymousTracking";
-import { useUser } from "@/hooks/use-user";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function HomePage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const { user } = useUser();
+  const { user } = useAuth();
 
   const [generatingTopic, setGeneratingTopic] = useState<string>("");
   const [jobId, setJobId] = useState<string | null>(null);
