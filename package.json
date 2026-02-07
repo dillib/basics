@@ -12,7 +12,10 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "validate:env": "tsx scripts/validate-env.ts",
+    "deploy:check": "tsx scripts/check-deployment.ts",
+    "predeploy": "npm run validate:env"
   },
   "dependencies": {
     "@google/genai": "^1.30.0",
