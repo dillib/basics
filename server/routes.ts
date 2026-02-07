@@ -164,18 +164,9 @@ export async function registerRoutes(
 
   app.post('/api/topics/generate', validate(TopicGenerateSchema), async (req: Request, res) => {
     try {
-      // Temporarily allow anonymous topic generation for better UX
-      const userId = req.user?.claims?.sub || 'anonymous-' + Date.now();
+      const isAuthenticated = !!req.user?.claims?.sub;
+      const userId = req.user?.claims?.sub || null;
       const { title } = req.body;
-
-      // Auth check temporarily disabled for testing
-      // const user = await storage.getUser(userId);
-      // if (!user) return res.status(404).json({ message: "User not found" });
-
-      // Free tier check temporarily disabled
-      // if (user.plan === 'free' && (user.topicsUsed || 0) >= 1) {
-      //     return res.status(403).json({ message: "Free tier limit reached. Please purchase a topic or upgrade." });
-      // }
 
       const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
       const existingTopic = await storage.getTopicBySlug(slug);
@@ -186,11 +177,45 @@ export async function registerRoutes(
         });
       }
 
+      // Freemium model enforcement
+      if (!isAuthenticated) {
+        // Anonymous users: configurable limit (default 1 free topic)
+        const anonymousCount = (req.session as any).anonymousTopicsGenerated || 0;
+        if (anonymousCount >= config.limits.anonymousTopicsLimit) {
+          return res.status(403).json({
+            message: "Sign up to generate more topics!",
+            upgradeRequired: true,
+            upgradeType: "signup",
+            limitReached: true,
+            currentCount: anonymousCount,
+            maxCount: config.limits.anonymousTopicsLimit
+          });
+        }
+      } else {
+        // Authenticated users: Check their plan and limits
+        const user = await storage.getUser(userId);
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
+
+        // Free account: configurable limit (default 3 topics)
+        if (user.plan === 'free' && (user.topicsUsed || 0) >= config.limits.freeTopicsLimit) {
+          return res.status(403).json({
+            message: "Free tier limit reached. Upgrade to Pro for unlimited topics!",
+            upgradeRequired: true,
+            upgradeType: "pro",
+            limitReached: true,
+            currentCount: user.topicsUsed || 0,
+            maxCount: config.limits.freeTopicsLimit
+          });
+        }
+      }
+
       const content = await generateTopicContent(title);
       const validationResult = await validateTopicContent(title, content);
 
       const newTopic = await storage.createTopic({
-        userId: null, // Anonymous users don't have a user record
+        userId: isAuthenticated ? userId : null,
         title,
         slug,
         description: content.description,
@@ -216,19 +241,38 @@ export async function registerRoutes(
 
       await storage.createPrinciples(principleData);
 
-      // Only update user stats for authenticated users (not anonymous)
-      if (!userId.startsWith('anonymous-')) {
+      // Track usage
+      if (!isAuthenticated) {
+        // Track anonymous topic generation in session
+        const session = req.session as any;
+        session.anonymousTopicsGenerated = (session.anonymousTopicsGenerated || 0) + 1;
+        session.anonymousTopicIds = session.anonymousTopicIds || [];
+        session.anonymousTopicIds.push(newTopic.id);
+      } else {
+        // Update authenticated user stats
         const user = await storage.getUser(userId);
         if (user) {
           await storage.updateUser(userId, { topicsUsed: (user.topicsUsed || 0) + 1 });
         }
       }
 
-      // Return format expected by frontend (mark as "existing" since generation is synchronous)
-      res.json({
+      // Return format expected by frontend with upgrade prompt info
+      const response: any = {
         existing: true,
         topic: newTopic
-      });
+      };
+
+      // Add upgrade prompt for first topic
+      if (!isAuthenticated) {
+        const count = (req.session as any).anonymousTopicsGenerated || 1;
+        if (count === 1) {
+          response.showUpgradePrompt = true;
+          response.upgradeMessage = "You've unlocked your first topic! Sign in to save your progress and generate 3 more free topics.";
+          response.upgradeType = "first_topic";
+        }
+      }
+
+      res.json(response);
     } catch (error) {
       console.error("[Topic Generate] Error:", error);
       res.status(500).json({ message: error.message || "Failed to generate topic content" });

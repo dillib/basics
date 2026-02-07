@@ -14,9 +14,14 @@ export const config = {
   },
 
   // Pricing Configuration (in cents)
+  // Freemium Tiers:
+  // - Anonymous: 1 free topic
+  // - Free Account (sign up): 3 free topics + saved progress
+  // - Pro ($9/mo): Unlimited topics + AI Tutor + Analytics
   pricing: {
-    topicPurchase: parseInt(process.env.TOPIC_PRICE_CENTS || '199', 10), // $1.99
-    proAnnual: parseInt(process.env.PRO_ANNUAL_PRICE_CENTS || '9900', 10), // $99.00
+    topicPurchase: parseInt(process.env.TOPIC_PRICE_CENTS || '199', 10), // $1.99 per topic (legacy)
+    proMonthly: parseInt(process.env.PRO_MONTHLY_PRICE_CENTS || '900', 10), // $9.00/month
+    proAnnual: parseInt(process.env.PRO_ANNUAL_PRICE_CENTS || '9900', 10), // $99.00/year (legacy)
   },
 
   // Quiz Configuration
@@ -25,9 +30,13 @@ export const config = {
     questionsPerQuiz: parseInt(process.env.QUESTIONS_PER_QUIZ || '5', 10),
   },
 
-  // User Limits
+  // User Limits - Freemium Model
   limits: {
-    freeTopicsLimit: parseInt(process.env.FREE_TOPICS_LIMIT || '1', 10),
+    // Anonymous users: 1 free topic
+    anonymousTopicsLimit: parseInt(process.env.ANONYMOUS_TOPICS_LIMIT || '1', 10),
+    // Free account: 3 free topics
+    freeTopicsLimit: parseInt(process.env.FREE_TOPICS_LIMIT || '3', 10),
+    // Pro account: unlimited (enforced by plan check, not limit)
     maxSupportRequestLength: 5000,
     maxTopicTitleLength: 200,
     maxTopicDescriptionLength: 1000,

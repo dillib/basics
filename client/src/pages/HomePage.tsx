@@ -6,17 +6,30 @@ import Testimonials from "@/components/Testimonials";
 import PricingSection from "@/components/PricingSection";
 import CTASection from "@/components/CTASection";
 import Footer from "@/components/Footer";
+import { UpgradeModal } from "@/components/UpgradeModal";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { trackAnonymousTopic } from "@/lib/anonymousTracking";
+import { useUser } from "@/hooks/use-user";
 
 export default function HomePage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { user } = useUser();
 
   const [generatingTopic, setGeneratingTopic] = useState<string>("");
   const [jobId, setJobId] = useState<string | null>(null);
+  const [upgradeModal, setUpgradeModal] = useState<{
+    isOpen: boolean;
+    type: "first_topic" | "signup" | "pro";
+    currentCount?: number;
+    maxCount?: number;
+  }>({
+    isOpen: false,
+    type: "first_topic",
+  });
 
   const generateTopicMutation = useMutation({
     mutationFn: async (title: string) => {
@@ -24,11 +37,34 @@ export default function HomePage() {
       const response = await apiRequest("POST", "/api/topics/generate", { title });
       if (!response.ok) {
         const data = await response.json();
+        // Check if it's a limit/upgrade error
+        if (response.status === 403 && data.upgradeRequired) {
+          const error: any = new Error(data.message);
+          error.upgradeData = data;
+          throw error;
+        }
         throw new Error(data.message || "Failed to generate topic");
       }
       return response.json();
     },
     onSuccess: (data) => {
+      // Track anonymous topic in localStorage if not authenticated
+      if (!user && data.topic) {
+        trackAnonymousTopic({
+          id: data.topic.id,
+          slug: data.topic.slug,
+          title: data.topic.title,
+        });
+      }
+
+      // Check for upgrade prompt (first topic)
+      if (data.showUpgradePrompt && data.upgradeType === "first_topic") {
+        setUpgradeModal({
+          isOpen: true,
+          type: "first_topic",
+        });
+      }
+
       if (data.existing) {
         // If existing, direct redirect
         setLocation(`/topic/${data.topic.slug}`);
@@ -37,8 +73,22 @@ export default function HomePage() {
         setJobId(data.jobId);
       }
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
       setGeneratingTopic("");
+
+      // Handle upgrade/limit errors
+      if (error.upgradeData) {
+        const { upgradeType, currentCount, maxCount } = error.upgradeData;
+        setUpgradeModal({
+          isOpen: true,
+          type: upgradeType === "signup" ? "signup" : "pro",
+          currentCount,
+          maxCount,
+        });
+        return;
+      }
+
+      // Handle other errors
       toast({
         title: "Error",
         description: error.message || "Failed to generate topic. Please try again.",
@@ -87,8 +137,8 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen">
-      <HeroSection 
-        onGenerateTopic={handleGenerateTopic} 
+      <HeroSection
+        onGenerateTopic={handleGenerateTopic}
         isGenerating={generateTopicMutation.isPending || !!jobId}
         topicTitle={generatingTopic}
         jobId={jobId}
@@ -101,6 +151,14 @@ export default function HomePage() {
       <PricingSection onSelectPlan={handlePlanSelect} />
       <CTASection onGetStarted={handleGetStarted} />
       <Footer />
+
+      <UpgradeModal
+        isOpen={upgradeModal.isOpen}
+        onClose={() => setUpgradeModal({ ...upgradeModal, isOpen: false })}
+        type={upgradeModal.type}
+        currentCount={upgradeModal.currentCount}
+        maxCount={upgradeModal.maxCount}
+      />
     </div>
   );
 }
