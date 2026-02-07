@@ -60,6 +60,17 @@ const stages: GenerationStage[] = [
   },
 ];
 
+const learningTips = [
+  "💡 First principles thinking: Break complex ideas into their most basic elements",
+  "🧠 The best learning happens when you actively explain concepts to others",
+  "📚 Spaced repetition is proven to improve long-term retention by up to 200%",
+  "🎯 Focus on understanding WHY something works, not just HOW it works",
+  "⚡ Short, frequent study sessions are more effective than marathon cramming",
+  "🔄 Testing yourself is more effective than re-reading material",
+  "🎨 Visual analogies help connect abstract concepts to real-world examples",
+  "🚀 Learning is most effective when you're slightly outside your comfort zone",
+];
+
 interface GenerationProgressProps {
   isGenerating?: boolean; // Legacy prop, can act as a fallback
   jobId?: string | null;
@@ -68,16 +79,27 @@ interface GenerationProgressProps {
   onError?: (error: Error) => void;
 }
 
-export default function GenerationProgress({ 
-  isGenerating, 
-  jobId, 
+export default function GenerationProgress({
+  isGenerating,
+  jobId,
   topicTitle,
   onComplete,
   onError
 }: GenerationProgressProps) {
+  const [currentTipIndex, setCurrentTipIndex] = useState(0);
+
   // If we have a jobId, we poll. If just isGenerating, we show indeterminate/fake loading (legacy).
   const isPolling = !!jobId;
   const active = isPolling || isGenerating;
+
+  // Rotate tips every 5 seconds
+  useEffect(() => {
+    if (!active) return;
+    const interval = setInterval(() => {
+      setCurrentTipIndex((prev) => (prev + 1) % learningTips.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [active]);
 
   // Poll status
   const { data: statusData, isError, error } = useQuery({
@@ -219,8 +241,25 @@ export default function GenerationProgress({
       )}
 
       <div className="mt-4 pt-4 border-t border-border/50">
-        <p className="text-xs text-muted-foreground text-center">
-          {isPolling ? "Our AI is crafting your content in the background." : "Starting generation..."}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentTipIndex}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
+            className="text-center"
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-accent/30 rounded-full">
+              <Sparkles className="h-3 w-3 text-primary" />
+              <p className="text-xs font-medium text-muted-foreground">
+                {learningTips[currentTipIndex]}
+              </p>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+        <p className="text-[10px] text-muted-foreground/60 text-center mt-3">
+          {isPolling ? "This usually takes 30-60 seconds" : "Starting generation..."}
         </p>
       </div>
     </motion.div>

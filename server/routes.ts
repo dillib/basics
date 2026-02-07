@@ -177,39 +177,8 @@ export async function registerRoutes(
         });
       }
 
-      // Freemium model enforcement
-      if (!isAuthenticated) {
-        // Anonymous users: configurable limit (default 1 free topic)
-        const anonymousCount = (req.session as any).anonymousTopicsGenerated || 0;
-        if (anonymousCount >= config.limits.anonymousTopicsLimit) {
-          return res.status(403).json({
-            message: "Sign up to generate more topics!",
-            upgradeRequired: true,
-            upgradeType: "signup",
-            limitReached: true,
-            currentCount: anonymousCount,
-            maxCount: config.limits.anonymousTopicsLimit
-          });
-        }
-      } else {
-        // Authenticated users: Check their plan and limits
-        const user = await storage.getUser(userId);
-        if (!user) {
-          return res.status(404).json({ message: "User not found" });
-        }
-
-        // Free account: configurable limit (default 3 topics)
-        if (user.plan === 'free' && (user.topicsUsed || 0) >= config.limits.freeTopicsLimit) {
-          return res.status(403).json({
-            message: "Free tier limit reached. Upgrade to Pro for unlimited topics!",
-            upgradeRequired: true,
-            upgradeType: "pro",
-            limitReached: true,
-            currentCount: user.topicsUsed || 0,
-            maxCount: config.limits.freeTopicsLimit
-          });
-        }
-      }
+      // No generation limits - unlimited topic searches allowed
+      // Paywall is on CONTENT ACCESS, not generation
 
       const content = await generateTopicContent(title);
       const validationResult = await validateTopicContent(title, content);
@@ -241,38 +210,19 @@ export async function registerRoutes(
 
       await storage.createPrinciples(principleData);
 
-      // Track usage
-      if (!isAuthenticated) {
-        // Track anonymous topic generation in session
-        const session = req.session as any;
-        session.anonymousTopicsGenerated = (session.anonymousTopicsGenerated || 0) + 1;
-        session.anonymousTopicIds = session.anonymousTopicIds || [];
-        session.anonymousTopicIds.push(newTopic.id);
-      } else {
-        // Update authenticated user stats
+      // Track usage for authenticated users only
+      if (isAuthenticated && userId) {
         const user = await storage.getUser(userId);
         if (user) {
           await storage.updateUser(userId, { topicsUsed: (user.topicsUsed || 0) + 1 });
         }
       }
 
-      // Return format expected by frontend with upgrade prompt info
-      const response: any = {
+      // Return topic - content access will be controlled on frontend
+      res.json({
         existing: true,
         topic: newTopic
-      };
-
-      // Add upgrade prompt for first topic
-      if (!isAuthenticated) {
-        const count = (req.session as any).anonymousTopicsGenerated || 1;
-        if (count === 1) {
-          response.showUpgradePrompt = true;
-          response.upgradeMessage = "You've unlocked your first topic! Sign in to save your progress and generate 3 more free topics.";
-          response.upgradeType = "first_topic";
-        }
-      }
-
-      res.json(response);
+      });
     } catch (error) {
       console.error("[Topic Generate] Error:", error);
       res.status(500).json({ message: error.message || "Failed to generate topic content" });
@@ -434,18 +384,64 @@ export async function registerRoutes(
     }
   });
 
-  app.get('/api/user/can-access-topic/:topicId', isAuthenticated, async (req: AuthenticatedRequest, res) => {
-      const userId = req.user.claims.sub;
+  // Check topic access - works for both authenticated and anonymous users
+  app.get('/api/user/can-access-topic/:topicId', async (req: Request, res) => {
+      const userId = req.user?.claims?.sub;
       const { topicId } = req.params;
-      const user = await storage.getUser(userId);
       const topic = await storage.getTopic(topicId);
 
-      if (topic?.isSample) return res.json({ canAccess: true });
-      if (user?.plan === 'pro') return res.json({ canAccess: true });
-      if (topic?.userId === userId) return res.json({ canAccess: true });
-      if (await storage.hasUserPurchasedTopic(userId, topicId)) return res.json({ canAccess: true });
+      if (!topic) {
+        return res.status(404).json({ canAccess: false, reason: 'Topic not found' });
+      }
 
-      res.json({ canAccess: false });
+      // Sample topics are free for everyone
+      if (topic?.isSample) {
+        return res.json({ canAccess: true, reason: 'sample' });
+      }
+
+      // Anonymous users get preview mode only
+      if (!userId) {
+        return res.json({
+          canAccess: false,
+          previewMode: true,
+          previewPrinciples: 2, // Show first 2 principles
+          reason: 'anonymous',
+          unlockOptions: {
+            payPerTopic: config.pricing.topicPurchase,
+            proMonthly: config.pricing.proMonthly
+          }
+        });
+      }
+
+      // Authenticated users
+      const user = await storage.getUser(userId);
+
+      // Pro users get full access
+      if (user?.plan === 'pro') {
+        return res.json({ canAccess: true, reason: 'pro_subscription' });
+      }
+
+      // User owns this topic
+      if (topic?.userId === userId) {
+        return res.json({ canAccess: true, reason: 'owner' });
+      }
+
+      // User purchased this topic
+      if (await storage.hasUserPurchasedTopic(userId, topicId)) {
+        return res.json({ canAccess: true, reason: 'purchased' });
+      }
+
+      // Free users get preview mode
+      res.json({
+        canAccess: false,
+        previewMode: true,
+        previewPrinciples: 2,
+        reason: 'free_tier',
+        unlockOptions: {
+          payPerTopic: config.pricing.topicPurchase,
+          proMonthly: config.pricing.proMonthly
+        }
+      });
   });
 
   // -- SUPPORT --

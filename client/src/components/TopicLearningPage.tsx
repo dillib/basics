@@ -7,10 +7,10 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  BookOpen, 
-  Lightbulb, 
-  CheckCircle2, 
+import {
+  BookOpen,
+  Lightbulb,
+  CheckCircle2,
   ChevronDown,
   ChevronRight,
   Clock,
@@ -32,6 +32,7 @@ import TutorChat from "./TutorChat";
 import MindMapPanel from "./MindMapPanel";
 import ReferenceSheetGenerator from "./ReferenceSheetGenerator";
 import QualityBadge from "./QualityBadge";
+import { ContentPaywall } from "./ContentPaywall";
 
 interface TopicLearningPageProps {
   topicId?: string;
@@ -39,7 +40,13 @@ interface TopicLearningPageProps {
 
 interface TopicAccess {
   canAccess: boolean;
-  reason: string;
+  reason?: string;
+  previewMode?: boolean;
+  previewPrinciples?: number;
+  unlockOptions?: {
+    payPerTopic: number;
+    proMonthly: number;
+  };
 }
 
 export default function TopicLearningPage({ topicId: slug }: TopicLearningPageProps) {
@@ -69,7 +76,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
 
   const { data: accessInfo, isLoading: accessLoading } = useQuery<TopicAccess>({
     queryKey: ['/api/user/can-access-topic', topic?.id],
-    enabled: !!topic?.id && isAuthenticated,
+    enabled: !!topic?.id, // Works for both authenticated and anonymous
   });
 
   // Check if topic is a sample topic (free for everyone) - use property from topic response
@@ -363,7 +370,15 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                   </CardContent>
                 </Card>
               ) : (
-                principles.map((principle, index) => {
+                <>
+                {principles
+                  .filter((_, index) => {
+                    // Show all principles if user has full access or it's a sample topic
+                    if (canAccessAllPrinciples || isSampleTopic) return true;
+                    // Otherwise only show preview principles (first 2)
+                    return index < (accessInfo?.previewPrinciples || 2);
+                  })
+                  .map((principle, index) => {
                   const isExpanded = expandedPrinciples.has(principle.id);
                   const isComplete = completedPrinciples.has(principle.id);
                   // Sample topics: all principles free. Non-sample: first 2 free
@@ -545,7 +560,20 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                       )}
                     </Card>
                   );
-                })
+                })}
+
+                {/* Show ContentPaywall after preview principles if user doesn't have full access */}
+                {!canAccessAllPrinciples && !isSampleTopic && principles.length > 2 && accessInfo?.previewMode && (
+                  <ContentPaywall
+                    topicId={topic?.id || ''}
+                    topicTitle={topic?.title || ''}
+                    principlesCount={principles.length}
+                    previewPrinciples={accessInfo.previewPrinciples || 2}
+                    payPerTopicPrice={accessInfo.unlockOptions?.payPerTopic || 199}
+                    proMonthlyPrice={accessInfo.unlockOptions?.proMonthly || 900}
+                  />
+                )}
+                </>
               )}
             </div>
 
