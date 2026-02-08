@@ -45,7 +45,7 @@ export default function FeaturedTopics({ onTopicClick }: FeaturedTopicsProps) {
               Explore free sample topics
             </h2>
             <p className="text-xl text-muted-foreground max-w-xl">
-              Dive into these fully available topics to see how first principles learning works.
+              See how complex topics become simple when broken down to their fundamentals. Each topic includes step-by-step explanations and printable reference sheets.
             </p>
           </div>
           <Link href="/topics">
@@ -103,7 +103,7 @@ export default function FeaturedTopics({ onTopicClick }: FeaturedTopicsProps) {
                     {topic.title}
                   </h3>
                   <p className="text-lg text-muted-foreground mb-6 leading-relaxed line-clamp-3">
-                    {topic.description || "Explore this topic from the ground up using first principles thinking."}
+                    {topic.description || "Break down complex concepts into simple, fundamental building blocks. Perfect for building deep understanding."}
                   </p>
 
                   <div className="flex items-center justify-between">

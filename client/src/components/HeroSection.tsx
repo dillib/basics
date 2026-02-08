@@ -63,7 +63,7 @@ export default function HeroSection({
           >
             <Sparkles className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium text-primary" data-testid="text-hero-tagline">
-              The go-to dictionary for first principles
+              First Principles Dictionary
             </span>
           </motion.div>
 
@@ -75,10 +75,11 @@ export default function HeroSection({
             className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold tracking-tight text-foreground mb-6"
             data-testid="text-hero-headline"
           >
-            Look up any topic.{" "}
+            Understand{" "}
             <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-              Understand the fundamentals.
+              anything
             </span>
+            , explained from first principles
           </motion.h1>
 
           <motion.p 
@@ -88,8 +89,7 @@ export default function HeroSection({
             custom={0.2}
             className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed"
           >
-            Your AI-powered reference for breaking down any subject into first principles. 
-            Perfect for teachers preparing lessons or students building deep understanding.
+            Stop memorizing. Start understanding. Get instant AI-generated breakdowns of any topic—from quantum physics to baking bread—explained from the ground up.
           </motion.p>
 
           <motion.form 
@@ -106,7 +106,7 @@ export default function HeroSection({
                 <Search className="absolute left-5 h-5 w-5 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Look up any topic..."
+                  placeholder="What do you want to understand?"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="h-14 pl-12 pr-36 text-base bg-transparent border-0 rounded-full focus-visible:ring-0 focus-visible:ring-offset-0"
@@ -127,7 +127,7 @@ export default function HeroSection({
                     </>
                   ) : (
                     <>
-                      Look it up
+                      Try it now—free
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </>
                   )}
@@ -144,7 +144,7 @@ export default function HeroSection({
             custom={0.4}
           >
             <span className="text-sm text-muted-foreground">Popular:</span>
-            {["Photosynthesis", "Newton's Laws", "Supply & Demand", "The Scientific Method"].map((topic) => (
+            {["How ChatGPT Works", "Cryptocurrency Basics", "Personal Finance 101", "Climate Change Science"].map((topic) => (
               <button
                 key={topic}
                 onClick={() => {

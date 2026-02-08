@@ -1,11 +1,11 @@
 import { motion } from "framer-motion";
-import { Brain, Zap, FileText, BookOpen } from "lucide-react";
+import { Sparkles, Zap, FileText, CheckCircle } from "lucide-react";
 
 const features = [
-  { icon: Brain, label: "AI-Powered Reference" },
-  { icon: FileText, label: "Printable Sheets" },
-  { icon: Zap, label: "Instant Topic Lookup" },
-  { icon: BookOpen, label: "First Principles Dictionary" },
+  { icon: CheckCircle, label: "Free to try" },
+  { icon: Zap, label: "30-second generation" },
+  { icon: FileText, label: "Printable worksheets" },
+  { icon: Sparkles, label: "AI-powered learning" },
 ];
 
 export default function TrustIndicators() {
