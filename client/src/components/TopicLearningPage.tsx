@@ -21,7 +21,9 @@ import {
   Sparkles,
   Lock,
   CreditCard,
-  MessageCircle
+  MessageCircle,
+  LayoutList,
+  List
 } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Topic, Principle, Progress as ProgressType, User } from "@shared/schema";
@@ -30,6 +32,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import TutorChat from "./TutorChat";
 import MindMapPanel from "./MindMapPanel";
+import SimpleModeView from "./SimpleModeView";
 import ReferenceSheetGenerator from "./ReferenceSheetGenerator";
 import QualityBadge from "./QualityBadge";
 import { ContentPaywall } from "./ContentPaywall";
@@ -56,6 +59,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
   const [progressInitialized, setProgressInitialized] = useState(false);
   const [isTutorChatOpen, setIsTutorChatOpen] = useState(false);
   const [currentPrincipleForChat, setCurrentPrincipleForChat] = useState<Principle | null>(null);
+  const [simpleMode, setSimpleMode] = useState(false);
   const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
 
@@ -357,6 +361,42 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
               </div>
             </div>
 
+            {/* Study Mode Toggle */}
+            {canAccessAllPrinciples && (
+              <div className="flex justify-center mb-6">
+                <div className="inline-flex items-center bg-muted rounded-lg p-1">
+                  <Button
+                    variant={!simpleMode ? "secondary" : "ghost"}
+                    size="sm"
+                    onClick={() => setSimpleMode(false)}
+                    className="gap-2"
+                  >
+                    <LayoutList className="h-4 w-4" />
+                    Detailed
+                  </Button>
+                  <Button
+                    variant={simpleMode ? "secondary" : "ghost"}
+                    size="sm"
+                    onClick={() => setSimpleMode(true)}
+                    className="gap-2"
+                  >
+                    <List className="h-4 w-4" />
+                    Simple Mode
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Simple Mode View */}
+            {simpleMode && canAccessAllPrinciples ? (
+              <SimpleModeView
+                topicTitle={topic.title}
+                topicDescription={topic.description}
+                topicId={topic.id}
+                principles={accessiblePrinciples}
+              />
+            ) : (
+              <>
             <div className="space-y-4 mb-12">
               <div className="flex items-center gap-2 mb-6">
                 <Lightbulb className="h-5 w-5 text-primary" />
@@ -681,6 +721,8 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                   topicTitle={topic.title}
                 />
               </div>
+            )}
+            </>
             )}
           </main>
 
