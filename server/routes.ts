@@ -3,6 +3,7 @@ import { type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./auth";
 import { generateTopicContent, generateQuizQuestions, validateTopicContent } from "./ai";
+import { generateQuickTopic } from "./fastAI";
 import { getUncachableStripeClient } from "./stripeClient";
 import { type AuthenticatedRequest, type StripeWebhookRequest } from "./types";
 import { handleError, Errors } from "./errors";
@@ -226,6 +227,43 @@ export async function registerRoutes(
     } catch (error) {
       console.error("[Topic Generate] Error:", error);
       res.status(500).json({ message: error.message || "Failed to generate topic content" });
+    }
+  });
+
+  // -- QUICK SEARCH (Fast AI) --
+
+  app.post('/api/topics/quick-search', async (req: Request, res) => {
+    try {
+      const { title } = req.body;
+      if (!title || typeof title !== 'string') {
+        return res.status(400).json({ message: "Title is required" });
+      }
+
+      // Check if topic already exists
+      const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const existingTopic = await storage.getTopicBySlug(slug);
+      
+      if (existingTopic) {
+        // Return existing topic in quick format
+        const principles = await storage.getPrinciplesByTopic(existingTopic.id);
+        return res.json({
+          title: existingTopic.title,
+          description: existingTopic.description,
+          category: existingTopic.category,
+          difficulty: existingTopic.difficulty,
+          estimatedMinutes: existingTopic.estimatedMinutes,
+          keyPoints: principles.slice(0, 5).map(p => p.title),
+          existing: true,
+          slug: existingTopic.slug,
+        });
+      }
+
+      // Generate quick result (2-3 seconds)
+      const quickResult = await generateQuickTopic(title);
+      res.json(quickResult);
+    } catch (error) {
+      console.error("[Quick Search] Error:", error);
+      res.status(500).json({ message: error.message || "Failed to generate quick search" });
     }
   });
 
