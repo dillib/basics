@@ -59,7 +59,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
   const [progressInitialized, setProgressInitialized] = useState(false);
   const [isTutorChatOpen, setIsTutorChatOpen] = useState(false);
   const [currentPrincipleForChat, setCurrentPrincipleForChat] = useState<Principle | null>(null);
-  const [simpleMode, setSimpleMode] = useState(false);
+  const [simpleMode, setSimpleMode] = useState(true);
   const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
 
