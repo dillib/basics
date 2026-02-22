@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { ArrowRight, Search, Loader2, Sparkles, Users, BookOpen, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import GenerationProgress from "./GenerationProgress";
+import ProgressiveSearch from "./ProgressiveSearch";
 
 interface HeroSectionProps {
   onGenerateTopic?: (query: string) => void;
@@ -92,49 +93,15 @@ export default function HeroSection({
             Stop memorizing. Start understanding. Get instant AI-generated breakdowns of any topic—from quantum physics to baking bread—explained from the ground up.
           </motion.p>
 
-          <motion.form 
-            onSubmit={handleSearch} 
-            className="max-w-xl mx-auto mb-6"
+          <motion.div
             variants={fadeUpVariants}
             initial="hidden"
             animate="visible"
             custom={0.3}
+            className="max-w-2xl mx-auto"
           >
-            <div className="relative group">
-              <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-purple-500/20 to-violet-500/20 rounded-full blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              <div className="relative flex items-center bg-card border border-border rounded-full shadow-lg">
-                <Search className="absolute left-5 h-5 w-5 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="What do you want to understand?"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-14 pl-12 pr-36 text-base bg-transparent border-0 rounded-full focus-visible:ring-0 focus-visible:ring-offset-0"
-                  data-testid="input-hero-search"
-                  disabled={isGenerating}
-                />
-                <Button
-                  type="submit"
-                  size="lg"
-                  className="absolute right-2 rounded-full h-10 px-6 font-medium"
-                  data-testid="button-hero-search"
-                  disabled={!searchQuery.trim() || isGenerating}
-                >
-                  {isGenerating ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Generating
-                    </>
-                  ) : (
-                    <>
-                      Try it now—free
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </motion.form>
+            <ProgressiveSearch />
+          </motion.div>
 
           <motion.div 
             className="flex flex-wrap items-center justify-center gap-2 mb-10"
