@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -44,7 +44,7 @@ export default function ProgressiveSearch() {
   const [generationStatus, setGenerationStatus] = useState<GenerationStatus | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -182,11 +182,11 @@ export default function ProgressiveSearch() {
 
   const handleStartLearning = () => {
     if (quickResult?.existing && quickResult.slug) {
-      navigate(`/topic/${quickResult.slug}`);
+      setLocation(`/topic/${quickResult.slug}`);
     } else if (quickResult) {
       // Generate slug from title
       const slug = quickResult.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-      navigate(`/topic/${slug}`);
+      setLocation(`/topic/${slug}`);
     }
   };
 
