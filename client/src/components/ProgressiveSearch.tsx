@@ -28,7 +28,7 @@ interface QuickResult {
   slug?: string;
 }
 
-type SearchState = 'idle' | 'loading' | 'ready' | 'error';
+type SearchState = 'idle' | 'loading' | 'ready' | 'generating' | 'error';
 
 export default function ProgressiveSearch() {
   const [query, setQuery] = useState("");
@@ -81,19 +81,46 @@ export default function ProgressiveSearch() {
       
       const data = await response.json();
       setResult(data);
-      setStatus('ready');
+      
+      // If topic already exists, we're ready to go
+      if (data.existing && data.slug) {
+        setStatus('ready');
+      } else {
+        // Need to generate full topic
+        setStatus('ready');
+      }
     } catch (err) {
       console.error('Search error:', err);
       setStatus('error');
     }
   };
 
-  const handleStartLearning = () => {
+  const handleStartLearning = async () => {
     if (!result) return;
     
     const slug = result.slug || result.title.toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
+    
+    // If topic doesn't exist yet, generate it first
+    if (!result.existing) {
+      setStatus('generating');
+      try {
+        const response = await apiRequest('POST', '/api/topics/generate', { 
+          title: result.title 
+        });
+        const data = await response.json();
+        
+        if (data.topic?.slug) {
+          setLocation(`/topic/${data.topic.slug}`);
+          return;
+        }
+      } catch (err) {
+        console.error('Generation error:', err);
+        setStatus('error');
+        return;
+      }
+    }
     
     setLocation(`/topic/${slug}`);
   };
@@ -152,6 +179,15 @@ export default function ProgressiveSearch() {
                 </div>
               )}
 
+              {/* Generating State */}
+              {status === 'generating' && (
+                <div className="p-6 text-center">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">Building full lesson...</p>
+                  <p className="text-xs text-muted-foreground mt-1">This may take 10-15 seconds</p>
+                </div>
+              )}
+
               {/* Error State */}
               {status === 'error' && (
                 <div className="p-6 text-center">
@@ -186,6 +222,9 @@ export default function ProgressiveSearch() {
                             <Clock className="h-3 w-3" />
                             {result.estimatedMinutes} min
                           </span>
+                          {result.existing && (
+                            <Badge variant="default" className="text-xs bg-green-600">Ready</Badge>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -213,9 +252,14 @@ export default function ProgressiveSearch() {
                       className="w-full gap-2"
                     >
                       <BookOpen className="h-4 w-4" />
-                      Start Learning
+                      {result.existing ? 'Start Learning' : 'Generate Full Lesson'}
                       <ArrowRight className="h-4 w-4" />
                     </Button>
+                    {!result.existing && (
+                      <p className="text-xs text-muted-foreground text-center mt-2">
+                        Click to generate the complete lesson with principles and quizzes
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
