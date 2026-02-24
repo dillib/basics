@@ -36,21 +36,43 @@ interface QuickTopicResult {
 export async function generateQuickTopic(topicTitle: string): Promise<QuickTopicResult> {
   const prompt = `You are BasicsTutor, an educational AI that explains topics using first principles.
 
-Topic: "${topicTitle}"
+The user wants to learn about: "${topicTitle}"
 
-Provide a quick educational overview in this JSON format:
+IMPORTANT: Your response must be SPECIFIC to "${topicTitle}". Do not generate generic content.
+
+Provide a quick educational overview in this EXACT JSON format:
 {
-  "title": "Clear topic title",
-  "description": "One compelling sentence about what this topic is",
-  "category": "Category like Science, Technology, Business, Arts",
+  "title": "${topicTitle}",
+  "description": "One compelling sentence specifically about what ${topicTitle} is and why it matters",
+  "category": "Specific category like Marketing, Physics, Programming, Finance, Psychology",
   "difficulty": "beginner" | "intermediate" | "advanced",
   "estimatedMinutes": number (15-45),
   "keyPoints": [
-    "3-5 key first principles as short phrases"
+    "3-5 specific first principles about ${topicTitle} - be concrete and specific"
   ]
 }
 
-Keep it concise and engaging. Return ONLY valid JSON.`;
+Rules:
+1. The title MUST be "${topicTitle}"
+2. Description must specifically mention ${topicTitle}
+3. Key points must be about ${topicTitle}, not generic learning advice
+4. Return ONLY valid JSON, no markdown, no explanation
+
+Example for "Marketing":
+{
+  "title": "Marketing",
+  "description": "Marketing is the strategic process of understanding customer needs and creating value propositions that connect products with the right audiences.",
+  "category": "Business",
+  "difficulty": "beginner",
+  "estimatedMinutes": 25,
+  "keyPoints": [
+    "Customer segmentation identifies distinct groups with specific needs",
+    "Value proposition communicates unique benefits better than alternatives",
+    "Marketing channels are selected based on where target audiences spend attention",
+    "Brand positioning creates mental associations that drive preference",
+    "Metrics and analytics measure campaign effectiveness and ROI"
+  ]
+}`;
 
   const result = await quickModel.generateContent(prompt);
   const text = result.response.text();
@@ -61,7 +83,31 @@ Keep it concise and engaging. Return ONLY valid JSON.`;
     throw new Error("Failed to parse quick topic response");
   }
   
-  return JSON.parse(jsonMatch[0]);
+  const parsed = JSON.parse(jsonMatch[0]);
+  
+  // Validate the response is about the right topic
+  const lowerTitle = topicTitle.toLowerCase();
+  const lowerDesc = (parsed.description || "").toLowerCase();
+  const lowerPoints = (parsed.keyPoints || []).join(" ").toLowerCase();
+  
+  // Check if the content is actually about the requested topic
+  const isRelevant = lowerDesc.includes(lowerTitle) || 
+                     lowerPoints.includes(lowerTitle) ||
+                     parsed.title.toLowerCase() === lowerTitle;
+  
+  if (!isRelevant) {
+    // Force the title and regenerate key points
+    parsed.title = topicTitle;
+    parsed.keyPoints = [
+      `Understanding the core concepts of ${topicTitle}`,
+      `Key principles that define ${topicTitle}`,
+      `Practical applications of ${topicTitle}`,
+      `Common misconceptions about ${topicTitle}`,
+      `How ${topicTitle} relates to real-world scenarios`
+    ];
+  }
+  
+  return parsed;
 }
 
 /**
