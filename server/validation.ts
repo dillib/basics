@@ -47,6 +47,11 @@ export const MessageSchema = z.object({
   message: z.string().min(1, 'Message cannot be empty').max(5000, 'Message too long'),
 });
 
+export const WaitlistSchema = z.object({
+  email: z.string().email('Please enter a valid email address').max(320),
+  source: z.string().max(50).optional(),
+});
+
 /**
  * Middleware factory to validate request body against a Zod schema
  */

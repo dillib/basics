@@ -12,17 +12,48 @@ async function migrate() {
 
   const db = drizzle(pool, { schema });
 
+  // Idempotent migrations for tables added after the initial bootstrap. Safe to
+  // run repeatedly; these depend on users/topics already existing.
+  async function runIncrementalMigrations() {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS generation_jobs (
+        id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id VARCHAR(255) REFERENCES users(id),
+        title TEXT NOT NULL,
+        slug TEXT NOT NULL,
+        status VARCHAR(50) NOT NULL DEFAULT 'pending',
+        progress INTEGER DEFAULT 0,
+        topic_id VARCHAR(255) REFERENCES topics(id),
+        topic_slug TEXT,
+        error TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS generation_jobs_status_idx ON generation_jobs(status);
+
+      CREATE TABLE IF NOT EXISTS waitlist_signups (
+        id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+        email TEXT NOT NULL,
+        source VARCHAR(50) DEFAULT 'pro',
+        user_id VARCHAR(255) REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS waitlist_signups_email_unique ON waitlist_signups(email);
+    `);
+  }
+
   try {
     // Check if tables exist
     const checkTable = await pool.query(`
       SELECT EXISTS (
-        SELECT FROM information_schema.tables 
+        SELECT FROM information_schema.tables
         WHERE table_name = 'users'
       );
     `);
 
     if (checkTable.rows[0].exists) {
-      console.log("Tables already exist, skipping migration.");
+      console.log("Core tables already exist, applying incremental migrations.");
+      await runIncrementalMigrations();
       return;
     }
 
@@ -215,6 +246,20 @@ async function migrate() {
         created_at TIMESTAMP DEFAULT NOW()
       );
 
+      CREATE TABLE IF NOT EXISTS generation_jobs (
+        id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id VARCHAR(255) REFERENCES users(id),
+        title TEXT NOT NULL,
+        slug TEXT NOT NULL,
+        status VARCHAR(50) NOT NULL DEFAULT 'pending',
+        progress INTEGER DEFAULT 0,
+        topic_id VARCHAR(255) REFERENCES topics(id),
+        topic_slug TEXT,
+        error TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+
       CREATE INDEX IF NOT EXISTS idx_progress_user ON progress(user_id);
       CREATE INDEX IF NOT EXISTS idx_progress_topic ON progress(topic_id);
       CREATE INDEX IF NOT EXISTS idx_quiz_attempts_user ON quiz_attempts(user_id);
@@ -227,7 +272,17 @@ async function migrate() {
       CREATE INDEX IF NOT EXISTS idx_tutor_messages_session ON tutor_messages(session_id);
       CREATE INDEX IF NOT EXISTS idx_support_requests_user ON support_requests(user_id);
       CREATE INDEX IF NOT EXISTS idx_support_requests_status ON support_requests(status);
+      CREATE TABLE IF NOT EXISTS waitlist_signups (
+        id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+        email TEXT NOT NULL,
+        source VARCHAR(50) DEFAULT 'pro',
+        user_id VARCHAR(255) REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+
       CREATE INDEX IF NOT EXISTS idx_support_messages_request ON support_messages(request_id);
+      CREATE INDEX IF NOT EXISTS generation_jobs_status_idx ON generation_jobs(status);
+      CREATE UNIQUE INDEX IF NOT EXISTS waitlist_signups_email_unique ON waitlist_signups(email);
     `);
 
     console.log("Migration completed successfully!");

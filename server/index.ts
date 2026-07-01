@@ -5,20 +5,24 @@ import { createServer } from "http";
 import { getStripePublishableKey } from "./stripeClient";
 import { config, validateConfig, printConfigSummary } from "./config";
 import { registerShutdownHandlers } from "./shutdown";
+import { setupSecurity } from "./security";
 
 const app = express();
 const httpServer = createServer(app);
 
-// Use raw body for Stripe webhook
+// Security headers, CORS, and CSP (must run before routes).
+setupSecurity(app);
+
+// Use raw body for Stripe webhook (signature verification needs the raw bytes).
 app.use((req, res, next) => {
   if (req.originalUrl === "/api/stripe/webhook") {
     express.raw({ type: "application/json" })(req, res, next);
   } else {
-    express.json()(req, res, next);
+    express.json({ limit: "1mb" })(req, res, next);
   }
 });
 
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: false, limit: "1mb" }));
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -74,12 +78,19 @@ app.use((req, res, next) => {
 
   await registerRoutes(httpServer, app);
 
-  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
-    res.status(status).json({ message });
-    throw err;
+    // Log server-side; never re-throw from an error handler (that would crash
+    // the process / trigger shutdown after the response has already been sent).
+    if (status >= 500) {
+      console.error("[Unhandled Error]", err);
+    }
+
+    if (!res.headersSent) {
+      res.status(status).json({ message });
+    }
   });
 
   if (config.server.isProduction) {

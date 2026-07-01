@@ -44,22 +44,19 @@ services:
       - key: GOOGLE_API_KEY
         sync: false
 
-      # Optional: Redis for job queue
-      # - key: REDIS_URL
-      #   fromService:
-      #     type: redis
-      #     name: basicstutor-redis
-      #     property: connectionString
+      # Abuse / cost protection (optional - defaults are sensible)
+      - key: AI_RATE_LIMIT_PER_HOUR
+        value: "20"
+      - key: QUICK_SEARCH_RATE_LIMIT_PER_MIN
+        value: "15"
 
-# PostgreSQL Database
+# PostgreSQL Database (the only datastore this app needs)
 databases:
   - name: basicstutor-db
     databaseName: basicstutor
-    plan: starter # Change to 'standard' for production
+    # Render Postgres plan (the legacy 'starter' name is no longer accepted).
+    # 'basic-256mb' is the smallest paid tier (needs a payment method on file).
+    # Use 'free' to test without a card (note: free DBs expire after 30 days).
+    # Scale up later with 'basic-1gb', 'basic-4gb', 'pro-4gb', etc.
+    plan: basic-256mb
     postgresMajorVersion: 16
-
-# Optional: Redis for job queue
-# - type: redis
-#   name: basicstutor-redis
-#   plan: starter
-#   maxmemoryPolicy: noeviction

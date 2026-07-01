@@ -32,7 +32,6 @@ AI-powered educational platform that breaks down complex topics into fundamental
 - **Passport.js** with Google OAuth 2.0
 - **Stripe** for payments
 - **Google Gemini 2.5 Flash** for AI content generation
-- **BullMQ** + **Redis** for background job processing
 
 ### Testing
 - **Vitest** for unit and integration testing
@@ -43,7 +42,6 @@ AI-powered educational platform that breaks down complex topics into fundamental
 
 - **Node.js** 18+ (20 recommended)
 - **PostgreSQL** 14+
-- **Redis** 6+ (for job queue)
 - **Google Cloud Account** (for OAuth & Gemini API)
 - **Stripe Account** (for payments)
 
@@ -99,7 +97,6 @@ Create a `.env` file in the root directory. See `.env.example` for a template.
 #### Database
 ```env
 DATABASE_URL=postgresql://user:password@localhost:5432/basicstutor
-REDIS_URL=redis://localhost:6379
 ```
 
 #### Authentication

@@ -1,8 +1,10 @@
 import { 
   users, topics, principles, quizzes, questions, progress, topicPurchases,
   quizAttempts, principleMastery, reviewSchedule, tutorSessions, tutorMessages,
-  supportRequests, supportMessages,
-  type User, type InsertUser, 
+  supportRequests, supportMessages, generationJobs, waitlistSignups,
+  type GenerationJob, type InsertGenerationJob,
+  type WaitlistSignup, type InsertWaitlistSignup,
+  type User, type InsertUser,
   type Topic, type InsertTopic,
   type Principle, type InsertPrinciple,
   type Quiz, type InsertQuiz,
@@ -110,6 +112,16 @@ export interface IStorage {
   
   // Admin Users (for assignment dropdown)
   getAdminUsers(): Promise<User[]>;
+
+  // Generation Jobs (async topic generation)
+  createGenerationJob(job: InsertGenerationJob): Promise<GenerationJob>;
+  getGenerationJob(id: string): Promise<GenerationJob | undefined>;
+  updateGenerationJob(id: string, updates: Partial<GenerationJob>): Promise<GenerationJob | undefined>;
+
+  // Waitlist
+  addToWaitlist(entry: InsertWaitlistSignup): Promise<WaitlistSignup | undefined>;
+  getWaitlist(limit?: number, offset?: number): Promise<WaitlistSignup[]>;
+  getWaitlistCount(): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -693,6 +705,48 @@ export class DatabaseStorage implements IStorage {
   // Admin Users
   async getAdminUsers(): Promise<User[]> {
     return db.select().from(users).where(eq(users.isAdmin, true));
+  }
+
+  // Generation Jobs
+  async createGenerationJob(job: InsertGenerationJob): Promise<GenerationJob> {
+    const [created] = await db.insert(generationJobs).values(job).returning();
+    return created;
+  }
+
+  async getGenerationJob(id: string): Promise<GenerationJob | undefined> {
+    const [job] = await db.select().from(generationJobs).where(eq(generationJobs.id, id));
+    return job || undefined;
+  }
+
+  async updateGenerationJob(id: string, updates: Partial<GenerationJob>): Promise<GenerationJob | undefined> {
+    const [job] = await db
+      .update(generationJobs)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(generationJobs.id, id))
+      .returning();
+    return job || undefined;
+  }
+
+  // Waitlist
+  async addToWaitlist(entry: InsertWaitlistSignup): Promise<WaitlistSignup | undefined> {
+    const [created] = await db
+      .insert(waitlistSignups)
+      .values(entry)
+      .onConflictDoNothing({ target: waitlistSignups.email })
+      .returning();
+    return created || undefined; // undefined when the email already existed
+  }
+
+  async getWaitlist(limit = 100, offset = 0): Promise<WaitlistSignup[]> {
+    return db.select().from(waitlistSignups)
+      .orderBy(desc(waitlistSignups.createdAt))
+      .limit(limit)
+      .offset(offset);
+  }
+
+  async getWaitlistCount(): Promise<number> {
+    const [row] = await db.select({ count: sql<number>`count(*)` }).from(waitlistSignups);
+    return Number(row?.count || 0);
   }
 }
 

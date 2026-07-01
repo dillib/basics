@@ -1,7 +1,5 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ArrowRight, Search, Loader2, Sparkles, Users, BookOpen, Zap } from "lucide-react";
+import { Sparkles, Users, BookOpen, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import GenerationProgress from "./GenerationProgress";
 import ProgressiveSearch from "./ProgressiveSearch";
@@ -12,7 +10,7 @@ interface HeroSectionProps {
   isGenerating?: boolean;
   topicTitle?: string;
   jobId?: string | null;
-  onComplete?: (result: any) => void;
+  onComplete?: (result: { slug: string }) => void;
   onError?: (error: Error) => void;
 }
 
@@ -29,23 +27,15 @@ const fadeUpVariants = {
   }),
 };
 
-export default function HeroSection({ 
-  onGenerateTopic, 
-  onTopicClick, 
+export default function HeroSection({
+  onGenerateTopic,
   isGenerating = false,
   topicTitle = "",
   jobId = null,
   onComplete,
-  onError
+  onError,
 }: HeroSectionProps) {
   const [searchQuery, setSearchQuery] = useState("");
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim() && !isGenerating) {
-      onGenerateTopic?.(searchQuery.trim());
-    }
-  };
 
   return (
     <section className="relative min-h-[85vh] flex items-center justify-center overflow-hidden bg-gradient-to-b from-background via-background to-muted/30">
@@ -130,9 +120,9 @@ export default function HeroSection({
           </motion.div>
 
           {/* Generation Progress */}
-          {isGenerating && (
-            <GenerationProgress 
-              isGenerating={isGenerating && !jobId} // Show indeterminate if no jobId yet
+          {(isGenerating || jobId) && (
+            <GenerationProgress
+              isGenerating={isGenerating}
               jobId={jobId}
               topicTitle={topicTitle || searchQuery}
               onComplete={onComplete}

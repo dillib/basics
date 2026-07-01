@@ -251,6 +251,42 @@ export const tutorMessagesRelations = relations(tutorMessages, ({ one }) => ({
   session: one(tutorSessions, { fields: [tutorMessages.sessionId], references: [tutorSessions.id] }),
 }));
 
+// Generation Jobs - async background topic generation tracking
+export const generationJobs = pgTable("generation_jobs", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id", { length: 255 }).references(() => users.id),
+  title: text("title").notNull(),
+  slug: text("slug").notNull(),
+  status: varchar("status", { length: 50 }).notNull().default("pending"), // pending, processing, completed, failed
+  progress: integer("progress").default(0), // 0-100
+  topicId: varchar("topic_id", { length: 255 }).references(() => topics.id),
+  topicSlug: text("topic_slug"),
+  error: text("error"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("generation_jobs_status_idx").on(table.status),
+]);
+
+export const insertGenerationJobSchema = createInsertSchema(generationJobs).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertGenerationJob = z.infer<typeof insertGenerationJobSchema>;
+export type GenerationJob = typeof generationJobs.$inferSelect;
+
+// Waitlist - interest capture (e.g. "Pro coming soon") while monetization is off
+export const waitlistSignups = pgTable("waitlist_signups", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
+  email: text("email").notNull(),
+  source: varchar("source", { length: 50 }).default("pro"),
+  userId: varchar("user_id", { length: 255 }).references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("waitlist_signups_email_unique").on(table.email),
+]);
+
+export const insertWaitlistSchema = createInsertSchema(waitlistSignups).omit({ id: true, createdAt: true });
+export type InsertWaitlistSignup = z.infer<typeof insertWaitlistSchema>;
+export type WaitlistSignup = typeof waitlistSignups.$inferSelect;
+
 export const insertUserSchema = createInsertSchema(users).omit({ createdAt: true });
 export const insertTopicSchema = createInsertSchema(topics).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertPrincipleSchema = createInsertSchema(principles).omit({ id: true });

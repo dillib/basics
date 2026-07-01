@@ -2,8 +2,9 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./auth";
-import { generateTopicContent, generateQuizQuestions, validateTopicContent } from "./ai";
+import { generateQuizQuestions } from "./ai";
 import { generateQuickTopic } from "./fastAI";
+import { processGenerationJob } from "./generation";
 import { getUncachableStripeClient } from "./stripeClient";
 import { type AuthenticatedRequest, type StripeWebhookRequest } from "./types";
 import { handleError, Errors } from "./errors";
@@ -15,8 +16,11 @@ import {
   TopicUpdateSchema,
   MessageSchema,
   SupportRequestUpdateSchema,
+  WaitlistSchema,
 } from "./validation";
 import { config } from "./config";
+import { aiLimiter, quickSearchLimiter, formLimiter } from "./security";
+import { publicBaseUrl, buildSitemap } from "./seo";
 import Stripe from "stripe";
 
 const isProUser = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -140,9 +144,56 @@ export async function registerRoutes(
     }
   });
 
+  // Public runtime configuration for the client (feature flags, etc.)
+  app.get('/api/config', (_req, res) => {
+    res.json({ monetizationEnabled: config.features.monetizationEnabled });
+  });
+
+  // -- WAITLIST (Pro interest capture) --
+  app.post('/api/waitlist', formLimiter, validate(WaitlistSchema), async (req: Request, res) => {
+    try {
+      const userId = (req as any).user?.claims?.sub || null;
+      const { email, source } = req.body;
+      await storage.addToWaitlist({ email, source: source || 'pro', userId });
+      // Idempotent: whether the email is new or already present, respond success.
+      res.status(201).json({ success: true });
+    } catch (error) {
+      return handleError(error, res, 'Waitlist Signup');
+    }
+  });
+
   app.get('/api/topics', async (_req, res) => {
     const topics = await storage.getPublicTopics();
     res.json(topics);
+  });
+
+  // -- SEO: robots + sitemap --
+
+  app.get('/robots.txt', (req, res) => {
+    const base = publicBaseUrl(req);
+    res.type('text/plain').send(
+      `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\n\nSitemap: ${base}/sitemap.xml\n`,
+    );
+  });
+
+  app.get('/sitemap.xml', async (req, res) => {
+    try {
+      const base = publicBaseUrl(req);
+      const staticPaths = ['', '/pricing', '/why', '/help', '/contact', '/terms', '/privacy'];
+      const entries: { loc: string; lastmod?: Date | null }[] = staticPaths.map((p) => ({
+        loc: `${base}${p}`,
+      }));
+
+      const topics = await storage.getPublicTopics();
+      for (const t of topics) {
+        entries.push({ loc: `${base}/topic/${t.slug}`, lastmod: t.updatedAt || t.createdAt });
+      }
+
+      res.type('application/xml').send(buildSitemap(entries));
+    } catch (error) {
+      console.error('[Sitemap] Error:', error);
+      res.status(500).send('Failed to build sitemap');
+    }
   });
 
   app.get('/api/sample-topics', async (_req, res) => {
@@ -163,76 +214,55 @@ export async function registerRoutes(
 
   // -- CONTENT GENERATION (User) --
 
-  app.post('/api/topics/generate', validate(TopicGenerateSchema), async (req: Request, res) => {
+  app.post('/api/topics/generate', aiLimiter, validate(TopicGenerateSchema), async (req: Request, res) => {
     try {
-      const isAuthenticated = !!req.user?.claims?.sub;
       const userId = req.user?.claims?.sub || null;
       const { title } = req.body;
 
       const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+      // Existing topics resolve instantly — no job needed.
       const existingTopic = await storage.getTopicBySlug(slug);
       if (existingTopic) {
-        return res.json({
-          existing: true,
-          topic: existingTopic
-        });
+        return res.json({ existing: true, topic: existingTopic });
       }
 
-      // No generation limits - unlimited topic searches allowed
-      // Paywall is on CONTENT ACCESS, not generation
+      // No generation limits beyond rate limiting — paywall is on content
+      // access, not generation. Generation runs in the background so the
+      // request returns immediately and isn't subject to proxy timeouts.
+      const job = await storage.createGenerationJob({ userId, title, slug, status: "pending", progress: 0 });
 
-      const content = await generateTopicContent(title);
-      const validationResult = await validateTopicContent(title, content);
+      // Fire-and-forget: do not await. The client polls the status endpoint.
+      void processGenerationJob(job.id);
 
-      const newTopic = await storage.createTopic({
-        userId: isAuthenticated ? userId : null,
-        title,
-        slug,
-        description: content.description,
-        category: content.category,
-        difficulty: content.difficulty,
-        estimatedMinutes: content.estimatedMinutes,
-        isPublic: true,
-        mindMapData: content.mindMap,
-        confidenceScore: validationResult.overallConfidence,
-        validationData: validationResult,
-      });
-
-      const principleData = content.principles.map((p: any, index: number) => ({
-        topicId: newTopic.id,
-        orderIndex: index,
-        title: p.title,
-        explanation: p.explanation,
-        analogy: p.analogy,
-        visualType: p.visualType,
-        visualData: p.visualData,
-        keyTakeaways: p.keyTakeaways,
-      }));
-
-      await storage.createPrinciples(principleData);
-
-      // Track usage for authenticated users only
-      if (isAuthenticated && userId) {
-        const user = await storage.getUser(userId);
-        if (user) {
-          await storage.updateUser(userId, { topicsUsed: (user.topicsUsed || 0) + 1 });
-        }
-      }
-
-      // Return topic - content access will be controlled on frontend
-      res.json({
-        existing: true,
-        topic: newTopic
-      });
-    } catch (error) {
+      res.status(202).json({ existing: false, jobId: job.id, status: "pending" });
+    } catch (error: any) {
       console.error("[Topic Generate] Error:", error);
-      res.status(500).json({ message: error.message || "Failed to generate topic content" });
+      res.status(500).json({ message: error?.message || "Failed to start topic generation" });
+    }
+  });
+
+  // Poll the status of a background generation job.
+  app.get('/api/topics/generate/status/:jobId', async (req: Request, res) => {
+    try {
+      const job = await storage.getGenerationJob(req.params.jobId);
+      if (!job) return res.status(404).json({ message: "Job not found" });
+
+      res.json({
+        state: job.status, // pending | processing | completed | failed
+        progress: job.progress ?? 0,
+        result: job.status === "completed" && job.topicSlug ? { slug: job.topicSlug } : null,
+        error: job.error || null,
+      });
+    } catch (error: any) {
+      console.error("[Generation Status] Error:", error);
+      res.status(500).json({ message: "Failed to fetch job status" });
     }
   });
 
   // -- QUICK SEARCH (Fast AI) --
 
-  app.post('/api/topics/quick-search', async (req: Request, res) => {
+  app.post('/api/topics/quick-search', quickSearchLimiter, async (req: Request, res) => {
     try {
       const { title } = req.body;
       if (!title || typeof title !== 'string') {
@@ -269,7 +299,7 @@ export async function registerRoutes(
 
   // -- QUIZZES & PROGRESS --
 
-  app.post('/api/topics/:topicId/quiz', async (req: Request, res) => {
+  app.post('/api/topics/:topicId/quiz', aiLimiter, async (req: Request, res) => {
     try {
       const { topicId } = req.params;
       const userId = req.user?.claims?.sub || null;
@@ -373,6 +403,9 @@ export async function registerRoutes(
 
   app.post('/api/checkout/topic/:topicId', isAuthenticated, async (req: AuthenticatedRequest, res) => {
     try {
+      if (!config.features.monetizationEnabled) {
+        return res.status(503).json({ message: "Payments aren't available yet — everything is free during early access." });
+      }
       const userId = req.user.claims.sub;
       const { topicId } = req.params;
       const user = await storage.getUser(userId);
@@ -430,6 +463,11 @@ export async function registerRoutes(
 
       if (!topic) {
         return res.status(404).json({ canAccess: false, reason: 'Topic not found' });
+      }
+
+      // Free / early-access launch mode: everything is unlocked for everyone.
+      if (!config.features.monetizationEnabled) {
+        return res.json({ canAccess: true, reason: 'free_launch' });
       }
 
       // Sample topics are free for everyone
@@ -643,6 +681,14 @@ export async function registerRoutes(
   app.get('/api/admin/admins', isAuthenticated, isAdmin, async (req: AuthenticatedRequest, res) => {
       const admins = await storage.getAdminUsers();
       res.json(admins);
+  });
+
+  app.get('/api/admin/waitlist', isAuthenticated, isAdmin, async (req: Request, res) => {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const offset = parseInt(req.query.offset as string) || 0;
+      const entries = await storage.getWaitlist(limit, offset);
+      const total = await storage.getWaitlistCount();
+      res.json({ entries, total, limit, offset });
   });
 
   return httpServer;

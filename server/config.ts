@@ -54,11 +54,6 @@ export const config = {
     url: process.env.DATABASE_URL!,
   },
 
-  // Redis Configuration (optional)
-  redis: {
-    url: process.env.REDIS_URL || 'redis://localhost:6379',
-  },
-
   // OAuth Configuration
   oauth: {
     google: {
@@ -81,6 +76,15 @@ export const config = {
       apiKey: process.env.GOOGLE_API_KEY || process.env.AI_INTEGRATIONS_GEMINI_API_KEY || '',
       baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
     },
+  },
+
+  // Feature Flags
+  features: {
+    // When false (default), the app runs in free/early-access mode: all topic
+    // content is unlocked for everyone, checkout endpoints are disabled, and the
+    // pricing UI is replaced with a Pro waitlist. Flip to 'true' once Stripe /
+    // the business entity are ready to monetize — no code changes required.
+    monetizationEnabled: process.env.MONETIZATION_ENABLED === 'true',
   },
 
   // Admin Configuration
@@ -163,4 +167,5 @@ export function printConfigSummary(): void {
   console.log(`   Free Topics Limit: ${config.limits.freeTopicsLimit}`);
   console.log(`   Admin Emails: ${config.admin.emails.length > 0 ? config.admin.emails.join(', ') : 'None configured'}`);
   console.log(`   AI Configured: ${config.ai.gemini.apiKey ? 'Yes' : 'No'}`);
+  console.log(`   Monetization: ${config.features.monetizationEnabled ? 'Enabled' : 'Disabled (free launch mode)'}`);
 }

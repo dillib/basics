@@ -46,14 +46,17 @@ export function registerShutdownHandlers(server: Server): void {
   process.on('SIGTERM', () => gracefulShutdown(server, 'SIGTERM'));
   process.on('SIGINT', () => gracefulShutdown(server, 'SIGINT'));
 
-  // Handle uncaught exceptions and unhandled promise rejections
+  // An uncaught exception leaves the process in an undefined state, so a
+  // graceful restart is the safe response (the platform will respawn us).
   process.on('uncaughtException', (error) => {
     console.error('❌ Uncaught Exception:', error);
     gracefulShutdown(server, 'uncaughtException');
   });
 
+  // An unhandled rejection should be logged and surfaced, but it must NOT take
+  // the whole server down — a single stray promise (e.g. a failed background
+  // call) would otherwise kill live traffic for every user.
   process.on('unhandledRejection', (reason, promise) => {
     console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
-    gracefulShutdown(server, 'unhandledRejection');
   });
 }

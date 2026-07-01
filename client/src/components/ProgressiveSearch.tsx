@@ -95,34 +95,55 @@ export default function ProgressiveSearch() {
     }
   };
 
+  // Poll a background generation job until it finishes, resolving with the
+  // topic slug or throwing on failure/timeout.
+  const pollJob = async (jobId: string): Promise<string> => {
+    for (let i = 0; i < 90; i++) { // ~3 minutes at 2s intervals
+      await new Promise((r) => setTimeout(r, 2000));
+      const res = await apiRequest('GET', `/api/topics/generate/status/${jobId}`);
+      if (!res.ok) continue;
+      const s = await res.json();
+      if (s.state === 'completed' && s.result?.slug) return s.result.slug;
+      if (s.state === 'failed') throw new Error(s.error || 'Generation failed');
+    }
+    throw new Error('Generation timed out');
+  };
+
   const handleStartLearning = async () => {
     if (!result) return;
-    
-    const slug = result.slug || result.title.toLowerCase()
+
+    const fallbackSlug = result.slug || result.title.toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
-    
-    // If topic doesn't exist yet, generate it first
-    if (!result.existing) {
-      setStatus('generating');
-      try {
-        const response = await apiRequest('POST', '/api/topics/generate', { 
-          title: result.title 
-        });
-        const data = await response.json();
-        
-        if (data.topic?.slug) {
-          setLocation(`/topic/${data.topic.slug}`);
-          return;
-        }
-      } catch (err) {
-        console.error('Generation error:', err);
-        setStatus('error');
+
+    // Existing topics navigate immediately.
+    if (result.existing) {
+      setLocation(`/topic/${fallbackSlug}`);
+      return;
+    }
+
+    // New topics generate in the background — start the job, then poll.
+    setStatus('generating');
+    try {
+      const response = await apiRequest('POST', '/api/topics/generate', {
+        title: result.title,
+      });
+      const data = await response.json();
+
+      if (data.existing && data.topic?.slug) {
+        setLocation(`/topic/${data.topic.slug}`);
         return;
       }
+      if (data.jobId) {
+        const slug = await pollJob(data.jobId);
+        setLocation(`/topic/${slug}`);
+        return;
+      }
+      throw new Error(data.message || 'Failed to start generation');
+    } catch (err) {
+      console.error('Generation error:', err);
+      setStatus('error');
     }
-    
-    setLocation(`/topic/${slug}`);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

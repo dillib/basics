@@ -30,6 +30,8 @@ import type { Topic, Principle, Progress as ProgressType, User } from "@shared/s
 import Quiz from "./Quiz";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useAppConfig } from "@/hooks/useAppConfig";
 import TutorChat from "./TutorChat";
 import MindMapPanel from "./MindMapPanel";
 import SimpleModeView from "./SimpleModeView";
@@ -62,6 +64,11 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
   const [simpleMode, setSimpleMode] = useState(true);
   const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
+  const { monetizationEnabled } = useAppConfig();
+
+  // In free/early-access mode, signed-in users get the visual extras (mind map);
+  // when monetization is on, those remain Pro-only.
+  const showMindMap = isAuthenticated && (monetizationEnabled ? user?.plan === "pro" : true);
 
   const { data: topic, isLoading: topicLoading, error: topicError } = useQuery<Topic>({
     queryKey: ['/api/topics', slug],
@@ -85,6 +92,8 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
 
   // Check if topic is a sample topic (free for everyone) - use property from topic response
   const isSampleTopic = (topic as any)?.isSample === true;
+
+  useDocumentTitle(topic ? `${topic.title} — BasicsTutor` : undefined);
 
   const purchaseTopicMutation = useMutation({
     mutationFn: async () => {
@@ -275,6 +284,33 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
     purchaseTopicMutation.mutate();
   };
 
+  const handleShare = async () => {
+    const url = window.location.href;
+    const shareData = {
+      title: topic ? `${topic.title} — BasicsTutor` : "BasicsTutor",
+      text: topic?.description || "Understand anything, explained from first principles.",
+      url,
+    };
+    try {
+      // Use the native share sheet on supported devices (mobile), otherwise
+      // fall back to copying the link to the clipboard.
+      if (navigator.share) {
+        await navigator.share(shareData);
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      toast({ title: "Link copied", description: "Share link copied to your clipboard." });
+    } catch (err) {
+      // User dismissing the native share dialog throws AbortError — ignore it.
+      if ((err as Error)?.name === "AbortError") return;
+      toast({
+        title: "Couldn't share",
+        description: "Copy the link from your browser's address bar instead.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const formatTime = (minutes: number) => {
     if (minutes < 60) return `${minutes} min`;
     const hours = Math.floor(minutes / 60);
@@ -314,7 +350,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                 <Button variant="ghost" size="icon" data-testid="button-bookmark">
                   <BookmarkPlus className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="icon" data-testid="button-share">
+                <Button variant="ghost" size="icon" onClick={handleShare} aria-label="Share this topic" data-testid="button-share">
                   <Share2 className="h-4 w-4" />
                 </Button>
               </div>
@@ -713,8 +749,8 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
               )}
             </div>
 
-            {/* Mind Map Section - Pro Feature */}
-            {isAuthenticated && user?.plan === "pro" && (topic as any)?.mindMapData && (
+            {/* Mind Map Section - visual extra for signed-in users */}
+            {showMindMap && (topic as any)?.mindMapData && (
               <div className="mb-12" data-testid="section-mind-map">
                 <MindMapPanel 
                   data={(topic as any).mindMapData}

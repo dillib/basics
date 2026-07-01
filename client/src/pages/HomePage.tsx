@@ -4,9 +4,11 @@ import TrustIndicators from "@/components/TrustIndicators";
 import FeaturedTopics from "@/components/FeaturedTopics";
 import Testimonials from "@/components/Testimonials";
 import PricingSection from "@/components/PricingSection";
+import WaitlistSection from "@/components/WaitlistSection";
 import CTASection from "@/components/CTASection";
 import Footer from "@/components/Footer";
 import { UpgradeModal } from "@/components/UpgradeModal";
+import { useAppConfig } from "@/hooks/useAppConfig";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -18,6 +20,7 @@ export default function HomePage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { monetizationEnabled } = useAppConfig();
 
   const [generatingTopic, setGeneratingTopic] = useState<string>("");
   const [jobId, setJobId] = useState<string | null>(null);
@@ -65,16 +68,25 @@ export default function HomePage() {
         });
       }
 
-      if (data.existing) {
-        // If existing, direct redirect
+      // Existing topics resolve immediately; new topics return a background
+      // job id that GenerationProgress polls until completion.
+      if (data.existing && data.topic?.slug) {
+        queryClient.invalidateQueries({ queryKey: ['/api/topics'] });
         setLocation(`/topic/${data.topic.slug}`);
-      } else {
-        // If job started, set ID to start polling
+      } else if (data.jobId) {
         setJobId(data.jobId);
+      } else {
+        setGeneratingTopic("");
+        toast({
+          title: "Error",
+          description: "Failed to start topic generation. Please try again.",
+          variant: "destructive",
+        });
       }
     },
     onError: (error: any) => {
       setGeneratingTopic("");
+      setJobId(null);
 
       // Handle upgrade/limit errors
       if (error.upgradeData) {
@@ -100,23 +112,22 @@ export default function HomePage() {
   const handleGenerateTopic = (query: string) => {
     generateTopicMutation.mutate(query);
   };
-  
-  const handleGenerationComplete = (result: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/topics'] });
-      // Short delay for user to see 100%
-      setTimeout(() => {
-          setLocation(`/topic/${result.slug}`);
-      }, 500);
+
+  const handleGenerationComplete = (result: { slug: string }) => {
+    queryClient.invalidateQueries({ queryKey: ['/api/topics'] });
+    setLocation(`/topic/${result.slug}`);
+    setJobId(null);
+    setGeneratingTopic("");
   };
-  
+
   const handleGenerationError = (error: Error) => {
-      setGeneratingTopic("");
-      setJobId(null);
-      toast({
-        title: "Generation Failed",
-        description: error.message,
-        variant: "destructive",
-      });
+    setJobId(null);
+    setGeneratingTopic("");
+    toast({
+      title: "Generation Failed",
+      description: error.message || "Something went wrong. Please try again.",
+      variant: "destructive",
+    });
   };
 
   const handleTopicClick = (topicId: string) => {
@@ -139,7 +150,7 @@ export default function HomePage() {
     <div className="min-h-screen">
       <HeroSection
         onGenerateTopic={handleGenerateTopic}
-        isGenerating={generateTopicMutation.isPending || !!jobId}
+        isGenerating={generateTopicMutation.isPending}
         topicTitle={generatingTopic}
         jobId={jobId}
         onComplete={handleGenerationComplete}
@@ -148,7 +159,11 @@ export default function HomePage() {
       <TrustIndicators />
       <FeaturedTopics onTopicClick={handleTopicClick} />
       <Testimonials />
-      <PricingSection onSelectPlan={handlePlanSelect} />
+      {monetizationEnabled ? (
+        <PricingSection onSelectPlan={handlePlanSelect} />
+      ) : (
+        <WaitlistSection source="homepage" />
+      )}
       <CTASection onGetStarted={handleGetStarted} />
       <Footer />
 
