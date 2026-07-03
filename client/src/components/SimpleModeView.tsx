@@ -126,24 +126,24 @@ export default function SimpleModeView({
                     <div className="mt-3 pt-3 border-t space-y-3 animate-in slide-in-from-top-2">
                       {principle.analogy && (
                         <div className="bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg">
-                          <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mb-1">
+                          <p className="text-sm font-medium text-amber-700 dark:text-amber-400 mb-1">
                             💡 Analogy
                           </p>
-                          <p className="text-xs text-amber-800 dark:text-amber-300">
+                          <p className="text-sm text-amber-800 dark:text-amber-300">
                             {principle.analogy}
                           </p>
                         </div>
                       )}
-                      
+
                       {principle.keyTakeaways && principle.keyTakeaways.length > 0 && (
                         <div>
-                          <p className="text-xs font-medium text-muted-foreground mb-2">
+                          <p className="text-sm font-medium text-muted-foreground mb-2">
                             Key Takeaways:
                           </p>
-                          <ul className="space-y-1">
+                          <ul className="space-y-1.5">
                             {principle.keyTakeaways.slice(0, 3).map((takeaway, i) => (
-                              <li key={i} className="text-xs text-muted-foreground flex items-start gap-2">
-                                <ChevronRight className="w-3 h-3 mt-0.5 text-primary flex-shrink-0" />
+                              <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                                <ChevronRight className="w-3.5 h-3.5 mt-0.5 text-primary flex-shrink-0" />
                                 {takeaway}
                               </li>
                             ))}
@@ -151,14 +151,14 @@ export default function SimpleModeView({
                         </div>
                       )}
 
-                      <Button 
-                        size="sm" 
+                      <Button
+                        size="sm"
                         variant="outline"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleAskAI(principle);
                         }}
-                        className="w-full gap-2"
+                        className="w-full gap-2 text-sm"
                       >
                         <HelpCircle className="w-4 h-4" />
                         Ask Basics Tutor about "{principle.title}"
