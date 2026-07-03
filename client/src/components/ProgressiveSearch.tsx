@@ -5,10 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Search, 
-  Sparkles, 
-  Clock, 
+import {
+  Search,
+  Clock,
   ArrowRight,
   X,
   BookOpen,
@@ -254,7 +253,7 @@ export default function ProgressiveSearch() {
                   <div className="p-4 border-b bg-slate-50 dark:bg-slate-900">
                     <div className="flex items-start gap-3">
                       <div className="p-2 rounded-lg bg-primary/10 shrink-0 mt-0.5">
-                        <Sparkles className="h-4 w-4 text-primary" />
+                        <BookOpen className="h-4 w-4 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-base break-words">{result.title}</h3>
