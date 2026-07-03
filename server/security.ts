@@ -111,3 +111,13 @@ export const formLimiter = rateLimit({
   message: { message: "Too many submissions. Please try again later." },
   ...sharedOptions,
 });
+
+/** Limiter for AI Tutor messages — each one is a Gemini call, so this is the
+ * expensive endpoint; session lookup/creation itself is plain DB IO and
+ * covered by the general apiLimiter instead. */
+export const tutorLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: parseInt(process.env.TUTOR_RATE_LIMIT_PER_HOUR || "40", 10),
+  message: { message: "You've reached the hourly limit for AI Tutor messages. Please try again later." },
+  ...sharedOptions,
+});

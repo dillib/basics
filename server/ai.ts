@@ -338,3 +338,56 @@ Return a JSON object with this structure:
   const topics: TrendingCandidate[] = Array.isArray(parsed.topics) ? parsed.topics : [];
   return topics.slice(0, maxTopics);
 }
+
+interface TutorHistoryMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+interface TutorPrincipleContext {
+  title: string;
+  explanation: string;
+}
+
+/**
+ * Generates one AI Tutor reply. Uses Gemini's chat/history API so follow-up
+ * questions stay coherent within a session, grounded in the specific topic
+ * (and principle, if the learner opened the chat from one) they're studying.
+ */
+export async function generateTutorResponse(
+  topicTitle: string,
+  principleContext: TutorPrincipleContext | undefined,
+  history: TutorHistoryMessage[],
+  userMessage: string,
+): Promise<string> {
+  if (!validateInput(userMessage)) {
+    throw new Error("Invalid input detected.");
+  }
+
+  const focusContext = principleContext
+    ? `The learner opened this chat while studying the principle "${principleContext.title}" within the topic "${topicTitle}". For your reference, here's that principle's explanation:\n${principleContext.explanation}`
+    : `The learner opened this chat while studying the topic "${topicTitle}".`;
+
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.5-flash",
+    safetySettings,
+    systemInstruction: `${SYSTEM_INSTRUCTION_HEADER}
+
+You are the BasicsTutor AI Tutor — a friendly, encouraging guide who teaches using first principles thinking.
+
+${focusContext}
+
+Answer the learner's questions clearly and concisely (2-4 short paragraphs at most). Use analogies where they help. Build understanding from fundamentals rather than just stating facts. If a question strays far from the topic at hand, gently steer back toward it rather than refusing outright.`,
+  });
+
+  const chat = model.startChat({
+    history: history.map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    })),
+  });
+
+  const result = await chat.sendMessage(userMessage);
+  const response = await result.response;
+  return response.text();
+}

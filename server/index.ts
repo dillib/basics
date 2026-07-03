@@ -5,7 +5,7 @@ import { createServer } from "http";
 import { getStripePublishableKey } from "./stripeClient";
 import { config, validateConfig, printConfigSummary } from "./config";
 import { registerShutdownHandlers } from "./shutdown";
-import { setupSecurity } from "./security";
+import { setupSecurity, apiLimiter } from "./security";
 
 const app = express();
 const httpServer = createServer(app);
@@ -23,6 +23,14 @@ app.use((req, res, next) => {
 });
 
 app.use(express.urlencoded({ extended: false, limit: "1mb" }));
+
+// General API rate limit (specific endpoints like AI generation and the
+// tutor add their own, stricter limiters on top of this). Stripe's webhook
+// is signature-verified, not user-driven, so it's exempt.
+app.use('/api', (req, res, next) => {
+  if (req.path === '/stripe/webhook') return next();
+  return apiLimiter(req, res, next);
+});
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {

@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./auth";
-import { generateQuizQuestions } from "./ai";
+import { generateQuizQuestions, generateTutorResponse } from "./ai";
 import { generateQuickTopic } from "./fastAI";
 import { processGenerationJob } from "./generation";
 import { getUncachableStripeClient } from "./stripeClient";
@@ -17,9 +17,10 @@ import {
   MessageSchema,
   SupportRequestUpdateSchema,
   WaitlistSchema,
+  TutorMessageSchema,
 } from "./validation";
 import { config } from "./config";
-import { aiLimiter, quickSearchLimiter, formLimiter } from "./security";
+import { aiLimiter, quickSearchLimiter, formLimiter, tutorLimiter } from "./security";
 import { publicBaseUrl, buildSitemap } from "./seo";
 import Stripe from "stripe";
 
@@ -38,6 +39,29 @@ const isProUser = async (req: AuthenticatedRequest, res: Response, next: NextFun
     next();
   } catch (error) {
     handleError(error, res, 'Pro User Check');
+  }
+};
+
+// Gates the AI Tutor: during free/early-access mode (monetizationEnabled=false)
+// any signed-in user gets it, matching the "sign-in for extras" model used for
+// the mind map. Once monetization is turned on, it becomes Pro-only.
+const requireTutorAccess = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?.claims?.sub;
+    if (!userId) throw Errors.unauthorized();
+
+    if (!config.features.monetizationEnabled) return next();
+
+    const user = await storage.getUser(userId);
+    if (!user || user.plan !== "pro") {
+      throw Errors.forbidden("Pro subscription required for the AI Tutor");
+    }
+    if (user.proExpiresAt && new Date(user.proExpiresAt) < new Date()) {
+      throw Errors.forbidden("Your Pro subscription has expired. Please renew to continue using the AI Tutor.");
+    }
+    next();
+  } catch (error) {
+    handleError(error, res, 'Tutor Access Check');
   }
 };
 
@@ -409,6 +433,83 @@ export async function registerRoutes(
     const purchases = await storage.getTopicPurchasesByUser(userId);
     res.json(purchases);
   });
+
+  // -- AI TUTOR --
+
+  // Idempotent: finds or creates the session for this (user, topic, principle)
+  // combo and returns it with its full current message history. Called both
+  // when the chat is first opened and again after every message send (the
+  // client invalidates this query to refetch, rather than using a separate
+  // GET), so it must always reflect the latest messages.
+  app.post('/api/tutor/session', isAuthenticated, requireTutorAccess, async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { topicId, principleId } = req.body;
+      if (!topicId) throw Errors.badRequest('topicId is required');
+
+      let session = await storage.getTutorSessionByTopicAndPrinciple(userId, topicId, principleId || undefined);
+      if (!session) {
+        const topic = await storage.getTopic(topicId);
+        if (!topic) throw Errors.notFound('Topic');
+        session = await storage.createTutorSession({
+          userId,
+          topicId,
+          principleId: principleId || null,
+          title: topic.title,
+        });
+      }
+
+      const messages = await storage.getTutorMessagesBySession(session.id);
+      res.json({ session, messages });
+    } catch (error) {
+      return handleError(error, res, 'Tutor Session');
+    }
+  });
+
+  app.post(
+    '/api/tutor/session/:sessionId/message',
+    isAuthenticated,
+    requireTutorAccess,
+    tutorLimiter,
+    validate(TutorMessageSchema),
+    async (req: AuthenticatedRequest, res) => {
+      try {
+        const userId = req.user.claims.sub;
+        const { sessionId } = req.params;
+        const { content } = req.body;
+
+        const session = await storage.getTutorSession(sessionId);
+        if (!session) throw Errors.notFound('Tutor session');
+        if (session.userId !== userId) throw Errors.forbidden('Not your session');
+
+        const topic = await storage.getTopic(session.topicId);
+        if (!topic) throw Errors.notFound('Topic');
+
+        let principleContext: { title: string; explanation: string } | undefined;
+        if (session.principleId) {
+          const principles = await storage.getPrinciplesByTopic(session.topicId);
+          const principle = principles.find((p) => p.id === session.principleId);
+          if (principle) principleContext = { title: principle.title, explanation: principle.explanation };
+        }
+
+        // Prior turns only — the new user message is passed separately as the
+        // live turn Gemini is responding to, not as part of the history.
+        const priorMessages = await storage.getTutorMessagesBySession(sessionId);
+        const history = priorMessages.map((m) => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+        }));
+
+        await storage.createTutorMessage({ sessionId, role: 'user', content });
+        const replyText = await generateTutorResponse(topic.title, principleContext, history, content);
+        const assistantMessage = await storage.createTutorMessage({ sessionId, role: 'assistant', content: replyText });
+
+        res.json({ message: assistantMessage });
+      } catch (error) {
+        return handleError(error, res, 'Tutor Message');
+      }
+    },
+  );
 
   // -- CHECKOUT --
 

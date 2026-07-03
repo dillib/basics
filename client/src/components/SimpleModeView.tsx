@@ -19,19 +19,36 @@ interface SimpleModeViewProps {
   topicDescription: string;
   topicId: string;
   principles: Principle[];
+  /** Whether the current user is allowed to use the AI Tutor right now
+   * (signed in, and Pro if monetization is enabled). */
+  canUseTutor: boolean;
+  isAuthenticated: boolean;
 }
 
-export default function SimpleModeView({ 
-  topicTitle, 
-  topicDescription, 
+export default function SimpleModeView({
+  topicTitle,
+  topicDescription,
   topicId,
-  principles 
+  principles,
+  canUseTutor,
+  isAuthenticated,
 }: SimpleModeViewProps) {
   const [selectedPrinciple, setSelectedPrinciple] = useState<Principle | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatContext, setChatContext] = useState<{ principleId?: string; principleTitle?: string }>({});
 
   const handleAskAI = (principle?: Principle) => {
+    if (!canUseTutor) {
+      // Not signed in (or, once monetization is on, not Pro) — send them to
+      // sign in rather than opening a chat that will just fail server-side.
+      if (!isAuthenticated) {
+        sessionStorage.setItem('redirectAfterLogin', window.location.pathname);
+        window.location.href = "/api/login";
+      } else {
+        window.location.href = "/pricing";
+      }
+      return;
+    }
     if (principle) {
       setChatContext({ principleId: principle.id, principleTitle: principle.title });
     } else {
@@ -58,19 +75,17 @@ export default function SimpleModeView({
             </div>
             <div className="flex-1">
               <h2 className="text-xl font-semibold mb-2">{topicTitle}</h2>
-              <p className="text-muted-foreground text-sm leading-relaxed">
+              <p className="text-muted-foreground text-sm leading-relaxed mb-3">
                 {topicDescription}
               </p>
-              <div className="flex gap-2 mt-4">
-                <Button 
-                  size="sm" 
-                  onClick={() => handleAskAI()}
-                  className="gap-2"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  Ask AI About This Topic
-                </Button>
-              </div>
+              <button
+                onClick={() => handleAskAI()}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
+                data-testid="button-ask-ai-topic"
+              >
+                <MessageCircle className="w-3.5 h-3.5" />
+                Ask AI about this topic
+              </button>
             </div>
           </div>
         </CardContent>

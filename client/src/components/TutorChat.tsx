@@ -55,14 +55,20 @@ export default function TutorChat({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const { data: sessionData, isLoading: sessionLoading } = useQuery<{ session: TutorSession; messages: TutorMessage[] }>({
+  const { data: sessionData, isLoading: sessionLoading, isError: sessionError, error: sessionErrorObj } = useQuery<{ session: TutorSession; messages: TutorMessage[] }>({
     queryKey: ['/api/tutor/session', topicId, principleId],
     queryFn: async () => {
       const response = await apiRequest('POST', '/api/tutor/session', { topicId, principleId });
       return response.json();
     },
     enabled: isOpen,
+    retry: false,
   });
+
+  const sessionErrorStatus = (() => {
+    const match = /^(\d{3}):/.exec((sessionErrorObj as Error)?.message || "");
+    return match ? parseInt(match[1], 10) : null;
+  })();
 
   const sendMessageMutation = useMutation({
     mutationFn: async (content: string) => {
@@ -135,6 +141,34 @@ export default function TutorChat({
               <Skeleton className="h-16 w-3/4" />
               <Skeleton className="h-12 w-2/3 ml-auto" />
               <Skeleton className="h-16 w-3/4" />
+            </div>
+          ) : sessionError ? (
+            <div className="text-center py-8">
+              <Bot className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              {sessionErrorStatus === 401 ? (
+                <>
+                  <p className="text-sm font-medium mb-2">Sign in to use the AI Tutor</p>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      sessionStorage.setItem('redirectAfterLogin', window.location.pathname);
+                      window.location.href = "/api/login";
+                    }}
+                    data-testid="button-tutor-sign-in"
+                  >
+                    Sign In
+                  </Button>
+                </>
+              ) : sessionErrorStatus === 403 ? (
+                <>
+                  <p className="text-sm font-medium mb-2">Pro subscription required</p>
+                  <Button size="sm" onClick={() => (window.location.href = "/pricing")} data-testid="button-tutor-upgrade">
+                    View Pricing
+                  </Button>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">Couldn't start the AI Tutor. Please try again shortly.</p>
+              )}
             </div>
           ) : messages.length === 0 ? (
             <div className="text-center py-8">
@@ -214,13 +248,13 @@ export default function TutorChat({
               onKeyDown={handleKeyDown}
               placeholder="Ask a question..."
               className="min-h-[44px] max-h-[120px] resize-none"
-              disabled={sendMessageMutation.isPending || sessionLoading}
+              disabled={sendMessageMutation.isPending || sessionLoading || sessionError}
               data-testid="input-tutor-message"
             />
-            <Button 
-              size="icon" 
-              onClick={handleSend} 
-              disabled={!input.trim() || sendMessageMutation.isPending || sessionLoading}
+            <Button
+              size="icon"
+              onClick={handleSend}
+              disabled={!input.trim() || sendMessageMutation.isPending || sessionLoading || sessionError}
               data-testid="button-send-message"
             >
               {sendMessageMutation.isPending ? (

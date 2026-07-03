@@ -68,9 +68,10 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
   const { toast } = useToast();
   const { monetizationEnabled } = useAppConfig();
 
-  // In free/early-access mode, signed-in users get the visual extras (mind map);
-  // when monetization is on, those remain Pro-only.
+  // In free/early-access mode, signed-in users get the visual extras (mind map,
+  // AI tutor); when monetization is on, those remain Pro-only.
   const showMindMap = isAuthenticated && (monetizationEnabled ? user?.plan === "pro" : true);
+  const canUseTutor = isAuthenticated && (monetizationEnabled ? user?.plan === "pro" : true);
 
   const { data: topic, isLoading: topicLoading, error: topicError } = useQuery<Topic>({
     queryKey: ['/api/topics', slug],
@@ -487,6 +488,8 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                 topicDescription={topic.description}
                 topicId={topic.id}
                 principles={accessiblePrinciples}
+                canUseTutor={canUseTutor}
+                isAuthenticated={isAuthenticated}
               />
             ) : (
               <>
@@ -849,7 +852,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
         </SheetContent>
       </Sheet>
 
-      {isAuthenticated && topic && user?.plan === "pro" && (
+      {canUseTutor && topic && (
         <>
           {!isTutorChatOpen && (
             <Button
