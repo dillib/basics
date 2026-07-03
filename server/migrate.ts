@@ -39,6 +39,10 @@ async function migrate() {
         created_at TIMESTAMP DEFAULT NOW()
       );
       CREATE UNIQUE INDEX IF NOT EXISTS waitlist_signups_email_unique ON waitlist_signups(email);
+
+      ALTER TABLE topics ADD COLUMN IF NOT EXISTS is_trending BOOLEAN DEFAULT false;
+      ALTER TABLE topics ADD COLUMN IF NOT EXISTS trending_rank INTEGER;
+      CREATE INDEX IF NOT EXISTS idx_topics_trending ON topics(is_trending, trending_rank);
     `);
   }
 
@@ -284,6 +288,10 @@ async function migrate() {
       CREATE INDEX IF NOT EXISTS generation_jobs_status_idx ON generation_jobs(status);
       CREATE UNIQUE INDEX IF NOT EXISTS waitlist_signups_email_unique ON waitlist_signups(email);
     `);
+
+    // Also applies anything added after this initial bootstrap was written
+    // (e.g. columns added to `topics` later) — safe no-op if already present.
+    await runIncrementalMigrations();
 
     console.log("Migration completed successfully!");
   } catch (error) {

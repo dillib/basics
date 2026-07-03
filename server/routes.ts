@@ -201,6 +201,11 @@ export async function registerRoutes(
     res.json(sampleTopics);
   });
 
+  app.get('/api/topics/trending', async (_req, res) => {
+    const trending = await storage.getTrendingTopics();
+    res.json(trending);
+  });
+
   app.get('/api/topics/:slug', async (req, res) => {
     const topic = await storage.getTopicBySlug(req.params.slug);
     if (!topic) return res.status(404).json({ message: "Topic not found" });

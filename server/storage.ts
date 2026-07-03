@@ -33,6 +33,8 @@ export interface IStorage {
   getTopicsByIds(ids: string[]): Promise<Topic[]>;
   getPublicTopics(): Promise<Topic[]>;
   getSampleTopics(): Promise<Topic[]>;
+  getTrendingTopics(): Promise<Topic[]>;
+  clearTrendingFlags(): Promise<void>;
   createTopic(topic: InsertTopic): Promise<Topic>;
   updateTopic(id: string, updates: Partial<InsertTopic>): Promise<Topic | undefined>;
   
@@ -177,6 +179,14 @@ export class DatabaseStorage implements IStorage {
 
   async getSampleTopics(): Promise<Topic[]> {
     return db.select().from(topics).where(eq(topics.isSample, true)).orderBy(desc(topics.createdAt));
+  }
+
+  async getTrendingTopics(): Promise<Topic[]> {
+    return db.select().from(topics).where(eq(topics.isTrending, true)).orderBy(asc(topics.trendingRank));
+  }
+
+  async clearTrendingFlags(): Promise<void> {
+    await db.update(topics).set({ isTrending: false, trendingRank: null }).where(eq(topics.isTrending, true));
   }
 
   async createTopic(topic: InsertTopic): Promise<Topic> {

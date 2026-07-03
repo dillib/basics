@@ -285,3 +285,56 @@ Return a JSON array of questions with this structure:
     explanation: q.explanation,
   }));
 }
+
+interface TrendingCandidate {
+  title: string;
+  reason: string;
+}
+
+/**
+ * Raw trending-search terms are noisy — celebrity gossip, sports scores,
+ * product launches with no conceptual content. This asks Gemini to pick the
+ * handful that could genuinely support a first-principles lesson and rephrase
+ * each into a clean, teachable topic title (not just echo the raw search
+ * term). Used by server/refresh-trending-topics.ts.
+ */
+export async function filterTrendingTopics(
+  rawTerms: string[],
+  maxTopics: number = 5,
+): Promise<TrendingCandidate[]> {
+  if (rawTerms.length === 0) return [];
+
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.5-flash",
+    safetySettings,
+  });
+
+  const prompt = `${SYSTEM_INSTRUCTION_HEADER}
+
+Here are today's real-world trending search terms:
+${rawTerms.map((t) => `- ${t}`).join("\n")}
+
+Select up to ${maxTopics} of these that could genuinely support an interesting, teachable "explained from first principles" lesson (the kind that breaks a real concept down to its fundamentals). Skip terms with no real conceptual content: celebrity gossip, sports scores/results, one-off product releases, memes, or anything you can't meaningfully explain from first principles.
+
+For each one you select, rephrase it into a clean, specific, teachable topic title — do not just copy the raw search term verbatim if it reads like a headline rather than a topic (e.g. "Team wins championship" has no lesson in it and should be skipped entirely; "new AI chip announced" could become "How Computer Chips Work").
+
+It is completely fine to return fewer than ${maxTopics} items, or an empty list, if nothing qualifies today.
+
+Return a JSON object with this structure:
+{
+  "topics": [
+    { "title": "Clean, teachable topic title", "reason": "One sentence on why this makes a good lesson" }
+  ]
+}`;
+
+  const result = await model.generateContent(prompt);
+  const response = await result.response;
+  let text = response.text();
+
+  // Remove markdown code blocks if present
+  text = text.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+
+  const parsed = JSON.parse(text || '{"topics": []}');
+  const topics: TrendingCandidate[] = Array.isArray(parsed.topics) ? parsed.topics : [];
+  return topics.slice(0, maxTopics);
+}

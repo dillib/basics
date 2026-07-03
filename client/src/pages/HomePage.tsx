@@ -1,6 +1,7 @@
 import { useState } from "react";
 import HeroSection from "@/components/HeroSection";
 import TrustIndicators from "@/components/TrustIndicators";
+import TrendingTopics from "@/components/TrendingTopics";
 import FeaturedTopics from "@/components/FeaturedTopics";
 import Testimonials from "@/components/Testimonials";
 import PricingSection from "@/components/PricingSection";
@@ -157,6 +158,7 @@ export default function HomePage() {
         onError={handleGenerationError}
       />
       <TrustIndicators />
+      <TrendingTopics onTopicClick={handleTopicClick} />
       <FeaturedTopics onTopicClick={handleTopicClick} />
       <Testimonials />
       {monetizationEnabled ? (

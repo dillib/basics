@@ -48,6 +48,12 @@ export const topics = pgTable("topics", {
   mindMapData: jsonb("mind_map_data"),
   confidenceScore: integer("confidence_score"),
   validationData: jsonb("validation_data"),
+  // Trending topics: refreshed periodically from global search trends (see
+  // server/refresh-trending-topics.ts). isTrending marks the current batch;
+  // trendingRank orders it (lower = more prominent). Both reset/reassigned
+  // on each refresh run rather than accumulating indefinitely.
+  isTrending: boolean("is_trending").default(false),
+  trendingRank: integer("trending_rank"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
