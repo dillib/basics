@@ -100,12 +100,12 @@ export default function HeroSection({
             initial="hidden"
             animate="visible"
             custom={0.3}
-            className="max-w-2xl mx-auto"
+            className="max-w-2xl mx-auto mb-8"
           >
             <ProgressiveSearch />
           </motion.div>
 
-          <motion.div 
+          <motion.div
             className="flex flex-wrap items-center justify-center gap-2 mb-10"
             variants={fadeUpVariants}
             initial="hidden"
