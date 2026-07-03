@@ -12,6 +12,12 @@ export function setupAuth(app: Express) {
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
     conString: process.env.DATABASE_URL,
+    // connect-pg-simple defaults to a table named "session" (singular); our
+    // schema/migration creates "sessions" (plural, matching shared/schema.ts).
+    // Without this, every session read/write hits a nonexistent table --
+    // masked until now because saveUninitialized:false means no session row
+    // is ever written during anonymous browsing, only on a real login.
+    tableName: 'sessions',
     createTableIfMissing: false, // Table created by migration
   });
 
