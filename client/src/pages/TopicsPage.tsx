@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,8 +12,6 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Topic, User } from "@shared/schema";
 import Footer from "@/components/Footer";
 import GenerationProgress from "@/components/GenerationProgress";
-
-const categories = ["All", "Physics", "Technology", "Business", "Philosophy", "Psychology", "Economics", "Biology", "Mathematics"];
 
 type SourceFilter = "all" | "samples" | "mine";
 
@@ -49,6 +47,16 @@ export default function TopicsPage() {
   const { data: topics = [], isLoading } = useQuery<Topic[]>({
     queryKey: ['/api/topics'],
   });
+
+  // Derived from real data rather than a fixed list: Gemini assigns free-form
+  // categories to generated topics, so a hardcoded tab list drifts out of
+  // sync immediately (most tabs end up empty while real categories like
+  // "Environmental Science" or "Personal Finance" have nowhere to show up).
+  // This guarantees every visible tab has at least one topic, by construction.
+  const categories = useMemo(() => {
+    const unique = Array.from(new Set(topics.map((t) => t.category).filter((c): c is string => !!c)));
+    return ["All", ...unique.sort()];
+  }, [topics]);
 
   const generateTopicMutation = useMutation({
     mutationFn: async (title: string) => {
