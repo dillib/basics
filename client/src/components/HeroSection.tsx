@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Sparkles, Users, BookOpen, Zap } from "lucide-react";
+import { Sparkles, Users, BookOpen, Zap, Bot, Coins, Wallet, Leaf, type LucideIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import GenerationProgress from "./GenerationProgress";
 import ProgressiveSearch from "./ProgressiveSearch";
@@ -13,6 +13,13 @@ interface HeroSectionProps {
   onComplete?: (result: { slug: string }) => void;
   onError?: (error: Error) => void;
 }
+
+const popularTopics: { title: string; icon: LucideIcon }[] = [
+  { title: "How ChatGPT Works", icon: Bot },
+  { title: "Cryptocurrency Basics", icon: Coins },
+  { title: "Personal Finance 101", icon: Wallet },
+  { title: "Climate Change Science", icon: Leaf },
+];
 
 const fadeUpVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -105,21 +112,25 @@ export default function HeroSection({
             animate="visible"
             custom={0.4}
           >
-            <span className="text-sm text-muted-foreground">Popular:</span>
-            {["How ChatGPT Works", "Cryptocurrency Basics", "Personal Finance 101", "Climate Change Science"].map((topic) => (
+            <span className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground/70">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              Popular:
+            </span>
+            {popularTopics.map(({ title, icon: Icon }) => (
               <button
-                key={topic}
+                key={title}
                 onClick={() => {
                   if (!isGenerating) {
-                    setSearchQuery(topic);
-                    onGenerateTopic?.(topic);
+                    setSearchQuery(title);
+                    onGenerateTopic?.(title);
                   }
                 }}
                 disabled={isGenerating}
-                className="text-sm text-muted-foreground hover:text-foreground transition-all duration-200 px-3 py-1.5 rounded-full border border-border/50 hover:border-primary/30 hover:bg-accent/50 hover:shadow-glow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                data-testid={`button-topic-${topic.toLowerCase().replace(/\s+/g, "-")}`}
+                className="inline-flex items-center gap-1.5 text-sm text-foreground/80 hover:text-foreground transition-all duration-200 pl-2.5 pr-3.5 py-1.5 rounded-full bg-muted/50 border border-foreground/10 hover:border-primary/40 hover:bg-muted hover:shadow-glow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                data-testid={`button-topic-${title.toLowerCase().replace(/\s+/g, "-")}`}
               >
-                {topic}
+                <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                {title}
               </button>
             ))}
           </motion.div>

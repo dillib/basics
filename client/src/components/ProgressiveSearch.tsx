@@ -173,18 +173,33 @@ export default function ProgressiveSearch() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
-          className="pl-12 pr-10 py-5 text-base rounded-2xl border-2 focus-visible:ring-offset-0 focus-visible:border-primary/50"
+          // Overrides Input's default bg-background — without this the input
+          // surface is literally the same color as the page, so only a
+          // near-invisible border separated it. bg-card + a real border give
+          // it actual presence at rest, not just on hover/focus.
+          className="h-14 pl-12 pr-14 text-base rounded-2xl bg-card border-2 border-foreground/10 focus-visible:ring-offset-0 focus-visible:border-primary/50"
         />
-        
-        {query && (
+
+        {status === 'ready' && result ? (
+          <button
+            onClick={handleStartLearning}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-glow-sm hover:shadow-glow transition-all"
+            type="button"
+            aria-label="Go to lesson"
+            data-testid="button-search-go"
+          >
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        ) : query ? (
           <button
             onClick={clearSearch}
             className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full hover:bg-muted transition-colors"
             type="button"
+            aria-label="Clear search"
           >
             <X className="h-4 w-4 text-muted-foreground" />
           </button>
-        )}
+        ) : null}
       </div>
 
       {/* Results Dropdown */}
