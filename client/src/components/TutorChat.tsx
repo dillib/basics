@@ -122,7 +122,7 @@ export default function TutorChat({
               <Sparkles className="h-4 w-4 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-medium truncate">AI Tutor</p>
+              <p className="font-medium truncate">Basics Tutor</p>
               <p className="text-xs text-muted-foreground font-normal truncate">
                 {principleTitle || topicTitle}
               </p>
@@ -147,7 +147,7 @@ export default function TutorChat({
               <Bot className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               {sessionErrorStatus === 401 ? (
                 <>
-                  <p className="text-sm font-medium mb-2">Sign in to use the AI Tutor</p>
+                  <p className="text-sm font-medium mb-2">Sign in to use Basics Tutor</p>
                   <Button
                     size="sm"
                     onClick={() => {
@@ -167,7 +167,7 @@ export default function TutorChat({
                   </Button>
                 </>
               ) : (
-                <p className="text-sm text-muted-foreground">Couldn't start the AI Tutor. Please try again shortly.</p>
+                <p className="text-sm text-muted-foreground">Couldn't start Basics Tutor. Please try again shortly.</p>
               )}
             </div>
           ) : messages.length === 0 ? (

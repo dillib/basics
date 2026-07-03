@@ -862,6 +862,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                 setCurrentPrincipleForChat(null);
                 setIsTutorChatOpen(true);
               }}
+              aria-label="Ask Basics Tutor"
               data-testid="button-open-tutor-chat"
             >
               <MessageCircle className="h-6 w-6" />

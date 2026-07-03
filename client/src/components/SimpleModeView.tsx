@@ -84,7 +84,7 @@ export default function SimpleModeView({
                 data-testid="button-ask-ai-topic"
               >
                 <MessageCircle className="w-3.5 h-3.5" />
-                Ask AI about this topic
+                Ask Basics Tutor about this topic
               </button>
             </div>
           </div>
@@ -99,7 +99,7 @@ export default function SimpleModeView({
             Key Points ({principles.length})
           </h3>
           <Badge variant="secondary" className="text-xs">
-            Click "Ask AI" for details
+            Click "Ask Basics Tutor" for details
           </Badge>
         </div>
 
@@ -115,10 +115,10 @@ export default function SimpleModeView({
                   {index + 1}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-sm mb-1 group-hover:text-primary transition-colors">
+                  <h4 className="font-medium text-base mb-1 group-hover:text-primary transition-colors">
                     {principle.title}
                   </h4>
-                  <p className="text-xs text-muted-foreground line-clamp-2">
+                  <p className="text-sm text-muted-foreground line-clamp-2">
                     {getSimpleSummary(principle)}
                   </p>
                   
@@ -161,7 +161,7 @@ export default function SimpleModeView({
                         className="w-full gap-2"
                       >
                         <HelpCircle className="w-4 h-4" />
-                        Ask AI about "{principle.title}"
+                        Ask Basics Tutor about "{principle.title}"
                       </Button>
                     </div>
                   )}
