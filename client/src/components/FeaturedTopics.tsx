@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowRight, Clock, Sparkles } from "lucide-react";
+import { ArrowRight, Clock, Sparkles, BookOpen } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { Topic } from "@shared/schema";
 import { Link } from "wouter";
@@ -68,8 +68,22 @@ export default function FeaturedTopics({ onTopicClick }: FeaturedTopicsProps) {
             ))}
           </div>
         ) : sampleTopics.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-muted-foreground text-lg">No sample topics available yet. Check back soon!</p>
+          <div className="text-center py-10 max-w-md mx-auto">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 mx-auto mb-4">
+              <BookOpen className="h-6 w-6 text-primary" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Be the first to explore</h3>
+            <p className="text-muted-foreground mb-6">
+              Sample topics are on their way. In the meantime, search for anything above and get an instant first-principles breakdown.
+            </p>
+            <Button
+              variant="outline"
+              className="rounded-full"
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            >
+              Try the search
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
