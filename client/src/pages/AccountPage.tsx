@@ -17,8 +17,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { User, Mail, CreditCard, Shield, LogOut, ExternalLink, Crown, Sparkles, Share2, MessageSquare, Trash2, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAppConfig } from "@/hooks/useAppConfig";
 import { apiRequest } from "@/lib/queryClient";
-import type { User as UserType } from "@shared/schema";
+import type { User as UserType, TopicPurchase } from "@shared/schema";
 import Footer from "@/components/Footer";
 
 const featureRequestSchema = z.object({
@@ -32,13 +33,14 @@ export default function AccountPage() {
   const { toast } = useToast();
   const [showDeleteDialog, setShowDeleteDialog] = React.useState(false);
   const [showFeatureDialog, setShowFeatureDialog] = React.useState(false);
+  const { monetizationEnabled } = useAppConfig();
 
   const { data: user, isLoading, isError } = useQuery<UserType>({
     queryKey: ['/api/auth/user'],
     retry: false,
   });
 
-  const { data: purchases = [] } = useQuery<{ id: number; topicId: number }[]>({
+  const { data: purchases = [] } = useQuery<TopicPurchase[]>({
     queryKey: ['/api/user/purchases'],
     enabled: !!user,
   });
@@ -52,22 +54,39 @@ export default function AccountPage() {
     },
   });
 
+  // There is no instant self-service delete endpoint (account deletion cascades
+  // across topics, progress, purchases, etc. and deserves a human review, not a
+  // fire-and-forget DB call). This submits a support request instead, matching
+  // the policy already documented on the Help page: processed within 30 days.
   const deleteAccountMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/user/delete-account", {});
-      if (!response.ok) throw new Error("Failed to delete account");
+      const response = await apiRequest("POST", "/api/support", {
+        email: user?.email || "",
+        type: "other",
+        subject: "Account deletion request",
+        description: `User ${user?.id || ""} (${user?.email || "unknown email"}) has requested permanent account deletion.`,
+      });
+      if (!response.ok) throw new Error("Failed to submit deletion request");
       return response.json();
     },
     onSuccess: () => {
-      toast({ title: "Account deleted", description: "Your account has been deleted successfully" });
-      setTimeout(() => window.location.href = "/", 2000);
+      toast({
+        title: "Deletion request received",
+        description: "We'll process your request and confirm by email within 30 days.",
+      });
+      setShowDeleteDialog(false);
     },
-    onError: () => toast({ title: "Error", description: "Failed to delete account", variant: "destructive" }),
+    onError: () => toast({ title: "Error", description: "Failed to submit request. Please email support@basicstutor.com directly.", variant: "destructive" }),
   });
 
   const featureRequestMutation = useMutation({
     mutationFn: async (data: z.infer<typeof featureRequestSchema>) => {
-      const response = await apiRequest("POST", "/api/feature-requests", data);
+      const response = await apiRequest("POST", "/api/support", {
+        email: data.email,
+        type: "feature",
+        subject: data.subject,
+        description: data.message,
+      });
       if (!response.ok) throw new Error("Failed to submit request");
       return response.json();
     },
@@ -220,8 +239,10 @@ export default function AccountPage() {
                     <div>
                       <p className="font-medium">Current Plan</p>
                       <p className="text-sm text-muted-foreground">
-                        {user.plan === "pro" 
-                          ? "Unlimited topic access" 
+                        {!monetizationEnabled
+                          ? "Full access — everything is free during early access"
+                          : user.plan === "pro"
+                          ? "Unlimited topic access"
                           : user.plan === "pay_per_topic"
                           ? "Pay as you learn"
                           : "1 free topic included"}
@@ -252,10 +273,10 @@ export default function AccountPage() {
                   <div className="flex flex-col sm:flex-row gap-4">
                     <Button onClick={handleUpgrade} className="flex-1" data-testid="button-upgrade">
                       <Sparkles className="h-4 w-4 mr-2" />
-                      Upgrade to Pro
+                      {monetizationEnabled ? "Upgrade to Pro" : "Join Pro Waitlist"}
                     </Button>
                     <Button variant="outline" onClick={() => setLocation("/pricing")} className="flex-1" data-testid="button-view-plans">
-                      View All Plans
+                      {monetizationEnabled ? "View All Plans" : "Learn More"}
                     </Button>
                   </div>
                 )}
@@ -294,7 +315,7 @@ export default function AccountPage() {
                     <div>
                       <p className="font-medium">Authentication</p>
                       <p className="text-sm text-muted-foreground">
-                        Signed in with Replit
+                        Signed in with Google
                       </p>
                     </div>
                   </div>
@@ -388,18 +409,20 @@ export default function AccountPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Account</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. Your account and all associated data will be permanently deleted.
+              This submits a deletion request to our support team. Once processed, your
+              account and all associated data will be permanently deleted — this cannot
+              be undone. We'll confirm by email within 30 days.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex gap-4 justify-end">
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={() => deleteAccountMutation.mutate()}
               disabled={deleteAccountMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               data-testid="button-confirm-delete"
             >
-              {deleteAccountMutation.isPending ? "Deleting..." : "Delete"}
+              {deleteAccountMutation.isPending ? "Submitting..." : "Request Deletion"}
             </AlertDialogAction>
           </div>
         </AlertDialogContent>

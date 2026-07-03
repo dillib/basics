@@ -40,8 +40,13 @@ export default function HeroSection({
   return (
     <section className="relative min-h-[85vh] flex items-center justify-center overflow-hidden bg-gradient-to-b from-background via-background to-muted/30">
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-gradient-to-br from-indigo-500/8 to-purple-500/8 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/3 right-1/4 w-[400px] h-[400px] bg-gradient-to-br from-violet-500/6 to-fuchsia-500/6 rounded-full blur-3xl" />
+        {/* Quiet structure instead of empty space — a faint dot-grid, fading
+            out toward the edges so it never competes with the content. */}
+        <div className="absolute inset-0 bg-dot-grid [mask-image:radial-gradient(ellipse_60%_60%_at_50%_35%,black,transparent)]" />
+        {/* One focused spotlight anchored behind the search bar — the single
+            most important element on the page — rather than decorative blobs
+            scattered around it. */}
+        <div className="absolute top-[38%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[420px] bg-primary/10 rounded-full blur-3xl" />
       </div>
 
       <div className="relative z-10 container mx-auto px-6 py-16 text-center">
@@ -50,7 +55,7 @@ export default function HeroSection({
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-8"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 shadow-glow-sm mb-8"
           >
             <Sparkles className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium text-primary" data-testid="text-hero-tagline">
@@ -111,7 +116,7 @@ export default function HeroSection({
                   }
                 }}
                 disabled={isGenerating}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-full border border-border/50 hover:border-border hover:bg-accent/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-sm text-muted-foreground hover:text-foreground transition-all duration-200 px-3 py-1.5 rounded-full border border-border/50 hover:border-primary/30 hover:bg-accent/50 hover:shadow-glow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 data-testid={`button-topic-${topic.toLowerCase().replace(/\s+/g, "-")}`}
               >
                 {topic}

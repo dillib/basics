@@ -30,8 +30,8 @@ export default function Footer() {
   return (
     <footer className="bg-card border-t border-border">
       <div className="container mx-auto px-6 py-16 sm:py-20">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-12 mb-16">
-          <div className="col-span-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-10 sm:gap-12 mb-16">
+          <div className="sm:col-span-2">
             <Link href="/" className="flex items-center gap-3 mb-6" onClick={() => window.scrollTo(0, 0)}>
               <div className="h-9 w-9 rounded-lg bg-primary/10 dark:bg-primary/20 p-0.5 flex items-center justify-center">
                 <img src={pencilLogo} alt="BasicsTutor" className="h-full w-full object-contain rounded-md" />

@@ -263,14 +263,14 @@ export default function Quiz({ topicId, topicTitle, onComplete }: QuizProps) {
                     key={index}
                     onClick={() => handleSelectAnswer(index)}
                     disabled={isAnswered || submitAnswerMutation.isPending}
-                    className={`flex items-center gap-3 w-full text-left p-4 rounded-lg border transition-all ${
+                    className={`flex items-center gap-3 w-full text-left p-4 rounded-lg border transition-all duration-150 ${
                       showCorrect
                         ? "border-green-500 bg-green-50 dark:bg-green-900/20"
                         : showIncorrect
                         ? "border-red-500 bg-red-50 dark:bg-red-900/20"
                         : isSelected
                         ? "border-primary bg-primary/5"
-                        : "border-border hover-elevate"
+                        : "border-border hover-elevate hover:border-primary/40 hover:shadow-glow-sm active:scale-[0.99]"
                     } ${isAnswered ? "cursor-default" : "cursor-pointer"}`}
                     data-testid={`button-option-${index}`}
                   >

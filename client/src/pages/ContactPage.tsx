@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import { Mail, MessageSquare, HelpCircle, AlertCircle, Send, CheckCircle2 } from "lucide-react";
 import Footer from "@/components/Footer";
 
@@ -46,18 +47,37 @@ export default function ContactPage() {
 
   const onSubmit = async (data: ContactFormData) => {
     setIsSubmitting(true);
-    
-    // Simulate form submission (in production, this would send to backend)
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    console.log("Contact form submitted:", data);
-    setIsSubmitted(true);
-    setIsSubmitting(false);
-    
-    toast({
-      title: "Message sent!",
-      description: "We'll get back to you within 24-48 hours.",
-    });
+
+    try {
+      const subjectLabel = subjects.find((s) => s.value === data.subject)?.label || "General Inquiry";
+      const response = await apiRequest("POST", "/api/support", {
+        email: data.email,
+        type: data.subject, // matches the shared support-request type enum
+        subject: subjectLabel,
+        // The support schema has no dedicated "name" field, so fold it into
+        // the description rather than silently dropping it.
+        description: `From: ${data.name}\n\n${data.message}`,
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to send message");
+      }
+
+      setIsSubmitted(true);
+      toast({
+        title: "Message sent!",
+        description: "We'll get back to you within 24-48 hours.",
+      });
+    } catch (error) {
+      toast({
+        title: "Couldn't send message",
+        description: (error as Error).message || "Please try again or email us directly.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (isSubmitted) {

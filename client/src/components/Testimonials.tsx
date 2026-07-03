@@ -59,7 +59,7 @@ export default function Testimonials() {
               className="relative"
               data-testid={`card-testimonial-${testimonial.id}`}
             >
-              <div className="bg-card rounded-3xl p-8 sm:p-10 border border-border/50 h-full">
+              <div className="card-hover bg-card rounded-3xl p-8 sm:p-10 border border-border/50 h-full">
                 <blockquote className="text-lg leading-relaxed mb-8">
                   "{testimonial.content}"
                 </blockquote>

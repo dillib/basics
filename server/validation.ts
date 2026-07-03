@@ -5,10 +5,14 @@ import type { Request, Response, NextFunction } from 'express';
  * Validation schemas for API endpoints
  */
 
+// Must stay in sync with the type values actually sent by the client forms:
+// SupportPage (support/bug/feature/feedback) and ContactPage (general/support/
+// billing/feedback/enterprise). A mismatch here means every real submission
+// from those forms gets rejected with a 400 before it ever reaches storage.
 export const SupportRequestSchema = z.object({
   email: z.string().email('Invalid email address'),
-  type: z.enum(['technical', 'billing', 'content', 'other'], {
-    errorMap: () => ({ message: 'Type must be one of: technical, billing, content, other' }),
+  type: z.enum(['support', 'bug', 'feature', 'feedback', 'billing', 'general', 'enterprise', 'other'], {
+    errorMap: () => ({ message: 'Please select a valid request type' }),
   }),
   priority: z.enum(['low', 'normal', 'high', 'urgent']).default('normal'),
   subject: z.string().min(5, 'Subject must be at least 5 characters').max(200, 'Subject too long'),

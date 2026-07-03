@@ -89,9 +89,9 @@ export default function SimpleModeView({
         </div>
 
         {principles.map((principle, index) => (
-          <Card 
-            key={principle.id} 
-            className="group hover:border-primary/30 transition-colors cursor-pointer"
+          <Card
+            key={principle.id}
+            className="card-glow group cursor-pointer"
             onClick={() => setSelectedPrinciple(selectedPrinciple?.id === principle.id ? null : principle)}
           >
             <CardContent className="p-4">

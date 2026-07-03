@@ -33,7 +33,7 @@ const faqCategories: FAQCategory[] = [
       },
       {
         question: "How do I create an account?",
-        answer: "Click the 'Sign in' button in the top right corner. You can sign in using your Replit account. Once signed in, you'll have access to your dashboard and can start learning.",
+        answer: "Click the 'Sign in' button in the top right corner and continue with your Google account. Once signed in, you'll have access to your dashboard and can start learning.",
       },
       {
         question: "What is first principles learning?",
@@ -125,7 +125,7 @@ const faqCategories: FAQCategory[] = [
       },
       {
         question: "Is my data secure?",
-        answer: "Yes, we take security seriously. Your data is encrypted, we use secure authentication through Replit, and we never share your personal information with third parties. See our Privacy Policy for details.",
+        answer: "Yes, we take security seriously. Your data is encrypted, we use secure authentication through Google Sign-In, and we never share your personal information with third parties. See our Privacy Policy for details.",
       },
     ],
   },

@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   BookOpen,
   Lightbulb,
@@ -62,6 +63,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
   const [isTutorChatOpen, setIsTutorChatOpen] = useState(false);
   const [currentPrincipleForChat, setCurrentPrincipleForChat] = useState<Principle | null>(null);
   const [simpleMode, setSimpleMode] = useState(true);
+  const [isTocOpen, setIsTocOpen] = useState(false);
   const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
   const { monetizationEnabled } = useAppConfig();
@@ -268,10 +270,14 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
     );
   }
 
-  // Sample topics are always fully accessible
-  // For non-sample topics: check if user has access (Pro, purchased, or created)
-  const hasFullAccess = isSampleTopic || 
-    (!isAuthenticated ? false : accessLoading ? false : accessInfo?.canAccess === true);
+  // Sample topics are always fully accessible. Otherwise, trust the server's
+  // access decision regardless of auth state — it already accounts for
+  // anonymous access during free/early-access mode (monetizationEnabled=false),
+  // Pro subscription, ownership, and purchases. Special-casing anonymous users
+  // to `false` here would silently re-paywall logged-out visitors even when the
+  // server says the topic is free for everyone.
+  const hasFullAccess = isSampleTopic ||
+    (accessLoading ? false : accessInfo?.canAccess === true);
   
   // For non-sample topics, show lock on principles 3+ if user doesn't have full access
   const canAccessAllPrinciples = isSampleTopic || hasFullAccess;
@@ -318,9 +324,48 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   };
 
-  const accessiblePrinciples = canAccessAllPrinciples 
-    ? principles 
+  const accessiblePrinciples = canAccessAllPrinciples
+    ? principles
     : principles.slice(0, isSampleTopic ? principles.length : 2);
+
+  // Shared between the desktop sidebar and the mobile Sheet drawer, so the
+  // table of contents is never a desktop-only feature.
+  const renderTocNav = (onNavigate?: () => void) => (
+    <nav className="space-y-2">
+      {principles.map((principle, index) => {
+        const isComplete = completedPrinciples.has(principle.id);
+        const isFreePreview = isSampleTopic || index < 2;
+        const isLocked = !isFreePreview && !canAccessAllPrinciples;
+        return (
+          <button
+            key={principle.id}
+            onClick={() => {
+              if (!isLocked) {
+                setExpandedPrinciples((prev) => new Set(Array.from(prev).concat(principle.id)));
+                onNavigate?.();
+              }
+            }}
+            disabled={isLocked}
+            className={`flex items-center gap-2 w-full text-left text-sm p-2 rounded-md ${
+              isLocked ? "opacity-50 cursor-not-allowed" : "hover-elevate"
+            } ${
+              isComplete ? "text-primary" : "text-muted-foreground"
+            }`}
+            data-testid={`toc-principle-${index + 1}`}
+          >
+            {isComplete ? (
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+            ) : isLocked ? (
+              <Lock className="h-4 w-4 shrink-0" />
+            ) : (
+              <div className="h-4 w-4 rounded-full border border-current shrink-0" />
+            )}
+            <span className="truncate">{principle.title}</span>
+          </button>
+        );
+      })}
+    </nav>
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -342,10 +387,22 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                 <span className="text-sm font-medium" data-testid="text-progress">{calculatedProgress}%</span>
               </div>
               <div className="flex items-center gap-1">
-                <ReferenceSheetGenerator 
-                  topic={topic} 
-                  principles={accessiblePrinciples} 
-                  variant="compact" 
+                {principles.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="lg:hidden"
+                    onClick={() => setIsTocOpen(true)}
+                    aria-label="Open table of contents"
+                    data-testid="button-toc-mobile"
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                )}
+                <ReferenceSheetGenerator
+                  topic={topic}
+                  principles={accessiblePrinciples}
+                  variant="compact"
                 />
                 <Button variant="ghost" size="icon" data-testid="button-bookmark">
                   <BookmarkPlus className="h-4 w-4" />
@@ -462,9 +519,9 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                   const isLocked = !isFreePreview && !canAccessAllPrinciples;
 
                   return (
-                    <Card 
+                    <Card
                       key={principle.id}
-                      className={`border-card-border transition-all ${isComplete ? "border-l-4 border-l-primary" : ""} ${isLocked ? "opacity-60" : ""}`}
+                      className={`card-glow border-card-border transition-all ${isComplete ? "border-l-4 border-l-primary" : ""} ${isLocked ? "opacity-60" : ""}`}
                       data-testid={`card-principle-${index + 1}`}
                     >
                       <CardHeader 
@@ -764,46 +821,12 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
 
           <aside className="hidden lg:block w-72 shrink-0">
             <div className="sticky top-20 space-y-4">
-              <Card className="border-card-border">
+              <Card className="card-glow border-card-border">
                 <CardHeader>
                   <CardTitle className="text-base">Table of Contents</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ScrollArea className="h-64">
-                    <nav className="space-y-2">
-                      {principles.map((principle, index) => {
-                        const isComplete = completedPrinciples.has(principle.id);
-                        const isFreePreview = isSampleTopic || index < 2;
-                        const isLocked = !isFreePreview && !canAccessAllPrinciples;
-                        return (
-                          <button
-                            key={principle.id}
-                            onClick={() => {
-                              if (!isLocked) {
-                                setExpandedPrinciples((prev) => new Set(Array.from(prev).concat(principle.id)));
-                              }
-                            }}
-                            disabled={isLocked}
-                            className={`flex items-center gap-2 w-full text-left text-sm p-2 rounded-md ${
-                              isLocked ? "opacity-50 cursor-not-allowed" : "hover-elevate"
-                            } ${
-                              isComplete ? "text-primary" : "text-muted-foreground"
-                            }`}
-                            data-testid={`toc-principle-${index + 1}`}
-                          >
-                            {isComplete ? (
-                              <CheckCircle2 className="h-4 w-4 shrink-0" />
-                            ) : isLocked ? (
-                              <Lock className="h-4 w-4 shrink-0" />
-                            ) : (
-                              <div className="h-4 w-4 rounded-full border border-current shrink-0" />
-                            )}
-                            <span className="truncate">{principle.title}</span>
-                          </button>
-                        );
-                      })}
-                    </nav>
-                  </ScrollArea>
+                  <ScrollArea className="h-64">{renderTocNav()}</ScrollArea>
                 </CardContent>
               </Card>
             </div>
@@ -811,6 +834,20 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
 
         </div>
       </div>
+
+      {/* Mobile table of contents — the desktop sidebar above is hidden below
+          the lg breakpoint, so this Sheet (triggered from the sticky header)
+          is the only way to jump between principles on a phone. */}
+      <Sheet open={isTocOpen} onOpenChange={setIsTocOpen}>
+        <SheetContent side="right" className="w-[85vw] max-w-sm">
+          <SheetHeader className="mb-4">
+            <SheetTitle>Table of Contents</SheetTitle>
+          </SheetHeader>
+          <ScrollArea className="h-[calc(100vh-8rem)]">
+            {renderTocNav(() => setIsTocOpen(false))}
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
 
       {isAuthenticated && topic && user?.plan === "pro" && (
         <>

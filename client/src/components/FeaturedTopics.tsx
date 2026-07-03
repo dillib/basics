@@ -84,7 +84,7 @@ export default function FeaturedTopics({ onTopicClick }: FeaturedTopicsProps) {
                 className="group cursor-pointer"
                 data-testid={`card-sample-topic-${topic.id}`}
               >
-                <div className="relative bg-card rounded-3xl p-8 sm:p-10 border border-border/50 h-full transition-all duration-300 hover:border-border hover:shadow-lg hover:-translate-y-1">
+                <div className="card-hover relative bg-card rounded-3xl p-8 sm:p-10 border border-border/50 h-full">
                   <div className="flex items-start justify-between gap-4 mb-6">
                     <div className="flex items-center gap-3">
                       <span className="text-sm font-medium text-muted-foreground">{topic.category || "General"}</span>

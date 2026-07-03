@@ -13,7 +13,7 @@ describe('Validation Schemas', () => {
     it('should validate a valid support request', () => {
       const validRequest = {
         email: 'test@example.com',
-        type: 'technical',
+        type: 'support',
         priority: 'normal',
         subject: 'Test Subject',
         description: 'This is a test description that is long enough to pass validation.',
@@ -26,7 +26,7 @@ describe('Validation Schemas', () => {
     it('should reject invalid email', () => {
       const invalidRequest = {
         email: 'not-an-email',
-        type: 'technical',
+        type: 'support',
         priority: 'normal',
         subject: 'Test Subject',
         description: 'This is a test description that is long enough to pass validation.',
@@ -42,7 +42,7 @@ describe('Validation Schemas', () => {
     it('should reject short subject', () => {
       const invalidRequest = {
         email: 'test@example.com',
-        type: 'technical',
+        type: 'support',
         priority: 'normal',
         subject: 'Hi',
         description: 'This is a test description that is long enough to pass validation.',
@@ -58,7 +58,7 @@ describe('Validation Schemas', () => {
     it('should reject short description', () => {
       const invalidRequest = {
         email: 'test@example.com',
-        type: 'technical',
+        type: 'support',
         priority: 'normal',
         subject: 'Test Subject',
         description: 'Too short',
@@ -74,7 +74,7 @@ describe('Validation Schemas', () => {
     it('should default priority to normal if not provided', () => {
       const request = {
         email: 'test@example.com',
-        type: 'technical',
+        type: 'support',
         subject: 'Test Subject',
         description: 'This is a test description that is long enough to pass validation.',
       };

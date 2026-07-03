@@ -399,6 +399,12 @@ export async function registerRoutes(
     res.json(Array.from(topicMap.values()));
   });
 
+  app.get('/api/user/purchases', isAuthenticated, async (req: AuthenticatedRequest, res) => {
+    const userId = req.user.claims.sub;
+    const purchases = await storage.getTopicPurchasesByUser(userId);
+    res.json(purchases);
+  });
+
   // -- CHECKOUT --
 
   app.post('/api/checkout/topic/:topicId', isAuthenticated, async (req: AuthenticatedRequest, res) => {

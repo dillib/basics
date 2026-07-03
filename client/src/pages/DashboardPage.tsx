@@ -18,15 +18,15 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background p-8">
+      <div className="min-h-screen bg-background p-4 sm:p-8">
         <div className="container mx-auto">
-          <div className="flex gap-8">
-            <div className="w-64">
+          <div className="flex flex-col lg:flex-row gap-8">
+            <div className="lg:w-64 shrink-0">
               <Skeleton className="h-[400px] rounded-lg" />
             </div>
             <div className="flex-1 space-y-6">
               <Skeleton className="h-10 w-64" />
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[1, 2, 3, 4].map((i) => (
                   <Skeleton key={i} className="h-28 rounded-lg" />
                 ))}

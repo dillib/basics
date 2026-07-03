@@ -762,6 +762,10 @@ const typeConfig: Record<string, { label: string; icon: typeof MessageSquare }> 
   bug: { label: "Bug Report", icon: AlertCircle },
   feature: { label: "Feature Request", icon: MessageSquare },
   feedback: { label: "Feedback", icon: MessageSquare },
+  billing: { label: "Billing", icon: AlertCircle },
+  general: { label: "General Inquiry", icon: MessageSquare },
+  enterprise: { label: "Enterprise", icon: MessageSquare },
+  other: { label: "Other", icon: MessageSquare },
 };
 
 function AdminSupport() {
@@ -890,6 +894,10 @@ function AdminSupport() {
                   <SelectItem value="bug">Bug Report</SelectItem>
                   <SelectItem value="feature">Feature</SelectItem>
                   <SelectItem value="feedback">Feedback</SelectItem>
+                  <SelectItem value="billing">Billing</SelectItem>
+                  <SelectItem value="general">General Inquiry</SelectItem>
+                  <SelectItem value="enterprise">Enterprise</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
 

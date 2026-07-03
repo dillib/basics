@@ -209,7 +209,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                       return (
                         <Card 
                           key={topic.id}
-                          className="border-card-border hover-elevate cursor-pointer"
+                          className="card-hover border-card-border cursor-pointer"
                           onClick={() => setLocation(`/topic/${topic.slug}`)}
                           data-testid={`card-my-topic-${topic.id}`}
                         >
@@ -371,7 +371,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                     return (
                       <Card 
                         key={progress.id}
-                        className="border-card-border hover-elevate cursor-pointer"
+                        className="card-hover border-card-border cursor-pointer"
                         onClick={() => setLocation(`/topic/${topic.slug}`)}
                         data-testid={`card-topic-progress-${topic.id}`}
                       >
@@ -429,7 +429,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                     return (
                       <Card 
                         key={progress.id}
-                        className="border-card-border hover-elevate cursor-pointer"
+                        className="card-hover border-card-border cursor-pointer"
                         onClick={() => setLocation(`/topic/${topic.slug}`)}
                         data-testid={`card-topic-completed-${topic.id}`}
                       >

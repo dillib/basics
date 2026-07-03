@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -163,7 +164,7 @@ export default function ProgressiveSearch() {
   return (
     <div className="w-full max-w-xl mx-auto relative" ref={dropdownRef}>
       {/* Search Input */}
-      <div className="relative">
+      <div className="relative rounded-2xl shadow-glow transition-shadow duration-300 focus-within:shadow-glow-lg">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
         <Input
           ref={inputRef}
@@ -172,7 +173,7 @@ export default function ProgressiveSearch() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
-          className="pl-12 pr-10 py-5 text-base rounded-xl border-2"
+          className="pl-12 pr-10 py-5 text-base rounded-2xl border-2 focus-visible:ring-offset-0 focus-visible:border-primary/50"
         />
         
         {query && (
@@ -187,9 +188,16 @@ export default function ProgressiveSearch() {
       </div>
 
       {/* Results Dropdown */}
-      {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-2 z-50">
-          <Card className="shadow-xl border overflow-hidden">
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -6, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.98 }}
+            transition={{ duration: 0.15, ease: [0.25, 0.4, 0.25, 1] }}
+            className="absolute top-full left-0 right-0 mt-2 z-50"
+          >
+          <Card className="shadow-glow-lg border overflow-hidden rounded-2xl">
             <CardContent className="p-0">
               
               {/* Loading State */}
@@ -286,8 +294,9 @@ export default function ProgressiveSearch() {
               )}
             </CardContent>
           </Card>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -34,6 +34,7 @@ export default function TopicsPage() {
     return params.get("topic") || "";
   });
   const [, setLocation] = useLocation();
+  const [jobId, setJobId] = useState<string | null>(null);
 
   // Scroll to top when page loads
   useEffect(() => {
@@ -52,17 +53,35 @@ export default function TopicsPage() {
   const generateTopicMutation = useMutation({
     mutationFn: async (title: string) => {
       const response = await apiRequest("POST", "/api/topics/generate", { title });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || "Failed to generate topic");
+      }
       return response.json();
     },
-    onSuccess: (newTopic) => {
-      // Invalidate and refetch topic lists
-      queryClient.invalidateQueries({ queryKey: ['/api/topics'] });
-      // Pre-populate the topic cache so it's available immediately
-      queryClient.setQueryData(['/api/topics', newTopic.slug], newTopic);
-      setNewTopicTitle("");
-      setLocation(`/topic/${newTopic.slug}`);
+    onSuccess: (data) => {
+      // Existing topics resolve immediately; new topics return a background
+      // job id that GenerationProgress polls until the content is ready.
+      if (data.existing && data.topic?.slug) {
+        queryClient.invalidateQueries({ queryKey: ['/api/topics'] });
+        setNewTopicTitle("");
+        setLocation(`/topic/${data.topic.slug}`);
+      } else if (data.jobId) {
+        setJobId(data.jobId);
+      }
     },
   });
+
+  const handleGenerationComplete = (result: { slug: string }) => {
+    queryClient.invalidateQueries({ queryKey: ['/api/topics'] });
+    setJobId(null);
+    setNewTopicTitle("");
+    setLocation(`/topic/${result.slug}`);
+  };
+
+  const handleGenerationError = () => {
+    setJobId(null);
+  };
 
   const filteredTopics = topics.filter((topic) => {
     const matchesSearch = topic.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -115,7 +134,7 @@ export default function TopicsPage() {
                 <p className="text-sm text-muted-foreground mb-4">
                   Enter any topic you want to learn, and our AI will break it down into first principles.
                 </p>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Input
                     type="text"
                     placeholder="e.g., Quantum Computing, Game Theory, Stoic Philosophy..."
@@ -123,14 +142,15 @@ export default function TopicsPage() {
                     onChange={(e) => setNewTopicTitle(e.target.value)}
                     className="flex-1"
                     data-testid="input-new-topic"
-                    disabled={generateTopicMutation.isPending}
+                    disabled={generateTopicMutation.isPending || !!jobId}
                   />
-                  <Button 
-                    type="submit" 
-                    disabled={!newTopicTitle.trim() || generateTopicMutation.isPending}
+                  <Button
+                    type="submit"
+                    disabled={!newTopicTitle.trim() || generateTopicMutation.isPending || !!jobId}
+                    className="sm:w-auto w-full"
                     data-testid="button-generate-topic"
                   >
-                    {generateTopicMutation.isPending ? (
+                    {generateTopicMutation.isPending || jobId ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         Generating...
@@ -149,9 +169,12 @@ export default function TopicsPage() {
                   </p>
                 )}
                 
-                <GenerationProgress 
-                  isGenerating={generateTopicMutation.isPending} 
+                <GenerationProgress
+                  isGenerating={generateTopicMutation.isPending || !!jobId}
+                  jobId={jobId}
                   topicTitle={newTopicTitle}
+                  onComplete={handleGenerationComplete}
+                  onError={handleGenerationError}
                 />
               </form>
             </CardContent>
@@ -223,7 +246,7 @@ export default function TopicsPage() {
             {filteredTopics.map((topic) => (
               <Card
                 key={topic.id}
-                className="group hover-elevate cursor-pointer border-card-border"
+                className="card-hover group cursor-pointer border-card-border"
                 onClick={() => setLocation(`/topic/${topic.slug}`)}
                 data-testid={`card-topic-${topic.slug}`}
               >
