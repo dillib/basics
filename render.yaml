@@ -7,10 +7,24 @@ services:
     buildCommand: npm run build
     startCommand: npm start
     healthCheckPath: /api/topics
+    # Custom domain (basicstutor.com). Also add it under Settings > Custom
+    # Domains in the Render dashboard if a Blueprint sync doesn't pick this
+    # up automatically -- that's also where Render shows the DNS records to
+    # add at your registrar (A record for the apex, CNAME for www).
+    domains:
+      - basicstutor.com
+      - www.basicstutor.com
     envVars:
       # Node Environment
       - key: NODE_ENV
         value: production
+
+      # Canonical public URL -- used for SEO (canonical links, sitemap,
+      # Open Graph tags). Without this the app falls back to deriving the
+      # host from each incoming request, which works but can mix
+      # basicstutor.com and the onrender.com fallback across pages.
+      - key: PUBLIC_URL
+        value: https://basicstutor.com
 
       # Database - Use Render PostgreSQL
       - key: DATABASE_URL
