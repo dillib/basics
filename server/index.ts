@@ -13,19 +13,6 @@ const httpServer = createServer(app);
 // Security headers, CORS, and CSP (must run before routes).
 setupSecurity(app);
 
-// Canonical host redirect: www.basicstutor.com -> basicstutor.com. Keeps
-// exactly one real domain in play -- avoids split SEO signals, and avoids
-// needing a separate registered Google OAuth redirect URI for the www
-// variant (it would otherwise send redirect_uri=https://www.basicstutor.com/...,
-// which isn't registered, reproducing the exact redirect_uri_mismatch this
-// app already fought through once for the bare Render domain).
-app.use((req, res, next) => {
-  if (req.hostname === "www.basicstutor.com") {
-    return res.redirect(301, `https://basicstutor.com${req.originalUrl}`);
-  }
-  next();
-});
-
 // Use raw body for Stripe webhook (signature verification needs the raw bytes).
 app.use((req, res, next) => {
   if (req.originalUrl === "/api/stripe/webhook") {
