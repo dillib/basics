@@ -1,6 +1,10 @@
 import { storage } from "./storage";
 import { generateTopicContent, validateTopicContent } from "./ai";
 
+function slugify(title: string): string {
+  return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
 /**
  * Background processor for a topic-generation job.
  *
@@ -38,11 +42,32 @@ export async function processGenerationJob(jobId: string): Promise<void> {
     const content = await generateTopicContent(title);
     await storage.updateGenerationJob(jobId, { progress: 55 });
 
+    // The AI corrects obvious typos (e.g. "Quantim" -> "Quantum") rather than
+    // permanently saving whatever the user happened to type. If the corrected
+    // title lands on a slug that already exists -- someone else already has
+    // the correctly-spelled version -- link to that instead of creating a
+    // near-duplicate topic.
+    const canonicalTitle = content.title?.trim() || title;
+    const canonicalSlug = slugify(canonicalTitle);
+    if (canonicalSlug !== slug) {
+      const canonicalExisting = await storage.getTopicBySlug(canonicalSlug);
+      if (canonicalExisting) {
+        await storage.updateGenerationJob(jobId, {
+          status: "completed",
+          progress: 100,
+          topicId: canonicalExisting.id,
+          topicSlug: canonicalExisting.slug,
+        });
+        console.log(`[Generation] Job ${jobId}: "${title}" corrected to existing topic "${canonicalTitle}".`);
+        return;
+      }
+    }
+
     // Validation is best-effort: a validation failure shouldn't fail the job.
     let validationResult: any = null;
     let confidenceScore: number | null = null;
     try {
-      validationResult = await validateTopicContent(title, content);
+      validationResult = await validateTopicContent(canonicalTitle, content);
       confidenceScore = validationResult?.overallConfidence ?? null;
     } catch (validationError) {
       console.error(`[Generation] Validation warning for job ${jobId}:`, validationError);
@@ -51,8 +76,8 @@ export async function processGenerationJob(jobId: string): Promise<void> {
 
     const newTopic = await storage.createTopic({
       userId: userId || null,
-      title,
-      slug,
+      title: canonicalTitle,
+      slug: canonicalSlug,
       description: content.description,
       category: content.category,
       difficulty: content.difficulty,

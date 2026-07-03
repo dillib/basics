@@ -50,6 +50,9 @@ interface MindMapData {
 }
 
 interface TopicContent {
+  /** The canonical, correctly-spelled title -- may differ from the user's raw
+   * input if it contained an obvious typo (e.g. "Quantim" -> "Quantum"). */
+  title: string;
   description: string;
   category: string;
   difficulty: string;
@@ -114,8 +117,11 @@ For each principle:
 
 Also generate a mind map that visualizes the topic structure and relationships between concepts.
 
+If "${topicTitle}" contains an obvious spelling mistake of a well-known term (e.g. "Quantim Computing"), correct it in the "title" field below. Do NOT change the subject, rephrase it, or "improve" a title that's already spelled correctly, even if unusual or niche -- only fix clear typos.
+
 Return a JSON object with this structure:
 {
+  "title": "The corrected, properly-capitalized topic title (same as input unless it has an obvious typo)",
   "description": "A compelling 1-2 sentence description of what the learner will understand",
   "category": "The broad category (e.g., Physics, Business, Technology, Philosophy)",
   "difficulty": "beginner" | "intermediate" | "advanced",
@@ -157,8 +163,14 @@ For the mind map:
   
   // Remove markdown code blocks if present
   text = text.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-  
-  return JSON.parse(text || "{}") as TopicContent;
+
+  const content = JSON.parse(text || "{}") as TopicContent;
+  // Defensive fallback: never let a missing/empty title from the model
+  // silently produce an untitled topic.
+  if (!content.title || !content.title.trim()) {
+    content.title = topicTitle;
+  }
+  return content;
 }
 
 export async function validateTopicContent(

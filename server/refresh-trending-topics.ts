@@ -62,11 +62,12 @@ async function upsertTrendingTopic(title: string, rank: number): Promise<void> {
 
   console.log(`[Trending] Generating "${title}"...`);
   const content = await generateTopicContent(title);
+  const canonicalTitle = content.title?.trim() || title;
 
   let confidenceScore: number | null = null;
   let validationResult: any = null;
   try {
-    const validation = await validateTopicContent(title, content);
+    const validation = await validateTopicContent(canonicalTitle, content);
     confidenceScore = validation.overallConfidence;
     validationResult = validation;
   } catch (err) {
@@ -75,7 +76,7 @@ async function upsertTrendingTopic(title: string, rank: number): Promise<void> {
 
   const topic = await storage.createTopic({
     userId: null,
-    title,
+    title: canonicalTitle,
     slug,
     description: content.description,
     category: content.category,

@@ -40,9 +40,11 @@ The user wants to learn about: "${topicTitle}"
 
 IMPORTANT: Your response must be SPECIFIC to "${topicTitle}". Do not generate generic content.
 
+If "${topicTitle}" contains an obvious spelling mistake of a well-known term (e.g. "Quantim Computing"), correct it in the "title" field. Do NOT change the subject or rephrase a title that's already spelled correctly, even if unusual or niche -- only fix clear typos.
+
 Provide a quick educational overview in this EXACT JSON format:
 {
-  "title": "${topicTitle}",
+  "title": "The corrected, properly-capitalized topic title (same as input unless it has an obvious typo)",
   "description": "One compelling sentence specifically about what ${topicTitle} is and why it matters",
   "category": "Specific category like Marketing, Physics, Programming, Finance, Psychology",
   "difficulty": "beginner" | "intermediate" | "advanced",
@@ -53,10 +55,9 @@ Provide a quick educational overview in this EXACT JSON format:
 }
 
 Rules:
-1. The title MUST be "${topicTitle}"
-2. Description must specifically mention ${topicTitle}
-3. Key points must be about ${topicTitle}, not generic learning advice
-4. Return ONLY valid JSON, no markdown, no explanation
+1. Description must specifically mention ${topicTitle}
+2. Key points must be about ${topicTitle}, not generic learning advice
+3. Return ONLY valid JSON, no markdown, no explanation
 
 Example for "Marketing":
 {
@@ -84,17 +85,23 @@ Example for "Marketing":
   }
   
   const parsed = JSON.parse(jsonMatch[0]);
-  
-  // Validate the response is about the right topic
+
+  // Validate the response is about the right topic. Check against both the
+  // raw input and whatever (possibly typo-corrected) title the model
+  // returned -- a corrected "Quantim" -> "Quantum" response won't literally
+  // contain the misspelled input anywhere, which is expected, not a failure.
   const lowerTitle = topicTitle.toLowerCase();
+  const lowerReturnedTitle = (parsed.title || "").toLowerCase();
   const lowerDesc = (parsed.description || "").toLowerCase();
   const lowerPoints = (parsed.keyPoints || []).join(" ").toLowerCase();
-  
-  // Check if the content is actually about the requested topic
-  const isRelevant = lowerDesc.includes(lowerTitle) || 
-                     lowerPoints.includes(lowerTitle) ||
-                     parsed.title.toLowerCase() === lowerTitle;
-  
+
+  const isRelevant =
+    lowerDesc.includes(lowerTitle) ||
+    lowerPoints.includes(lowerTitle) ||
+    lowerDesc.includes(lowerReturnedTitle) ||
+    lowerPoints.includes(lowerReturnedTitle) ||
+    lowerReturnedTitle === lowerTitle;
+
   if (!isRelevant) {
     // Force the title and regenerate key points
     parsed.title = topicTitle;
