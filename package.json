@@ -13,6 +13,7 @@
     "refresh:trending": "tsx server/refresh-trending-topics.ts",
     "delete:topic": "tsx server/delete-topic-by-slug.ts",
     "rename:topic": "tsx server/rename-topic.ts",
+    "report:daily": "tsx server/send-daily-report.ts",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
