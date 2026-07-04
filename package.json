@@ -11,6 +11,8 @@
     "db:push": "drizzle-kit push",
     "seed:samples": "tsx server/seed-sample-topics.ts",
     "refresh:trending": "tsx server/refresh-trending-topics.ts",
+    "delete:topic": "tsx server/delete-topic-by-slug.ts",
+    "rename:topic": "tsx server/rename-topic.ts",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
