@@ -28,6 +28,11 @@ interface AdminStats {
   totalRevenue: number;
   topicPurchases: number;
   proSubscriptions: number;
+  waitlistCount: number;
+  newUsersToday: number;
+  newTopicsToday: number;
+  newUsersLast7Days: number;
+  newTopicsLast7Days: number;
 }
 
 interface UsersResponse {
@@ -92,6 +97,65 @@ function AdminOverview() {
 
   return (
     <div className="space-y-6">
+      {/* Growth: the numbers that actually matter during free/early-access
+          launch, when revenue is intentionally $0. Placed first. */}
+      <div>
+        <h3 className="text-sm font-medium text-muted-foreground mb-3">Growth (today · last 7 days)</h3>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">New Users</CardTitle>
+              <Users className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold" data-testid="stat-new-users-today">
+                {stats?.newUsersToday ?? 0}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">{stats?.newUsersLast7Days ?? 0} in last 7 days</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">New Topics</CardTitle>
+              <BookOpen className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold" data-testid="stat-new-topics-today">
+                {stats?.newTopicsToday ?? 0}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">{stats?.newTopicsLast7Days ?? 0} in last 7 days</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Waitlist Signups</CardTitle>
+              <TrendingUp className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold" data-testid="stat-waitlist-count">
+                {stats?.waitlistCount ?? 0}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Pro interest, total</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">All-Time</CardTitle>
+              <Crown className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold" data-testid="stat-alltime-summary">
+                {stats?.totalUsers ?? 0} <span className="text-sm text-muted-foreground font-normal">users</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">{stats?.totalTopics ?? 0} topics generated</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">

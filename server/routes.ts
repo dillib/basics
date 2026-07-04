@@ -713,15 +713,36 @@ export async function registerRoutes(
   });
 
   app.get('/api/admin/stats', isAuthenticated, isAdmin, async (_req, res) => {
-      const userCount = await storage.getUserCount();
-      const topicCount = await storage.getTopicCount();
-      const revenueStats = await storage.getRevenueStats();
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      const sevenDaysAgo = new Date(startOfToday);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      const [
+        userCount, topicCount, revenueStats, waitlistCount,
+        newUsersToday, newTopicsToday, newUsers7d, newTopics7d,
+      ] = await Promise.all([
+        storage.getUserCount(),
+        storage.getTopicCount(),
+        storage.getRevenueStats(),
+        storage.getWaitlistCount(),
+        storage.getUserCount(startOfToday),
+        storage.getTopicCount(startOfToday),
+        storage.getUserCount(sevenDaysAgo),
+        storage.getTopicCount(sevenDaysAgo),
+      ]);
+
       res.json({
           totalUsers: userCount,
           totalTopics: topicCount,
           totalRevenue: revenueStats.totalRevenue,
           topicPurchases: revenueStats.topicPurchases,
-          proSubscriptions: revenueStats.proSubscriptions
+          proSubscriptions: revenueStats.proSubscriptions,
+          waitlistCount,
+          newUsersToday,
+          newTopicsToday,
+          newUsersLast7Days: newUsers7d,
+          newTopicsLast7Days: newTopics7d,
       });
   });
 
