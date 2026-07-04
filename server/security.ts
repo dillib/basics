@@ -34,12 +34,15 @@ export function setupSecurity(app: Express): void {
         ? {
             directives: {
               defaultSrc: ["'self'"],
-              scriptSrc: ["'self'"],
+              // Cloudflare Web Analytics beacon (client/index.html) -- DNS-only
+              // mode means Cloudflare can't auto-inject it via proxy, so it's a
+              // real <script> tag that needs an explicit CSP allowance.
+              scriptSrc: ["'self'", "https://static.cloudflareinsights.com"],
               // Tailwind + framer-motion apply inline style attributes.
               styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
               fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
               imgSrc: ["'self'", "data:", "https:"],
-              connectSrc: ["'self'", "https://api.stripe.com"],
+              connectSrc: ["'self'", "https://api.stripe.com", "https://cloudflareinsights.com", "https://static.cloudflareinsights.com"],
               frameSrc: ["'self'", "https://js.stripe.com", "https://hooks.stripe.com"],
               objectSrc: ["'none'"],
               baseUri: ["'self'"],
