@@ -1,0 +1,75 @@
+{
+  "version": "2.0.0",
+  "date": "2026-07-04",
+  "mode": "daily",
+  "scope": "full",
+  "diff_mode": false,
+  "summary": "Launch-day audit. No CRITICAL or HIGH findings. Posture is strong: parameterized SQL, all admin routes gated, comprehensive rate limiting, secure session cookies, HSTS+CSP live, no tracked secrets, no SSRF surface. A few MEDIUM/LOW hardening items and one operational must-do (rotate DB password exposed in chat).",
+  "findings": [
+    {
+      "id": 1,
+      "severity": "MEDIUM",
+      "confidence": 8,
+      "status": "VERIFIED",
+      "category": "OWASP A01 Broken Access Control",
+      "title": "Quiz answer/complete routes lack auth + ownership check",
+      "file": "server/routes.ts",
+      "line": 365,
+      "description": "POST /api/quiz/:quizId/answer and /complete have no isAuthenticated middleware and never check that quiz.userId === caller. quizId is a UUID (unguessable), quiz content derives from public topics, and progress writes bind to the server-side req.user (anonymous = null). Blast radius: an authenticated user who knows another user's quizId could corrupt that quiz's in-flight answer state.",
+      "impact": "Low: no sensitive data disclosure, no cross-user progress write. Worst case is griefing another user's active quiz.",
+      "recommendation": "Add isAuthenticated + verify quiz.userId === req.user.claims.sub on both routes."
+    },
+    {
+      "id": 2,
+      "severity": "MEDIUM",
+      "confidence": 8,
+      "status": "VERIFIED",
+      "category": "LLM Security (second-order prompt injection)",
+      "title": "User-chosen topic titles/content interpolated into tutor systemInstruction",
+      "file": "server/ai.ts",
+      "line": 386,
+      "description": "generateTutorResponse builds a systemInstruction that interpolates the topic title and principle explanation from the DB. A user can generate a topic with an arbitrary title (200 chars). validateInput() blocks the obvious regex patterns (ignore previous instructions, system prompt, you are now, override) at creation, but regex can't fully block prompt injection.",
+      "impact": "Low: the tutor has NO tool access and NO reach to other users' data; output is rendered as plain text by React (not HTML). Worst case is the tutor misbehaving for the one person studying that topic.",
+      "recommendation": "Acceptable for launch. Later: wrap interpolated DB content in explicit delimiters in the system prompt, or move topic context into a user-role message."
+    },
+    {
+      "id": 3,
+      "severity": "MEDIUM",
+      "confidence": 10,
+      "status": "VERIFIED",
+      "category": "Operational / Secrets",
+      "title": "Production DB password exposed in plaintext during this session",
+      "file": "N/A (chat transcript + local env commands)",
+      "line": 0,
+      "description": "The live Postgres connection string (including password) was pasted in plaintext multiple times while troubleshooting the seed/rename scripts.",
+      "impact": "Anyone with access to this transcript has full read/write to the production database.",
+      "recommendation": "Rotate: Render > basicstutor-db > reset password, then update DATABASE_URL on the web service and all cron jobs. connect-pg-simple session store + Drizzle reconnect automatically."
+    },
+    {
+      "id": 4,
+      "severity": "LOW",
+      "confidence": 8,
+      "status": "VERIFIED",
+      "category": "Information Disclosure",
+      "title": "Some 500 handlers return raw error.message to clients",
+      "file": "server/routes.ts",
+      "line": 294,
+      "description": "Routes using res.status(500).json({ message: error.message }) leak internal error text (e.g. the raw Gemini 'prepayment credits depleted' error surfaced to the client earlier). handleError() masks in prod, but not every route uses it.",
+      "impact": "Low: exposes internal error strings, not secrets or PII.",
+      "recommendation": "Route all 500s through handleError() (which returns a generic message in production)."
+    }
+  ],
+  "non_findings_verified_clean": [
+    "SQL injection: all queries parameterized via Drizzle sql`` templates and query builder",
+    "Secrets: no tracked .env, .env gitignored, no real keys in git history (only sk_live_... doc placeholders)",
+    "Admin routes: all 5 mutation routes gated with isAdmin; /api/admin/check reads only caller's own record",
+    "Session cookies: secure in prod, sameSite=lax, express-session default httpOnly=true",
+    "SSRF: no user-controlled outbound HTTP",
+    "Security headers: helmet CSP (prod) + HSTS confirmed live",
+    "Rate limiting: aiLimiter/quickSearchLimiter/tutorLimiter/formLimiter on all AI endpoints + global apiLimiter",
+    "Stripe webhook: signature-verified via constructEvent; webhook exempt from rate limiter (correct)",
+    "XSS: React escapes by default; only dangerouslySetInnerHTML is shadcn chart CSS (not user content)",
+    "Tutor ownership: /api/tutor/session/:id/message verifies session.userId === caller"
+  ],
+  "totals": { "critical": 0, "high": 0, "medium": 3, "low": 1 }
+}
