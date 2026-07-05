@@ -22,6 +22,7 @@ import {
 import { config } from "./config";
 import { aiLimiter, quickSearchLimiter, formLimiter, tutorLimiter } from "./security";
 import { publicBaseUrl, buildSitemap } from "./seo";
+import { renderTopicOgImage } from "./og-image";
 import Stripe from "stripe";
 
 const isProUser = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
@@ -217,6 +218,27 @@ export async function registerRoutes(
     } catch (error) {
       console.error('[Sitemap] Error:', error);
       res.status(500).send('Failed to build sitemap');
+    }
+  });
+
+  // Per-topic Open Graph share image (1200x630 PNG). Referenced by the
+  // og:image / twitter:image meta tags injected in server/seo.ts. Cached hard
+  // (topic titles rarely change) so social scrapers and the CDN don't
+  // re-render on every hit. Falls back to the static logo on any failure.
+  app.get('/og/:slug', async (req, res) => {
+    try {
+      const slug = req.params.slug.replace(/\.png$/, "");
+      const topic = await storage.getTopicBySlug(slug);
+      if (!topic) return res.redirect(302, '/android-chrome-512x512.png');
+
+      const png = await renderTopicOgImage(topic);
+      res
+        .type('image/png')
+        .set('Cache-Control', 'public, max-age=86400, s-maxage=604800')
+        .send(png);
+    } catch (error) {
+      console.error('[OG Image] Error:', error);
+      res.redirect(302, '/android-chrome-512x512.png');
     }
   });
 

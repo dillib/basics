@@ -45,7 +45,8 @@ export function buildTopicMeta(topic: Topic, baseUrl: string): PageMeta {
     title,
     description,
     url,
-    image: topic.imageUrl || `${baseUrl}/android-chrome-512x512.png`,
+    // Per-topic 1200x630 share card (server/og-image.ts via /og/:slug).
+    image: `${baseUrl}/og/${topic.slug}`,
     type: "article",
     jsonLd: {
       "@context": "https://schema.org",
@@ -76,7 +77,8 @@ export function injectMeta(html: string, meta: PageMeta): string {
     .replace(/<link\s+rel=["']canonical["'][^>]*>/gi, "");
 
   const image = meta.image ? escapeHtml(meta.image) : "";
-  const cardType = meta.image ? "summary" : "summary";
+  // We now generate a proper 1200x630 card per topic, so use the large card.
+  const cardType = meta.image ? "summary_large_image" : "summary";
 
   const jsonLd = meta.jsonLd
     ? `\n    <script type="application/ld+json">${JSON.stringify(meta.jsonLd).replace(/</g, "\\u003c")}</script>`
