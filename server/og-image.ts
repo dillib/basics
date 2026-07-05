@@ -1,5 +1,9 @@
-import sharp from "sharp";
 import type { Topic } from "@shared/schema";
+
+// Lazily imported inside the render function (not a top-level import) so that
+// if sharp's native binary fails to load on the host, it throws a normal
+// runtime error the route can catch and fall back to the logo -- instead of
+// crashing the whole server on boot. sharp is an optional nicety, not core.
 
 /**
  * Renders a 1200x630 branded social-share card (Open Graph image) for a topic,
@@ -101,5 +105,6 @@ export async function renderTopicOgImage(topic: Topic): Promise<Buffer> {
   <text x="80" y="565" font-family="sans-serif" font-size="28" font-weight="500" fill="#94a3b8">Explained from first principles</text>
 </svg>`;
 
+  const sharp = (await import("sharp")).default;
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
