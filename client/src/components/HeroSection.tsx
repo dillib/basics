@@ -92,7 +92,7 @@ export default function HeroSection({
             custom={0.2}
             className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed"
           >
-            Stop memorizing. Start understanding. Get instant AI-generated breakdowns of any topic—from quantum physics to baking bread—explained from the ground up.
+            Stop memorizing. Start understanding. Any topic—from quantum physics to baking bread—instantly broken down to its fundamentals and rebuilt until it finally clicks.
           </motion.p>
 
           <motion.div
