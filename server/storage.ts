@@ -39,6 +39,7 @@ export interface IStorage {
   updateTopic(id: string, updates: Partial<InsertTopic>): Promise<Topic | undefined>;
   
   getPrinciplesByTopic(topicId: string): Promise<Principle[]>;
+  getPrinciplesByIds(ids: string[]): Promise<Principle[]>;
   createPrinciple(principle: InsertPrinciple): Promise<Principle>;
   createPrinciples(principles: InsertPrinciple[]): Promise<Principle[]>;
   
@@ -75,7 +76,11 @@ export interface IStorage {
   
   // Spaced Repetition
   getReviewSchedule(userId: string, principleId: string): Promise<ReviewSchedule | undefined>;
+  getReviewScheduleById(id: string): Promise<ReviewSchedule | undefined>;
   getDueReviews(userId: string, limit?: number): Promise<ReviewSchedule[]>;
+  getDueReviewCount(userId: string): Promise<number>;
+  getReviewCountByUser(userId: string): Promise<number>;
+  ensureReviewsScheduled(rows: InsertReviewSchedule[]): Promise<void>;
   upsertReviewSchedule(schedule: InsertReviewSchedule): Promise<ReviewSchedule>;
   updateReviewSchedule(id: string, updates: Partial<ReviewSchedule>): Promise<ReviewSchedule | undefined>;
   
@@ -201,6 +206,11 @@ export class DatabaseStorage implements IStorage {
 
   async getPrinciplesByTopic(topicId: string): Promise<Principle[]> {
     return db.select().from(principles).where(eq(principles.topicId, topicId)).orderBy(principles.orderIndex);
+  }
+
+  async getPrinciplesByIds(ids: string[]): Promise<Principle[]> {
+    if (ids.length === 0) return [];
+    return db.select().from(principles).where(inArray(principles.id, ids));
   }
 
   async createPrinciple(principle: InsertPrinciple): Promise<Principle> {
@@ -433,6 +443,37 @@ export class DatabaseStorage implements IStorage {
     const [schedule] = await db.select().from(reviewSchedule)
       .where(and(eq(reviewSchedule.userId, userId), eq(reviewSchedule.principleId, principleId)));
     return schedule || undefined;
+  }
+
+  async getReviewScheduleById(id: string): Promise<ReviewSchedule | undefined> {
+    const [schedule] = await db.select().from(reviewSchedule).where(eq(reviewSchedule.id, id));
+    return schedule || undefined;
+  }
+
+  async getDueReviewCount(userId: string): Promise<number> {
+    const [row] = await db.select({ count: sql<number>`count(*)` }).from(reviewSchedule)
+      .where(and(
+        eq(reviewSchedule.userId, userId),
+        lte(reviewSchedule.dueAt, new Date()),
+        eq(reviewSchedule.status, "pending"),
+      ));
+    return Number(row?.count || 0);
+  }
+
+  async getReviewCountByUser(userId: string): Promise<number> {
+    const [row] = await db.select({ count: sql<number>`count(*)` }).from(reviewSchedule)
+      .where(eq(reviewSchedule.userId, userId));
+    return Number(row?.count || 0);
+  }
+
+  // Insert review rows only for principles not already scheduled for this user
+  // (the unique (userId, principleId) index makes onConflictDoNothing a no-op
+  // for anything already tracked, so re-learning never resets someone's progress).
+  async ensureReviewsScheduled(rows: InsertReviewSchedule[]): Promise<void> {
+    if (rows.length === 0) return;
+    await db.insert(reviewSchedule).values(rows).onConflictDoNothing({
+      target: [reviewSchedule.userId, reviewSchedule.principleId],
+    });
   }
 
   async getDueReviews(userId: string, limit = 20): Promise<ReviewSchedule[]> {

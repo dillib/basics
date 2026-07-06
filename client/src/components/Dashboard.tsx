@@ -25,7 +25,10 @@ import {
 } from "lucide-react";
 import AnalyticsPanel from "./AnalyticsPanel";
 import ReviewPanel from "./ReviewPanel";
+import { useAppConfig } from "@/hooks/useAppConfig";
 import type { Topic, Progress as ProgressType, User } from "@shared/schema";
+
+interface ReviewStats { dueCount: number; totalTracked: number; averageMastery: number; masteredCount: number; }
 
 interface DashboardProps {
   user?: User;
@@ -35,6 +38,17 @@ interface DashboardProps {
 export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [activeTab, setActiveTab] = useState("overview");
   const [, setLocation] = useLocation();
+  const { monetizationEnabled } = useAppConfig();
+
+  // Review is a signed-in perk in free/early-access mode; Pro-only once
+  // monetization is on. Analytics stays Pro-only either way.
+  const canReview = monetizationEnabled ? user?.plan === "pro" : true;
+
+  const { data: reviewStats } = useQuery<ReviewStats>({
+    queryKey: ['/api/reviews/stats'],
+    enabled: canReview,
+  });
+  const dueCount = reviewStats?.dueCount ?? 0;
 
   const { data: topics = [], isLoading: topicsLoading } = useQuery<Topic[]>({
     queryKey: ['/api/user/topics'],
@@ -116,14 +130,16 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
                 <nav className="space-y-1">
                   {[
-                    { icon: BookOpen, label: "Overview", value: "overview" },
+                    { icon: BookOpen, label: "Overview", value: "overview", badge: 0 },
                     ...(user?.plan === "pro" ? [
-                      { icon: BarChart3, label: "Analytics", value: "analytics", isPro: true },
-                      { icon: RotateCcw, label: "Review", value: "review", isPro: true },
+                      { icon: BarChart3, label: "Analytics", value: "analytics", badge: 0 },
                     ] : []),
-                    { icon: Star, label: "My Topics", value: "topics" },
-                    { icon: CreditCard, label: "Subscription", value: "subscription" },
-                    { icon: Settings, label: "Settings", value: "settings" },
+                    ...(canReview ? [
+                      { icon: RotateCcw, label: "Review", value: "review", badge: dueCount },
+                    ] : []),
+                    { icon: Star, label: "My Topics", value: "topics", badge: 0 },
+                    { icon: CreditCard, label: "Subscription", value: "subscription", badge: 0 },
+                    { icon: Settings, label: "Settings", value: "settings", badge: 0 },
                   ].map((item) => (
                     <button
                       key={item.value}
@@ -136,7 +152,12 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                       data-testid={`button-nav-${item.value}`}
                     >
                       <item.icon className="h-4 w-4" />
-                      {item.label}
+                      <span className="flex-1 text-left">{item.label}</span>
+                      {item.badge > 0 && (
+                        <span className="min-w-5 h-5 px-1.5 flex items-center justify-center rounded-full bg-orange-500 text-white text-xs font-semibold">
+                          {item.badge}
+                        </span>
+                      )}
                     </button>
                   ))}
                   <button
@@ -294,11 +315,39 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                     Welcome back, {userName.split(" ")[0]}!
                   </h1>
                   <p className="text-muted-foreground">
-                    {stats.topicsCompleted > 0 
+                    {stats.topicsCompleted > 0
                       ? `You've completed ${stats.topicsCompleted} topic${stats.topicsCompleted > 1 ? 's' : ''}. Keep learning!`
                       : "Start your learning journey by exploring topics."}
                   </p>
                 </div>
+
+                {canReview && dueCount > 0 && (
+                  <Card className="mb-8 border-orange-500/30 bg-gradient-to-r from-orange-500/10 to-amber-500/5">
+                    <CardContent className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-500/15">
+                          <RotateCcw className="h-5 w-5 text-orange-500" />
+                        </div>
+                        <div>
+                          <p className="font-semibold" data-testid="text-review-nudge">
+                            {dueCount} principle{dueCount > 1 ? 's' : ''} ready to review
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            A few minutes now locks in what you learned. Spaced practice is how it sticks.
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        onClick={() => setActiveTab("review")}
+                        className="shrink-0 bg-orange-500 hover:bg-orange-600 text-white"
+                        data-testid="button-start-review"
+                      >
+                        Review now
+                        <ChevronRight className="ml-1 h-4 w-4" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
 
             {isLoading ? (
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

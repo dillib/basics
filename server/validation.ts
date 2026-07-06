@@ -60,6 +60,15 @@ export const TutorMessageSchema = z.object({
   content: z.string().min(1, 'Message cannot be empty').max(2000, 'Message is too long'),
 });
 
+export const ReviewGradeSchema = z.object({
+  quality: z.number().int().min(0).max(5),
+});
+
+export const ProgressUpdateSchema = z.object({
+  principlesCompleted: z.number().int().min(0),
+  totalPrinciples: z.number().int().min(0),
+});
+
 /**
  * Middleware factory to validate request body against a Zod schema
  */

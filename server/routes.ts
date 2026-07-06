@@ -18,7 +18,10 @@ import {
   SupportRequestUpdateSchema,
   WaitlistSchema,
   TutorMessageSchema,
+  ReviewGradeSchema,
+  ProgressUpdateSchema,
 } from "./validation";
+import { applySm2, nextMasteryScore, MASTERED_THRESHOLD } from "./spaced-repetition";
 import { config } from "./config";
 import { aiLimiter, quickSearchLimiter, formLimiter, tutorLimiter } from "./security";
 import { publicBaseUrl, buildSitemap } from "./seo";
@@ -65,6 +68,26 @@ const requireTutorAccess = async (req: AuthenticatedRequest, res: Response, next
     handleError(error, res, 'Tutor Access Check');
   }
 };
+
+// Adds principles to a user's spaced-repetition queue, first review due
+// tomorrow. Idempotent: ensureReviewsScheduled skips any principle already
+// tracked, so re-learning never wipes an in-progress review streak.
+async function scheduleReviews(userId: string, topicId: string, principleIds: string[]): Promise<void> {
+  if (principleIds.length === 0) return;
+  const dueTomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  await storage.ensureReviewsScheduled(
+    principleIds.map((principleId) => ({
+      userId,
+      topicId,
+      principleId,
+      dueAt: dueTomorrow,
+      easeFactor: 250,
+      interval: 1,
+      repetitions: 0,
+      status: "pending",
+    })),
+  );
+}
 
 const isAdmin = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
@@ -427,8 +450,44 @@ export async function registerRoutes(
         bestScore: Math.max(score, currentProgress?.bestScore || 0),
         completedAt: score >= config.quiz.passingScore ? new Date() : null,
       });
+
+      // Completing a quiz means you've engaged with the whole topic -> add all
+      // its principles to your spaced-repetition queue (no-op for any already
+      // scheduled). This is what populates the "come back tomorrow" loop.
+      await scheduleReviews(userId, quiz.topicId, principles.map(p => p.id));
     }
     res.json({ score, correctCount, totalQuestions: questions.length });
+  });
+
+  // Save learning progress for a topic and schedule the completed principles
+  // for review. Previously this route didn't exist, so "Mark as Understood"
+  // silently 404'd -- progress only advanced via quiz completion.
+  app.post('/api/progress/:topicId', isAuthenticated, validate(ProgressUpdateSchema), async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { topicId } = req.params;
+      const { principlesCompleted, totalPrinciples } = req.body;
+
+      const existing = await storage.getProgress(userId, topicId);
+      await storage.upsertProgress({
+        userId,
+        topicId,
+        principlesCompleted,
+        totalPrinciples,
+        quizzesTaken: existing?.quizzesTaken || 0,
+        bestScore: existing?.bestScore || null,
+        completedAt: existing?.completedAt || null,
+      });
+
+      // Schedule the first N principles (the ones marked understood) for review.
+      const principles = await storage.getPrinciplesByTopic(topicId);
+      const learnedIds = principles.slice(0, principlesCompleted).map(p => p.id);
+      await scheduleReviews(userId, topicId, learnedIds);
+
+      res.json({ success: true });
+    } catch (error) {
+      return handleError(error, res, 'Progress Update');
+    }
   });
 
   app.get('/api/user/progress', isAuthenticated, async (req: AuthenticatedRequest, res) => {
@@ -454,6 +513,107 @@ export async function registerRoutes(
     const userId = req.user.claims.sub;
     const purchases = await storage.getTopicPurchasesByUser(userId);
     res.json(purchases);
+  });
+
+  // -- SPACED REPETITION REVIEW --
+
+  app.get('/api/reviews/stats', isAuthenticated, async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const [dueCount, totalTracked, mastery] = await Promise.all([
+        storage.getDueReviewCount(userId),
+        storage.getReviewCountByUser(userId),
+        storage.getPrincipleMasteryByUser(userId),
+      ]);
+      const masteredCount = mastery.filter((m) => (m.masteryScore || 0) >= MASTERED_THRESHOLD).length;
+      const averageMastery = mastery.length
+        ? Math.round(mastery.reduce((sum, m) => sum + (m.masteryScore || 0), 0) / mastery.length)
+        : 0;
+      res.json({ dueCount, totalTracked, averageMastery, masteredCount });
+    } catch (error) {
+      return handleError(error, res, 'Review Stats');
+    }
+  });
+
+  app.get('/api/reviews/due', isAuthenticated, async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const due = await storage.getDueReviews(userId, 50);
+
+      // Enrich each due review with its principle + topic for the flashcard UI.
+      const principleIds = Array.from(new Set(due.map((d) => d.principleId)));
+      const topicIds = Array.from(new Set(due.map((d) => d.topicId)));
+      const [principles, topics] = await Promise.all([
+        storage.getPrinciplesByIds(principleIds),
+        storage.getTopicsByIds(topicIds),
+      ]);
+      const principleById = new Map(principles.map((p) => [p.id, p]));
+      const topicById = new Map(topics.map((t) => [t.id, t]));
+
+      res.json(
+        due.map((d) => {
+          const p = principleById.get(d.principleId);
+          const t = topicById.get(d.topicId);
+          return {
+            ...d,
+            principle: p
+              ? { id: p.id, title: p.title, explanation: p.explanation, analogy: p.analogy, keyTakeaways: p.keyTakeaways }
+              : null,
+            topic: t ? { id: t.id, title: t.title, slug: t.slug } : null,
+          };
+        }),
+      );
+    } catch (error) {
+      return handleError(error, res, 'Due Reviews');
+    }
+  });
+
+  app.post('/api/reviews/:id/grade', isAuthenticated, validate(ReviewGradeSchema), async (req: AuthenticatedRequest, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { id } = req.params;
+      const { quality } = req.body;
+
+      const review = await storage.getReviewScheduleById(id);
+      if (!review) throw Errors.notFound('Review');
+      if (review.userId !== userId) throw Errors.forbidden('Not your review');
+
+      // SM-2: decide the next interval/ease from how well it was recalled.
+      const next = applySm2(
+        {
+          easeFactor: review.easeFactor ?? 250,
+          interval: review.interval ?? 1,
+          repetitions: review.repetitions ?? 0,
+        },
+        quality,
+      );
+      await storage.updateReviewSchedule(id, {
+        easeFactor: next.easeFactor,
+        interval: next.interval,
+        repetitions: next.repetitions,
+        dueAt: next.dueAt,
+        status: 'pending',
+      });
+
+      // Roll the principle's mastery score forward.
+      const existingMastery = await storage.getPrincipleMastery(userId, review.principleId);
+      await storage.upsertPrincipleMastery({
+        userId,
+        principleId: review.principleId,
+        topicId: review.topicId,
+        masteryScore: nextMasteryScore(existingMastery?.masteryScore ?? 0, quality),
+        timesReviewed: (existingMastery?.timesReviewed ?? 0) + 1,
+        timesCorrect: (existingMastery?.timesCorrect ?? 0) + (quality >= 3 ? 1 : 0),
+        lastReviewedAt: new Date(),
+      });
+
+      res.json({
+        message: quality < 3 ? "We'll show this again soon" : "Nice — scheduled further out",
+        nextReviewIn: next.interval,
+      });
+    } catch (error) {
+      return handleError(error, res, 'Review Grade');
+    }
   });
 
   // -- AI TUTOR --

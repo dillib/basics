@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useAppConfig } from "@/hooks/useAppConfig";
 import { useLocation } from "wouter";
 import { 
   Brain, 
@@ -58,18 +59,23 @@ export default function ReviewPanel() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const { user, isLoading: userLoading } = useAuth();
+  const { monetizationEnabled } = useAppConfig();
+
+  // In free/early-access mode, review is a signed-in perk (retention driver we
+  // want everyone using). When monetization is on, it becomes Pro-only.
+  const canReview = !!user && (monetizationEnabled ? user.plan === "pro" : true);
 
   const { data: stats, isLoading: statsLoading } = useQuery<ReviewStats>({
     queryKey: ['/api/reviews/stats'],
-    enabled: user?.plan === "pro",
+    enabled: canReview,
   });
 
   const { data: dueReviews = [], isLoading: reviewsLoading } = useQuery<ReviewItem[]>({
     queryKey: ['/api/reviews/due'],
-    enabled: user?.plan === "pro",
+    enabled: canReview,
   });
 
-  if (!userLoading && user?.plan !== "pro") {
+  if (!userLoading && !canReview) {
     return (
       <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
         <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
@@ -77,8 +83,8 @@ export default function ReviewPanel() {
         </div>
         <h2 className="text-xl font-semibold mb-2">Pro Feature</h2>
         <p className="text-muted-foreground mb-6 max-w-md">
-          Spaced Repetition Review is a Pro-only feature. Upgrade to use scientifically-proven 
-          review scheduling that helps you remember concepts long-term.
+          Spaced Repetition Review uses scientifically-proven scheduling to help you
+          remember concepts long-term. Upgrade to Pro to unlock it.
         </p>
         <Button onClick={() => setLocation("/pricing")} data-testid="button-upgrade-review">
           Upgrade to Pro
