@@ -1,6 +1,5 @@
 import { Link } from "wouter";
 import { Mail } from "lucide-react";
-import { SiX, SiDiscord } from "react-icons/si";
 import pencilLogo from "@assets/generated_images/smiling_upright_purple_pencil.png";
 
 const footerLinks = {
@@ -20,11 +19,6 @@ const footerLinks = {
     { label: "Terms of Service", href: "/terms" },
   ],
 };
-
-const socialLinks = [
-  { icon: SiX, href: "https://twitter.com", label: "X" },
-  { icon: SiDiscord, href: "https://discord.com", label: "Discord" },
-];
 
 export default function Footer() {
   return (
@@ -51,22 +45,6 @@ export default function Footer() {
               >
                 support@basicstutor.com
               </a>
-            </div>
-
-            <div className="flex gap-3">
-              {socialLinks.map((social) => (
-                <a
-                  key={social.label}
-                  href={social.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
-                  aria-label={social.label}
-                  data-testid={`link-social-${social.label.toLowerCase()}`}
-                >
-                  <social.icon className="h-4 w-4" />
-                </a>
-              ))}
             </div>
           </div>
 
