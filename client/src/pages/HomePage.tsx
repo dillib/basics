@@ -139,13 +139,6 @@ export default function HomePage() {
     console.log("Plan selected:", planId);
   };
 
-  const handleGetStarted = () => {
-    const searchInput = document.querySelector('[data-testid="input-hero-search"]') as HTMLInputElement;
-    if (searchInput) {
-      searchInput.focus();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
 
   return (
     <div className="min-h-screen">
@@ -166,7 +159,7 @@ export default function HomePage() {
       ) : (
         <WaitlistSection source="homepage" />
       )}
-      <CTASection onGetStarted={handleGetStarted} />
+      <CTASection />
       <Footer />
 
       <UpgradeModal

@@ -1,12 +1,10 @@
 import { motion } from "framer-motion";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 
-interface CTASectionProps {
-  onGetStarted?: () => void;
-}
-
-export default function CTASection({ onGetStarted }: CTASectionProps) {
+export default function CTASection() {
+  const [, setLocation] = useLocation();
   return (
     <section className="py-32 sm:py-40 bg-background relative overflow-hidden">
       <div className="absolute inset-0 overflow-hidden">
@@ -34,8 +32,8 @@ export default function CTASection({ onGetStarted }: CTASectionProps) {
               size="lg"
               className="rounded-full px-8 h-14 text-lg"
               onClick={() => {
-                console.log("CTA clicked");
-                onGetStarted?.();
+                setLocation("/topics");
+                window.scrollTo(0, 0);
               }}
               data-testid="button-cta-get-started"
             >
