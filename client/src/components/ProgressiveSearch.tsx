@@ -35,6 +35,11 @@ export default function ProgressiveSearch() {
   const [isOpen, setIsOpen] = useState(false);
   const [result, setResult] = useState<QuickResult | null>(null);
   const [status, setStatus] = useState<SearchState>('idle');
+  // 0-100 for the "lesson forming" bar. The server reports real milestones
+  // (10 start, 55 content generated, 75 validated, 95 saved); between those it
+  // sits still for a while, so we also gently ease it forward (bounded, never
+  // claiming completion) so it always feels alive.
+  const [genProgress, setGenProgress] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [, setLocation] = useLocation();
@@ -51,6 +56,18 @@ export default function ProgressiveSearch() {
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
+
+  // While generating, ease the progress bar toward a ceiling so it keeps moving
+  // during the long single generation call (server sits at 10% for most of it).
+  // Real milestones from the poll bump it higher via Math.max; this never
+  // reaches 100 — only actual completion (navigation) ends the view.
+  useEffect(() => {
+    if (status !== 'generating') return;
+    const id = setInterval(() => {
+      setGenProgress((p) => (p < 92 ? p + Math.max(0.5, (92 - p) * 0.05) : p));
+    }, 600);
+    return () => clearInterval(id);
+  }, [status]);
 
   // Debounced search
   useEffect(() => {
@@ -103,6 +120,7 @@ export default function ProgressiveSearch() {
       const res = await apiRequest('GET', `/api/topics/generate/status/${jobId}`);
       if (!res.ok) continue;
       const s = await res.json();
+      if (typeof s.progress === 'number') setGenProgress((p) => Math.max(p, s.progress));
       if (s.state === 'completed' && s.result?.slug) return s.result.slug;
       if (s.state === 'failed') throw new Error(s.error || 'Generation failed');
     }
@@ -123,6 +141,8 @@ export default function ProgressiveSearch() {
     }
 
     // New topics generate in the background — start the job, then poll.
+    // Show the outline (from the quick-search we already have) immediately.
+    setGenProgress(8);
     setStatus('generating');
     try {
       const response = await apiRequest('POST', '/api/topics/generate', {
@@ -222,12 +242,63 @@ export default function ProgressiveSearch() {
                 </div>
               )}
 
-              {/* Generating State */}
-              {status === 'generating' && (
-                <div className="p-6 text-center">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">Building full lesson...</p>
-                  <p className="text-xs text-muted-foreground mt-1">This may take 10-15 seconds</p>
+              {/* Generating State — show the real outline forming in place of
+                  a blank spinner, so generation feels instant. The outline is
+                  the quick-search we already ran; full explanations + quiz are
+                  being written in the background and land on navigation. */}
+              {status === 'generating' && result && (
+                <div>
+                  {/* Header */}
+                  <div className="p-4 border-b bg-slate-50 dark:bg-slate-900">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 rounded-lg bg-primary/10 shrink-0 mt-0.5">
+                        <BookOpen className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-base break-words">{result.title}</h3>
+                        <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
+                          Writing your lesson…
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Live progress bar (real milestones + gentle easing) */}
+                  <div className="h-1 w-full bg-primary/10 overflow-hidden">
+                    <motion.div
+                      className="h-full bg-primary"
+                      animate={{ width: `${Math.min(genProgress, 96)}%` }}
+                      transition={{ ease: 'easeOut', duration: 0.6 }}
+                    />
+                  </div>
+
+                  {/* Outline materializing */}
+                  <div className="p-4">
+                    <p className="text-xs font-medium text-muted-foreground mb-2.5 uppercase">
+                      Your lesson outline
+                    </p>
+                    <ul className="space-y-2.5">
+                      {result.keyPoints.map((point, i) => (
+                        <motion.li
+                          key={i}
+                          initial={{ opacity: 0, x: -6 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.12, duration: 0.3 }}
+                          className="text-sm flex items-start gap-2.5"
+                        >
+                          <span className="relative mt-1.5 shrink-0">
+                            <span className="block h-2 w-2 rounded-full bg-primary/60" />
+                            <span className="absolute inset-0 h-2 w-2 rounded-full bg-primary animate-ping" />
+                          </span>
+                          <span className="break-words text-foreground/90">{point}</span>
+                        </motion.li>
+                      ))}
+                    </ul>
+                    <p className="text-xs text-muted-foreground mt-3.5">
+                      Building full explanations, analogies, and a quiz — about 15–30 seconds.
+                    </p>
+                  </div>
                 </div>
               )}
 
