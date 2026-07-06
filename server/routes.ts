@@ -22,6 +22,7 @@ import {
   ProgressUpdateSchema,
 } from "./validation";
 import { applySm2, nextMasteryScore, MASTERED_THRESHOLD } from "./spaced-repetition";
+import { verifyUnsubscribe } from "./email-unsubscribe";
 import { config } from "./config";
 import { aiLimiter, quickSearchLimiter, formLimiter, tutorLimiter } from "./security";
 import { publicBaseUrl, buildSitemap } from "./seo";
@@ -195,6 +196,28 @@ export async function registerRoutes(
   // Public runtime configuration for the client (feature flags, etc.)
   app.get('/api/config', (_req, res) => {
     res.json({ monetizationEnabled: config.features.monetizationEnabled });
+  });
+
+  // One-click email unsubscribe (HMAC-signed link from review-reminder emails).
+  // No auth: the signature proves the link was issued for this exact user.
+  app.get('/api/unsubscribe', async (req: Request, res) => {
+    const userId = String(req.query.u || '');
+    const sig = String(req.query.sig || '');
+    const ok = verifyUnsubscribe(userId, sig);
+    if (ok) {
+      await storage.updateUser(userId, { emailOptOut: true }).catch(() => {});
+    }
+    res
+      .status(ok ? 200 : 400)
+      .type('html')
+      .send(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${ok ? 'Unsubscribed' : 'Invalid link'} — BasicsTutor</title></head>
+        <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0b0d12;color:#f8fafc;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0">
+          <div style="text-align:center;max-width:420px;padding:24px">
+            <div style="font-size:22px;font-weight:700;margin-bottom:8px">${ok ? "You're unsubscribed" : "This link is invalid"}</div>
+            <p style="color:#94a3b8;line-height:1.6">${ok ? "You won't get review-reminder emails anymore. You can still review anytime from your dashboard." : "The unsubscribe link is malformed or has expired."}</p>
+            <a href="${publicBaseUrl(req)}" style="display:inline-block;margin-top:16px;color:#a78bfa;text-decoration:none;font-weight:600">Back to BasicsTutor</a>
+          </div>
+        </body></html>`);
   });
 
   // -- WAITLIST (Pro interest capture) --

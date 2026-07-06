@@ -17,6 +17,7 @@
     "report:daily": "tsx server/send-report.ts daily",
     "report:weekly": "tsx server/send-report.ts weekly",
     "report:monthly": "tsx server/send-report.ts monthly",
+    "remind:reviews": "tsx server/send-review-reminders.ts",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",

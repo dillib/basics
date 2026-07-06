@@ -80,6 +80,7 @@ export interface IStorage {
   getDueReviews(userId: string, limit?: number): Promise<ReviewSchedule[]>;
   getDueReviewCount(userId: string): Promise<number>;
   getReviewCountByUser(userId: string): Promise<number>;
+  getUsersWithDueReviews(): Promise<{ id: string; email: string; firstName: string | null; dueCount: number }[]>;
   ensureReviewsScheduled(rows: InsertReviewSchedule[]): Promise<void>;
   upsertReviewSchedule(schedule: InsertReviewSchedule): Promise<ReviewSchedule>;
   updateReviewSchedule(id: string, updates: Partial<ReviewSchedule>): Promise<ReviewSchedule | undefined>;
@@ -464,6 +465,33 @@ export class DatabaseStorage implements IStorage {
     const [row] = await db.select({ count: sql<number>`count(*)` }).from(reviewSchedule)
       .where(eq(reviewSchedule.userId, userId));
     return Number(row?.count || 0);
+  }
+
+  // Users who have >=1 principle due for review right now and haven't opted
+  // out of emails -- the audience for the weekly review-reminder email.
+  async getUsersWithDueReviews(): Promise<{ id: string; email: string; firstName: string | null; dueCount: number }[]> {
+    const rows = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        dueCount: sql<number>`count(${reviewSchedule.id})`,
+      })
+      .from(users)
+      .innerJoin(
+        reviewSchedule,
+        and(
+          eq(reviewSchedule.userId, users.id),
+          lte(reviewSchedule.dueAt, new Date()),
+          eq(reviewSchedule.status, "pending"),
+        ),
+      )
+      .where(and(sql`${users.email} is not null`, eq(users.emailOptOut, false)))
+      .groupBy(users.id, users.email, users.firstName);
+
+    return rows
+      .filter((r) => !!r.email)
+      .map((r) => ({ id: r.id, email: r.email as string, firstName: r.firstName, dueCount: Number(r.dueCount) }));
   }
 
   // Insert review rows only for principles not already scheduled for this user

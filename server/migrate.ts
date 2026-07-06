@@ -43,6 +43,8 @@ async function migrate() {
       ALTER TABLE topics ADD COLUMN IF NOT EXISTS is_trending BOOLEAN DEFAULT false;
       ALTER TABLE topics ADD COLUMN IF NOT EXISTS trending_rank INTEGER;
       CREATE INDEX IF NOT EXISTS idx_topics_trending ON topics(is_trending, trending_rank);
+
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS email_opt_out BOOLEAN DEFAULT false;
     `);
   }
 

@@ -146,6 +146,38 @@ services:
       - key: REPORT_EMAIL
         value: dillib@gmail.com
 
+  # Cron Job: emails users with due reviews a "come back and review" nudge.
+  # OFF until REVIEW_REMINDERS_ENABLED=true is set here AND a real sending
+  # domain is verified in Resend (RESEND_FROM_EMAIL) -- see
+  # server/send-review-reminders.ts. Weekly so it never feels spammy.
+  - type: cron
+    name: review-reminders
+    runtime: node
+    plan: starter
+    schedule: "0 14 * * 1" # 1pm ET Monday
+    buildCommand: npm install --include=dev
+    startCommand: npm run remind:reviews
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: basicstutor-db
+          property: connectionString
+      - key: PUBLIC_URL
+        value: https://basicstutor.com
+      - key: SESSION_SECRET
+        fromService:
+          type: web
+          name: basicstutor
+          envVarKey: SESSION_SECRET
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: REVIEW_REMINDERS_ENABLED
+        value: "false"
+
 # PostgreSQL Database (the only datastore this app needs)
 databases:
   - name: basicstutor-db

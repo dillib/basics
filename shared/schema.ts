@@ -25,6 +25,9 @@ export const users = pgTable("users", {
   stripeCustomerId: varchar("stripe_customer_id", { length: 255 }),
   stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }),
   isAdmin: boolean("is_admin").default(false),
+  // Opt-out for product emails (review reminders). Set via the one-click
+  // unsubscribe link in those emails.
+  emailOptOut: boolean("email_opt_out").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
