@@ -12,6 +12,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import type { Topic, User } from "@shared/schema";
 import Footer from "@/components/Footer";
 import GenerationProgress from "@/components/GenerationProgress";
+import { canonicalCategory, CANONICAL_ORDER } from "@/lib/categories";
 
 type SourceFilter = "all" | "samples" | "mine";
 
@@ -48,15 +49,38 @@ export default function TopicsPage() {
     queryKey: ['/api/topics'],
   });
 
-  // Derived from real data rather than a fixed list: Gemini assigns free-form
-  // categories to generated topics, so a hardcoded tab list drifts out of
-  // sync immediately (most tabs end up empty while real categories like
-  // "Environmental Science" or "Personal Finance" have nowhere to show up).
-  // This guarantees every visible tab has at least one topic, by construction.
+  // Everything except the category filter (search + source). Category counts and
+  // the filtered grid both derive from this, so the counts always match what a
+  // pill will actually show — and they update live as you search.
+  const searchAndSource = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    return topics.filter((topic) => {
+      const matchesSearch =
+        topic.title.toLowerCase().includes(q) ||
+        (topic.description?.toLowerCase().includes(q) ?? false);
+      if (!matchesSearch) return false;
+      if (sourceFilter === "samples" && !topic.isSample) return false;
+      if (sourceFilter === "mine" && topic.userId !== user?.id) return false;
+      return true;
+    });
+  }, [topics, searchQuery, sourceFilter, user?.id]);
+
+  // Gemini assigns free-form categories that fragment into dozens of
+  // near-duplicates ("Biology & Health", "Biology & Medicine", ...). Collapse
+  // them into a small set of canonical fields (see lib/categories), show only
+  // the ones that actually have topics, each with a live count.
   const categories = useMemo(() => {
-    const unique = Array.from(new Set(topics.map((t) => t.category).filter((c): c is string => !!c)));
-    return ["All", ...unique.sort()];
-  }, [topics]);
+    const counts = new Map<string, number>();
+    for (const t of searchAndSource) {
+      const c = canonicalCategory(t.category);
+      counts.set(c, (counts.get(c) ?? 0) + 1);
+    }
+    const present = CANONICAL_ORDER.filter((c) => counts.has(c));
+    return [
+      { name: "All", count: searchAndSource.length },
+      ...present.map((name) => ({ name, count: counts.get(name)! })),
+    ];
+  }, [searchAndSource]);
 
   const generateTopicMutation = useMutation({
     mutationFn: async (title: string) => {
@@ -91,20 +115,15 @@ export default function TopicsPage() {
     setJobId(null);
   };
 
-  const filteredTopics = topics.filter((topic) => {
-    const matchesSearch = topic.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (topic.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
-    const matchesCategory = selectedCategory === "All" || topic.category === selectedCategory;
-    
-    // Filter by source
-    if (sourceFilter === "samples") {
-      if (!topic.isSample) return false;
-    } else if (sourceFilter === "mine") {
-      if (topic.userId !== user?.id) return false;
-    }
-    
-    return matchesSearch && matchesCategory;
-  });
+  const filteredTopics = useMemo(
+    () =>
+      searchAndSource.filter(
+        (topic) =>
+          selectedCategory === "All" ||
+          canonicalCategory(topic.category) === selectedCategory
+      ),
+    [searchAndSource, selectedCategory]
+  );
 
   const formatTime = (minutes: number | null) => {
     if (!minutes) return "~30 min";
@@ -222,15 +241,19 @@ export default function TopicsPage() {
         </div>
 
         <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="mb-8">
-          <TabsList className="flex flex-wrap h-auto gap-2 bg-transparent">
+          <p className="text-sm font-medium text-muted-foreground mb-3">Filter by field</p>
+          <TabsList className="flex flex-wrap h-auto gap-2 bg-transparent p-0">
             {categories.map((category) => (
               <TabsTrigger
-                key={category}
-                value={category}
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                data-testid={`tab-category-${category.toLowerCase()}`}
+                key={category.name}
+                value={category.name}
+                className="group rounded-full border border-foreground/10 bg-muted/40 px-4 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-glow-sm"
+                data-testid={`tab-category-${category.name.toLowerCase().replace(/\s+/g, "-")}`}
               >
-                {category}
+                {category.name}
+                <span className="ml-2 text-xs opacity-60 group-data-[state=active]:opacity-80">
+                  {category.count}
+                </span>
               </TabsTrigger>
             ))}
           </TabsList>
@@ -262,7 +285,7 @@ export default function TopicsPage() {
                   <div className="flex items-start justify-between gap-2 mb-4 flex-wrap">
                     <div className="flex gap-2 flex-wrap">
                       <Badge variant="secondary" className="text-xs">
-                        {topic.category}
+                        {canonicalCategory(topic.category)}
                       </Badge>
                       {topic.isSample && (
                         <Badge variant="outline" className="text-xs">Sample</Badge>
