@@ -21,6 +21,7 @@ import { Download, Maximize2, Minimize2, X, RefreshCw } from "lucide-react";
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
 import { useTheme } from "./ThemeProvider";
+import { useAppConfig } from "@/hooks/useAppConfig";
 
 interface MindMapNode {
   id: string;
@@ -267,6 +268,7 @@ export default function MindMapPanel({ data, topicTitle }: MindMapPanelProps) {
   const [selectedNode, setSelectedNode] = useState<MindMapNode | null>(null);
   const flowRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
+  const { monetizationEnabled } = useAppConfig();
   const palette = theme === "dark" ? DARK_PALETTE : LIGHT_PALETTE;
 
   const layout = useMemo(() => calculateNodePositions(data, palette), [data, palette]);
@@ -404,7 +406,9 @@ export default function MindMapPanel({ data, topicTitle }: MindMapPanelProps) {
       <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
         <div className="flex items-center gap-2">
           <CardTitle className="text-lg">Mind Map</CardTitle>
-          <Badge variant="secondary" className="text-xs">Pro • Click nodes for details</Badge>
+          <Badge variant="secondary" className="text-xs">
+            {monetizationEnabled ? "Pro • Click nodes for details" : "Click nodes for details"}
+          </Badge>
         </div>
         <div className="flex items-center gap-1">
           <Button
