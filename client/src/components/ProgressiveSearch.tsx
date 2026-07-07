@@ -11,7 +11,6 @@ import {
   ArrowRight,
   X,
   BookOpen,
-  Zap,
   Loader2,
   AlertCircle
 } from "lucide-react";
@@ -344,28 +343,12 @@ export default function ProgressiveSearch() {
                     </div>
                   </div>
 
-                  {/* Key Points */}
+                  {/* CTA — the action button (replaces the old key-points list) */}
                   <div className="p-4">
-                    <p className="text-xs font-medium text-muted-foreground mb-2 uppercase">
-                      Key Points
-                    </p>
-                    <ul className="space-y-1.5">
-                      {result.keyPoints.slice(0, 3).map((point, i) => (
-                        <li key={i} className="text-sm flex items-start gap-2">
-                          <Zap className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
-                          <span className="break-words">{point}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {/* CTA */}
-                  <div className="p-4 border-t bg-slate-50 dark:bg-slate-900">
-                    <Button 
+                    <Button
                       onClick={handleStartLearning}
                       className="w-full gap-2"
                     >
-                      <BookOpen className="h-4 w-4" />
                       {result.existing ? 'Start Learning' : 'Generate Full Lesson'}
                       <ArrowRight className="h-4 w-4" />
                     </Button>
