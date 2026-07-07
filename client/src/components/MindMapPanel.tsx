@@ -1,10 +1,11 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   Node,
   Edge,
   Controls,
   Background,
+  BackgroundVariant,
   useNodesState,
   useEdgesState,
   MarkerType,
@@ -12,12 +13,14 @@ import {
   NodeMouseHandler,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import "./MindMapPanel.css";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Download, Maximize2, Minimize2, X, RefreshCw } from "lucide-react";
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
+import { useTheme } from "./ThemeProvider";
 
 interface MindMapNode {
   id: string;
@@ -42,13 +45,39 @@ interface MindMapPanelProps {
   topicTitle: string;
 }
 
-const nodeColors = {
-  topic: { bg: "hsl(262, 83%, 58%)", border: "hsl(262, 83%, 45%)", text: "#ffffff" },
-  principle: { bg: "hsl(262, 60%, 96%)", border: "hsl(262, 60%, 80%)", text: "hsl(262, 50%, 30%)" },
-  concept: { bg: "hsl(262, 40%, 98%)", border: "hsl(262, 40%, 85%)", text: "hsl(262, 40%, 40%)" },
+interface Palette {
+  topic: { bg: string; border: string; text: string; glow: string };
+  principle: { bg: string; border: string; text: string; shadow: string };
+  concept: { bg: string; border: string; text: string };
+  edgePrimary: string;
+  edgeSecondary: string;
+  dots: string;
+}
+
+// The central topic uses the same purple gradient in both themes (it pops on
+// light and dark alike); everything else flips so nodes read as solid cards on
+// the dark app instead of the old washed-out near-white boxes.
+const TOPIC_GRADIENT = "linear-gradient(135deg, hsl(262 83% 62%), hsl(283 80% 55%))";
+
+const LIGHT_PALETTE: Palette = {
+  topic: { bg: TOPIC_GRADIENT, border: "hsl(262 83% 48%)", text: "#ffffff", glow: "0 8px 24px hsl(262 83% 50% / 0.4)" },
+  principle: { bg: "#ffffff", border: "hsl(262 55% 78%)", text: "hsl(262 45% 32%)", shadow: "0 2px 8px hsl(262 40% 40% / 0.1)" },
+  concept: { bg: "hsl(262 40% 98%)", border: "hsl(262 35% 86%)", text: "hsl(262 30% 45%)" },
+  edgePrimary: "hsl(262 83% 60%)",
+  edgeSecondary: "hsl(262 25% 80%)",
+  dots: "hsl(262 20% 90%)",
 };
 
-function calculateNodePositions(data: MindMapData): { nodes: Node[]; edges: Edge[] } {
+const DARK_PALETTE: Palette = {
+  topic: { bg: TOPIC_GRADIENT, border: "hsl(262 70% 62%)", text: "#ffffff", glow: "0 8px 26px hsl(262 83% 40% / 0.55)" },
+  principle: { bg: "hsl(262 30% 17%)", border: "hsl(262 45% 45%)", text: "hsl(262 40% 90%)", shadow: "0 2px 10px hsl(262 60% 6% / 0.6)" },
+  concept: { bg: "hsl(262 24% 13%)", border: "hsl(262 28% 34%)", text: "hsl(262 25% 80%)" },
+  edgePrimary: "hsl(262 83% 64%)",
+  edgeSecondary: "hsl(262 20% 40%)",
+  dots: "hsl(262 15% 24%)",
+};
+
+function calculateNodePositions(data: MindMapData, palette: Palette): { nodes: Node[]; edges: Edge[] } {
   if (!data || !data.nodes || data.nodes.length === 0) {
     return { nodes: [], edges: [] };
   }
@@ -81,12 +110,12 @@ function calculateNodePositions(data: MindMapData): { nodes: Node[]; edges: Edge
         nodeType: "topic"
       },
       style: {
-        background: nodeColors.topic.bg,
-        border: `3px solid ${nodeColors.topic.border}`,
-        color: nodeColors.topic.text,
+        background: palette.topic.bg,
+        border: `3px solid ${palette.topic.border}`,
+        color: palette.topic.text,
         borderRadius: "50%",
-        width: 120,
-        height: 120,
+        width: 124,
+        height: 124,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -94,9 +123,8 @@ function calculateNodePositions(data: MindMapData): { nodes: Node[]; edges: Edge
         fontWeight: 600,
         fontSize: "13px",
         padding: "10px",
-        boxShadow: "0 4px 16px rgba(124, 58, 237, 0.35)",
+        boxShadow: palette.topic.glow,
         cursor: "pointer",
-        transition: "all 0.2s ease",
       },
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
@@ -118,22 +146,21 @@ function calculateNodePositions(data: MindMapData): { nodes: Node[]; edges: Edge
         nodeType: "principle"
       },
       style: {
-        background: nodeColors.principle.bg,
-        border: `2px solid ${nodeColors.principle.border}`,
-        color: nodeColors.principle.text,
-        borderRadius: "10px",
-        width: 110,
+        background: palette.principle.bg,
+        border: `2px solid ${palette.principle.border}`,
+        color: palette.principle.text,
+        borderRadius: "12px",
+        width: 112,
         minHeight: 50,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         textAlign: "center" as const,
-        fontWeight: 500,
+        fontWeight: 600,
         fontSize: "11px",
         padding: "8px",
-        boxShadow: "0 2px 6px rgba(0, 0, 0, 0.06)",
+        boxShadow: palette.principle.shadow,
         cursor: "pointer",
-        transition: "all 0.2s ease",
       },
       sourcePosition: Position.Right,
       targetPosition: Position.Left,
@@ -179,20 +206,20 @@ function calculateNodePositions(data: MindMapData): { nodes: Node[]; edges: Edge
           nodeType: "concept"
         },
         style: {
-          background: nodeColors.concept.bg,
-          border: `1px solid ${nodeColors.concept.border}`,
-          color: nodeColors.concept.text,
-          borderRadius: "6px",
-          width: 85,
+          background: palette.concept.bg,
+          border: `1px solid ${palette.concept.border}`,
+          color: palette.concept.text,
+          borderRadius: "8px",
+          width: 88,
           minHeight: 32,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           textAlign: "center" as const,
           fontSize: "10px",
+          fontWeight: 500,
           padding: "4px 6px",
           cursor: "pointer",
-          transition: "all 0.2s ease",
         },
         sourcePosition: Position.Right,
         targetPosition: Position.Left,
@@ -211,21 +238,22 @@ function calculateNodePositions(data: MindMapData): { nodes: Node[]; edges: Edge
 
   const positionedEdges: Edge[] = filteredEdges.map((edge, i) => {
     const isFromTopic = edge.source === topicNode?.id;
+    const stroke = isFromTopic ? palette.edgePrimary : palette.edgeSecondary;
     return {
       id: `edge-${i}`,
       source: edge.source,
       target: edge.target,
       type: "smoothstep",
       animated: isFromTopic,
-      style: { 
-        stroke: isFromTopic ? "hsl(262, 83%, 58%)" : "hsl(262, 25%, 80%)",
-        strokeWidth: isFromTopic ? 2 : 1,
+      style: {
+        stroke,
+        strokeWidth: isFromTopic ? 2.5 : 1.5,
       },
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        color: isFromTopic ? "hsl(262, 83%, 58%)" : "hsl(262, 25%, 80%)",
-        width: 12,
-        height: 12,
+        color: stroke,
+        width: 14,
+        height: 14,
       },
     };
   });
@@ -238,10 +266,19 @@ export default function MindMapPanel({ data, topicTitle }: MindMapPanelProps) {
   const [isExporting, setIsExporting] = useState(false);
   const [selectedNode, setSelectedNode] = useState<MindMapNode | null>(null);
   const flowRef = useRef<HTMLDivElement>(null);
+  const { theme } = useTheme();
+  const palette = theme === "dark" ? DARK_PALETTE : LIGHT_PALETTE;
 
-  const { nodes: initialNodes, edges: initialEdges } = calculateNodePositions(data);
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const layout = useMemo(() => calculateNodePositions(data, palette), [data, palette]);
+  const [nodes, setNodes, onNodesChange] = useNodesState(layout.nodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(layout.edges);
+
+  // Recolor (and re-lay-out) when the topic data or the theme changes so the
+  // map always matches light/dark instead of keeping stale node colors.
+  useEffect(() => {
+    setNodes(layout.nodes);
+    setEdges(layout.edges);
+  }, [layout, setNodes, setEdges]);
 
   const getNodeData = (id: string): MindMapNode | undefined => {
     return data.nodes.find(n => n.id === id);
@@ -253,10 +290,10 @@ export default function MindMapPanel({ data, topicTitle }: MindMapPanelProps) {
   }, [data.nodes]);
 
   const resetLayout = useCallback(() => {
-    const { nodes: newNodes, edges: newEdges } = calculateNodePositions(data);
+    const { nodes: newNodes, edges: newEdges } = calculateNodePositions(data, palette);
     setNodes(newNodes);
     setEdges(newEdges);
-  }, [data, setNodes, setEdges]);
+  }, [data, palette, setNodes, setEdges]);
 
   const exportToPDF = useCallback(async () => {
     if (!flowRef.current) return;
@@ -411,6 +448,7 @@ export default function MindMapPanel({ data, topicTitle }: MindMapPanelProps) {
             className={`flex-1 ${isExpanded ? "h-[calc(100vh-8rem)]" : "h-[400px]"} rounded-b-lg overflow-hidden`}
           >
             <ReactFlow
+              className="mindmap-flow"
               nodes={nodes}
               edges={edges}
               onNodesChange={onNodesChange}
@@ -420,15 +458,15 @@ export default function MindMapPanel({ data, topicTitle }: MindMapPanelProps) {
               fitViewOptions={{ padding: 0.2 }}
               minZoom={0.3}
               maxZoom={2}
-              attributionPosition="bottom-left"
+              proOptions={{ hideAttribution: true }}
             >
-              <Controls 
+              <Controls
                 showZoom={true}
                 showFitView={true}
                 showInteractive={false}
                 position="bottom-right"
               />
-              <Background color="hsl(262, 20%, 92%)" gap={20} />
+              <Background variant={BackgroundVariant.Dots} color={palette.dots} gap={20} size={1.5} />
             </ReactFlow>
           </div>
           

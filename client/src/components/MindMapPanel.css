@@ -1,0 +1,57 @@
+/* Polish + theming overrides for the React Flow mind map. Scoped to
+   .mindmap-flow (set as the ReactFlow className) so it never leaks to any
+   other flow. Node colors themselves are set inline from a theme palette in
+   MindMapPanel.tsx; this file handles interaction states and chrome. */
+
+/* Hide the "React Flow" attribution watermark (also disabled via proOptions). */
+.mindmap-flow .react-flow__attribution {
+  display: none;
+}
+
+/* Nodes lift slightly on hover so the map feels alive and clickable. */
+.mindmap-flow .react-flow__node {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+.mindmap-flow .react-flow__node:hover {
+  transform: translateY(-2px) scale(1.04);
+  z-index: 10;
+}
+
+/* Selected node gets a clear brand ring so it ties to the detail panel. */
+.mindmap-flow .react-flow__node.selected {
+  box-shadow:
+    0 0 0 3px hsl(262 83% 60% / 0.95),
+    0 8px 22px hsl(262 83% 45% / 0.4) !important;
+}
+
+/* Themed zoom/fit controls (the library defaults are stark white boxes). */
+.mindmap-flow .react-flow__controls {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+.mindmap-flow .react-flow__controls-button {
+  background: #ffffff;
+  color: #4b5563;
+  border-bottom: 1px solid #eceef2;
+}
+.mindmap-flow .react-flow__controls-button:hover {
+  background: #f3f4f6;
+}
+.mindmap-flow .react-flow__controls-button svg {
+  fill: currentColor;
+}
+
+.dark .mindmap-flow .react-flow__controls {
+  border-color: hsl(262 20% 26%);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+}
+.dark .mindmap-flow .react-flow__controls-button {
+  background: hsl(262 24% 15%);
+  color: hsl(262 20% 82%);
+  border-bottom: 1px solid hsl(262 20% 22%);
+}
+.dark .mindmap-flow .react-flow__controls-button:hover {
+  background: hsl(262 26% 20%);
+}
