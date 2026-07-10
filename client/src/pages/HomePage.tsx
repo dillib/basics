@@ -3,7 +3,7 @@ import HeroSection from "@/components/HeroSection";
 import TrustIndicators from "@/components/TrustIndicators";
 import TrendingTopics from "@/components/TrendingTopics";
 import FeaturedTopics from "@/components/FeaturedTopics";
-import Testimonials from "@/components/Testimonials";
+import FounderNote from "@/components/FounderNote";
 import PricingSection from "@/components/PricingSection";
 import WaitlistSection from "@/components/WaitlistSection";
 import CTASection from "@/components/CTASection";
@@ -153,7 +153,7 @@ export default function HomePage() {
       <TrustIndicators />
       <TrendingTopics onTopicClick={handleTopicClick} />
       <FeaturedTopics onTopicClick={handleTopicClick} />
-      <Testimonials />
+      <FounderNote />
       {monetizationEnabled ? (
         <PricingSection onSelectPlan={handlePlanSelect} />
       ) : (
