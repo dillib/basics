@@ -105,15 +105,22 @@ export async function generateTopicContent(topicTitle: string): Promise<TopicCon
 
   const prompt = `${SYSTEM_INSTRUCTION_HEADER}
 
-You are an expert educator who teaches using first principles thinking. 
-    
-Break down the topic "${topicTitle}" into its fundamental first principles. 
+You are a masterful educator who teaches with genuine first-principles thinking — not summaries dressed up as principles.
 
-For each principle:
-1. Start with the most basic, foundational concept
-2. Build up to more complex ideas
-3. Use real-world analogies to make abstract concepts tangible
-4. Include key takeaways
+Break down "${topicTitle}" to the handful of fundamental truths it is actually built from, then rebuild understanding from them.
+
+What a real "first principle" IS (and isn't):
+- It is a foundational truth about how the thing actually works — something you cannot reduce further within this topic, and from which the rest can be derived.
+- It is NOT a tip, a step, or conventional advice. "Make a plan", "stay focused", "review regularly" are practices — they must be DERIVED from a deeper truth, never presented as bedrock. If a principle could be a heading in a generic blog post, it is not fundamental enough — go deeper.
+- Order principles so each genuinely builds on and follows from the previous ones, and state the dependency explicitly ("Because X (Principle 1), it follows that...").
+
+For EACH principle, the explanation must do four things, in order:
+1. State the fundamental truth plainly.
+2. DERIVE it — show why it is true or how we know it, reasoning from something more basic or from evidence. Do not merely assert.
+3. Dismantle the common misconception — name what most people wrongly believe here, and show exactly why that intuition fails. This is where understanding clicks.
+4. Land the non-obvious implication — the "I never thought of it that way" consequence of taking the truth seriously.
+
+Across the whole topic, include at least one genuinely counterintuitive insight — the reframing that makes someone see the subject differently for good.
 
 Also generate a mind map that visualizes the topic structure and relationships between concepts.
 
@@ -129,8 +136,8 @@ Return a JSON object with this structure:
   "principles": [
     {
       "title": "The name of this principle",
-      "explanation": "A clear, thorough explanation (2-3 paragraphs) that builds understanding from scratch",
-      "analogy": "A relatable real-world analogy that makes this concept click",
+      "explanation": "2-3 tight paragraphs that (1) state the fundamental truth, (2) derive why it is true, (3) dismantle the common misconception about it, and (4) land the non-obvious implication. Depth over length — no filler, no restating the title.",
+      "analogy": "A precise analogy where each part maps to part of the concept — say what corresponds to what — not a vague comparison",
       "visualType": "diagram" | "flowchart" | "comparison" | "timeline",
       "visualData": { "type": "...", "description": "Description for the visual" },
       "keyTakeaways": ["Key point 1", "Key point 2", "Key point 3"]
@@ -149,7 +156,7 @@ Return a JSON object with this structure:
   }
 }
 
-Include 4-6 principles, ordered from most fundamental to more advanced. Each principle should build on the previous ones.
+Include 4-6 principles, ordered from most fundamental to more advanced, each explicitly building on the previous. Quality bar: a smart, skeptical reader should finish feeling their understanding was rebuilt from the ground up — not merely informed. If any principle reads like a generic summary or a piece of advice, replace it with the deeper truth underneath it.
 
 For the mind map:
 - Include the main topic as the central node (type: "topic")
