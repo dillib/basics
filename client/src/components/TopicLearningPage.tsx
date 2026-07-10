@@ -35,6 +35,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useAppConfig } from "@/hooks/useAppConfig";
 import TutorChat from "./TutorChat";
 import MindMapPanel from "./MindMapPanel";
+import RelatedTopics from "./RelatedTopics";
 import SimpleModeView from "./SimpleModeView";
 import ReferenceSheetGenerator from "./ReferenceSheetGenerator";
 import QualityBadge from "./QualityBadge";
@@ -837,6 +838,8 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
 
         </div>
       </div>
+
+      {slug && <RelatedTopics slug={slug} />}
 
       {/* Mobile table of contents — the desktop sidebar above is hidden below
           the lg breakpoint, so this Sheet (triggered from the sticky header)

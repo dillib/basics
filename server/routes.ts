@@ -309,6 +309,24 @@ export async function registerRoutes(
     res.json(principles);
   });
 
+  // Related topics for internal linking (crawlability + "next lesson"). Trimmed
+  // payload — no mind-map/validation blobs.
+  app.get('/api/topics/:slug/related', async (req, res) => {
+    const topic = await storage.getTopicBySlug(req.params.slug);
+    if (!topic) return res.status(404).json({ message: "Topic not found" });
+    const related = await storage.getRelatedTopics(topic.id, topic.category, 6);
+    res.json(
+      related.map((t) => ({
+        slug: t.slug,
+        title: t.title,
+        description: t.description,
+        category: t.category,
+        difficulty: t.difficulty,
+        estimatedMinutes: t.estimatedMinutes,
+      }))
+    );
+  });
+
   // -- CONTENT GENERATION (User) --
 
   app.post('/api/topics/generate', aiLimiter, validate(TopicGenerateSchema), async (req: Request, res) => {

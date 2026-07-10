@@ -20,7 +20,7 @@ import {
   type SupportMessage, type InsertSupportMessage
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, inArray, sql, lte, gte, asc } from "drizzle-orm";
+import { eq, ne, and, desc, inArray, sql, lte, gte, asc } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -33,6 +33,7 @@ export interface IStorage {
   getTopicsByIds(ids: string[]): Promise<Topic[]>;
   getPublicTopics(): Promise<Topic[]>;
   getSampleTopics(): Promise<Topic[]>;
+  getRelatedTopics(topicId: string, category: string | null, limit?: number): Promise<Topic[]>;
   getTrendingTopics(): Promise<Topic[]>;
   clearTrendingFlags(): Promise<void>;
   createTopic(topic: InsertTopic): Promise<Topic>;
@@ -185,6 +186,47 @@ export class DatabaseStorage implements IStorage {
 
   async getSampleTopics(): Promise<Topic[]> {
     return db.select().from(topics).where(eq(topics.isSample, true)).orderBy(desc(topics.createdAt));
+  }
+
+  // Related topics for internal linking (crawlability + "next lesson" UX):
+  // same category first, then top up with other public topics so a page is
+  // never a dead end for either readers or Googlebot.
+  async getRelatedTopics(topicId: string, category: string | null, limit = 6): Promise<Topic[]> {
+    const results: Topic[] = [];
+    const seen = new Set<string>([topicId]);
+
+    if (category) {
+      const sameCat = await db
+        .select()
+        .from(topics)
+        .where(and(eq(topics.isPublic, true), eq(topics.category, category), ne(topics.id, topicId)))
+        .orderBy(desc(topics.createdAt))
+        .limit(limit);
+      for (const t of sameCat) {
+        if (!seen.has(t.id)) {
+          results.push(t);
+          seen.add(t.id);
+        }
+      }
+    }
+
+    if (results.length < limit) {
+      const fill = await db
+        .select()
+        .from(topics)
+        .where(and(eq(topics.isPublic, true), ne(topics.id, topicId)))
+        .orderBy(desc(topics.createdAt))
+        .limit(limit * 4);
+      for (const t of fill) {
+        if (results.length >= limit) break;
+        if (!seen.has(t.id)) {
+          results.push(t);
+          seen.add(t.id);
+        }
+      }
+    }
+
+    return results.slice(0, limit);
   }
 
   async getTrendingTopics(): Promise<Topic[]> {
