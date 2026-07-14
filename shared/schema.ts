@@ -44,6 +44,12 @@ export const topics = pgTable("topics", {
   description: text("description"),
   category: text("category"),
   difficulty: text("difficulty").default("beginner"),
+  // Audience level this lesson was written for (kid | teen | adult). Adults is
+  // the default and matches every pre-level topic. See shared/levels.ts.
+  level: text("level").default("adult"),
+  // "Put it into practice": concrete real-life actions for applicable topics
+  // (money/health/habits/etc). Empty/absent for purely conceptual topics.
+  practicalSteps: jsonb("practical_steps"),
   estimatedMinutes: integer("estimated_minutes").default(30),
   imageUrl: text("image_url"),
   isPublic: boolean("is_public").default(false),
@@ -266,6 +272,7 @@ export const generationJobs = pgTable("generation_jobs", {
   userId: varchar("user_id", { length: 255 }).references(() => users.id),
   title: text("title").notNull(),
   slug: text("slug").notNull(),
+  level: text("level").default("adult"), // audience level to generate for
   status: varchar("status", { length: 50 }).notNull().default("pending"), // pending, processing, completed, failed
   progress: integer("progress").default(0), // 0-100
   topicId: varchar("topic_id", { length: 255 }).references(() => topics.id),

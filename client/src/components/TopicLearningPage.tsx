@@ -36,6 +36,7 @@ import { useAppConfig } from "@/hooks/useAppConfig";
 import TutorChat from "./TutorChat";
 import MindMapPanel from "./MindMapPanel";
 import RelatedTopics from "./RelatedTopics";
+import { LEVEL_LABELS, isLevel, type Level } from "@shared/levels";
 import SimpleModeView from "./SimpleModeView";
 import ReferenceSheetGenerator from "./ReferenceSheetGenerator";
 import QualityBadge from "./QualityBadge";
@@ -424,6 +425,11 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
             <div className="mb-8">
               <div className="flex flex-wrap items-center gap-3 mb-4">
                 <h1 className="text-3xl sm:text-4xl font-bold" data-testid="text-topic-title">{topic.title}</h1>
+                {isLevel(topic.level) && topic.level !== 'adult' && (
+                  <Badge variant="outline" className="border-primary/40 text-primary" data-testid="badge-level">
+                    For {LEVEL_LABELS[topic.level as Level]}
+                  </Badge>
+                )}
                 {isSampleTopic ? (
                   <Badge variant="default" className="bg-green-600 text-white" data-testid="badge-free">
                     Free
@@ -838,6 +844,27 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
 
         </div>
       </div>
+
+      {Array.isArray(topic.practicalSteps) && topic.practicalSteps.length > 0 && (
+        <section className="border-t border-border bg-primary/5">
+          <div className="container mx-auto px-4 py-10">
+            <div className="max-w-3xl">
+              <div className="flex items-center gap-2 mb-4">
+                <Sparkles className="h-5 w-5 text-primary" />
+                <h2 className="text-xl font-semibold">Put it into practice</h2>
+              </div>
+              <ul className="space-y-3">
+                {(topic.practicalSteps as string[]).map((step, i) => (
+                  <li key={i} className="flex items-start gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                    <span className="text-foreground/90 leading-relaxed">{step}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
+      )}
 
       {slug && <RelatedTopics slug={slug} />}
 

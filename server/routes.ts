@@ -23,6 +23,7 @@ import {
 } from "./validation";
 import { applySm2, nextMasteryScore, MASTERED_THRESHOLD } from "./spaced-repetition";
 import { verifyUnsubscribe } from "./email-unsubscribe";
+import { buildTopicSlug } from "@shared/levels";
 import { config } from "./config";
 import { aiLimiter, quickSearchLimiter, formLimiter, tutorLimiter } from "./security";
 import { publicBaseUrl, buildSitemap } from "./seo";
@@ -332,11 +333,13 @@ export async function registerRoutes(
   app.post('/api/topics/generate', aiLimiter, validate(TopicGenerateSchema), async (req: Request, res) => {
     try {
       const userId = req.user?.claims?.sub || null;
-      const { title } = req.body;
+      const { title, level } = req.body; // level validated + defaulted by TopicGenerateSchema
 
-      const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      // Each level is its own page/slug (Adults keeps the clean base slug).
+      const slug = buildTopicSlug(title, level);
 
-      // Existing topics resolve instantly — no job needed.
+      // Existing topics resolve instantly — no job needed. Checked per level, so
+      // requesting the Kids version of an existing Adults topic still generates.
       const existingTopic = await storage.getTopicBySlug(slug);
       if (existingTopic) {
         return res.json({ existing: true, topic: existingTopic });
@@ -345,7 +348,7 @@ export async function registerRoutes(
       // No generation limits beyond rate limiting — paywall is on content
       // access, not generation. Generation runs in the background so the
       // request returns immediately and isn't subject to proxy timeouts.
-      const job = await storage.createGenerationJob({ userId, title, slug, status: "pending", progress: 0 });
+      const job = await storage.createGenerationJob({ userId, title, slug, level, status: "pending", progress: 0 });
 
       // Fire-and-forget: do not await. The client polls the status endpoint.
       void processGenerationJob(job.id);

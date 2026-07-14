@@ -45,6 +45,10 @@ async function migrate() {
       CREATE INDEX IF NOT EXISTS idx_topics_trending ON topics(is_trending, trending_rank);
 
       ALTER TABLE users ADD COLUMN IF NOT EXISTS email_opt_out BOOLEAN DEFAULT false;
+
+      ALTER TABLE topics ADD COLUMN IF NOT EXISTS level TEXT DEFAULT 'adult';
+      ALTER TABLE topics ADD COLUMN IF NOT EXISTS practical_steps JSONB;
+      ALTER TABLE generation_jobs ADD COLUMN IF NOT EXISTS level TEXT DEFAULT 'adult';
     `);
   }
 

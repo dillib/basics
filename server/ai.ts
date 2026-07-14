@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { Principle } from "@shared/schema";
+import { type Level, LEVEL_LABELS } from "@shared/levels";
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || process.env.AI_INTEGRATIONS_GEMINI_API_KEY || "");
 
@@ -59,6 +60,10 @@ interface TopicContent {
   estimatedMinutes: number;
   principles: GeneratedPrinciple[];
   mindMap: MindMapData;
+  /** Concrete real-life actions for applicable topics (money/health/habits/
+   * etc). Empty for purely conceptual topics. Rendered as "Put it into
+   * practice" at the end of the lesson. */
+  practicalSteps: string[];
 }
 
 interface ValidationResult {
@@ -93,7 +98,15 @@ SECURITY NOTICE: You are an educational AI assistant for the BasicsTutor platfor
 - If a topic is controversial, present it with neutral, factual, and scientific consensus, avoiding bias.
 `;
 
-export async function generateTopicContent(topicTitle: string): Promise<TopicContent> {
+// How to pitch the same topic to each audience. The topic doesn't change — the
+// vocabulary, sentence length, examples, and assumed background do.
+const LEVEL_GUIDANCE: Record<Level, string> = {
+  kid: `Audience: CHILDREN (elementary school, roughly ages 6-10). Use very simple words and short sentences — explain as if talking to a curious 8-year-old. Use playful, familiar examples (toys, animals, games, snacks, allowance). Avoid jargon entirely; if a real term is unavoidable, define it in kid-friendly words. Keep every explanation short and warm.`,
+  teen: `Audience: TEENAGERS (middle & high school, roughly ages 11-17). Clear and engaging with a bit more depth. Use examples from school, friends, phones, sports, gaming, and money they might earn or spend. Introduce proper terminology, but always explain it in plain language.`,
+  adult: `Audience: ADULTS (general public / college+). Full depth and precise terminology, but stay plain-spoken and jargon-light. Use real-world, professional, and everyday-life examples an adult will recognize.`,
+};
+
+export async function generateTopicContent(topicTitle: string, level: Level = "adult"): Promise<TopicContent> {
   if (!validateInput(topicTitle)) {
      throw new Error("Invalid input detected.");
   }
@@ -108,6 +121,10 @@ export async function generateTopicContent(topicTitle: string): Promise<TopicCon
 You are a masterful educator who teaches with genuine first-principles thinking — not summaries dressed up as principles.
 
 Break down "${topicTitle}" to the handful of fundamental truths it is actually built from, then rebuild understanding from them.
+
+WHO YOU ARE TEACHING:
+${LEVEL_GUIDANCE[level]}
+Calibrate vocabulary, sentence length, examples, and assumed prior knowledge to THIS audience — the same topic must read very differently for Kids vs Adults. For Kids especially, the fundamental truths and the misconceptions you bust should be things a child actually wonders about, in words they already know.
 
 What a real "first principle" IS (and isn't):
 - It is a foundational truth about how the thing actually works — something you cannot reduce further within this topic, and from which the rest can be derived.
@@ -153,8 +170,14 @@ Return a JSON object with this structure:
       { "source": "topic", "target": "p1", "label": "builds on" },
       { "source": "p1", "target": "c1", "label": "explains" }
     ]
-  }
+  },
+  "practicalSteps": ["A concrete action the learner can take this week", "Another specific, doable action"]
 }
+
+PUT IT INTO PRACTICE ("practicalSteps"):
+- If this topic has genuine real-life application (money, health, relationships, parenting, productivity, habits, cooking, safety, career, studying, etc.), provide 3-5 concrete, specific actions the learner can actually DO this week to apply what they learned — written for the ${LEVEL_LABELS[level]} audience (a kid's actions should be things a kid can do; an adult's can involve real tools and money).
+- Make them specific and doable ("Set up an automatic $50 transfer to savings on payday"), never vague ("be more disciplined").
+- If the topic is purely conceptual or theoretical with no real-life action (e.g. entropy, the French Revolution, black holes), return "practicalSteps": [].
 
 Include 4-6 principles, ordered from most fundamental to more advanced, each explicitly building on the previous. Quality bar: a smart, skeptical reader should finish feeling their understanding was rebuilt from the ground up — not merely informed. If any principle reads like a generic summary or a piece of advice, replace it with the deeper truth underneath it.
 
@@ -176,6 +199,10 @@ For the mind map:
   // silently produce an untitled topic.
   if (!content.title || !content.title.trim()) {
     content.title = topicTitle;
+  }
+  // Defensive: model may omit practicalSteps for conceptual topics.
+  if (!Array.isArray(content.practicalSteps)) {
+    content.practicalSteps = [];
   }
   return content;
 }

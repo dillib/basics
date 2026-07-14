@@ -1,9 +1,6 @@
 import { storage } from "./storage";
 import { generateTopicContent, validateTopicContent } from "./ai";
-
-function slugify(title: string): string {
-  return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-}
+import { buildTopicSlug, isLevel } from "@shared/levels";
 
 /**
  * Background processor for a topic-generation job.
@@ -24,6 +21,7 @@ export async function processGenerationJob(jobId: string): Promise<void> {
     }
 
     const { title, slug, userId } = job;
+    const level = isLevel(job.level) ? job.level : "adult";
     await storage.updateGenerationJob(jobId, { status: "processing", progress: 10 });
 
     // Guard against a race where the topic was created between enqueue and now
@@ -39,7 +37,7 @@ export async function processGenerationJob(jobId: string): Promise<void> {
       return;
     }
 
-    const content = await generateTopicContent(title);
+    const content = await generateTopicContent(title, level);
     await storage.updateGenerationJob(jobId, { progress: 55 });
 
     // The AI corrects obvious typos (e.g. "Quantim" -> "Quantum") rather than
@@ -48,7 +46,7 @@ export async function processGenerationJob(jobId: string): Promise<void> {
     // the correctly-spelled version -- link to that instead of creating a
     // near-duplicate topic.
     const canonicalTitle = content.title?.trim() || title;
-    const canonicalSlug = slugify(canonicalTitle);
+    const canonicalSlug = buildTopicSlug(canonicalTitle, level);
     if (canonicalSlug !== slug) {
       const canonicalExisting = await storage.getTopicBySlug(canonicalSlug);
       if (canonicalExisting) {
@@ -81,6 +79,8 @@ export async function processGenerationJob(jobId: string): Promise<void> {
       description: content.description,
       category: content.category,
       difficulty: content.difficulty,
+      level,
+      practicalSteps: content.practicalSteps,
       estimatedMinutes: content.estimatedMinutes,
       isPublic: true,
       mindMapData: content.mindMap,

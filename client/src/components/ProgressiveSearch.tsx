@@ -15,6 +15,8 @@ import {
   AlertCircle
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { cn } from "@/lib/utils";
+import { LEVELS, LEVEL_LABELS, type Level } from "@shared/levels";
 
 interface QuickResult {
   title: string;
@@ -39,6 +41,8 @@ export default function ProgressiveSearch() {
   // sits still for a while, so we also gently ease it forward (bounded, never
   // claiming completion) so it always feels alive.
   const [genProgress, setGenProgress] = useState(0);
+  // Audience level for the full lesson (Kids / Teens / Adults). Default adult.
+  const [level, setLevel] = useState<Level>('adult');
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [, setLocation] = useLocation();
@@ -133,8 +137,9 @@ export default function ProgressiveSearch() {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
 
-    // Existing topics navigate immediately.
-    if (result.existing) {
+    // The existing-topic preview is the Adults version. If the learner picked
+    // Adults, go straight there; any other level generates its own version.
+    if (result.existing && level === 'adult') {
       setLocation(`/topic/${fallbackSlug}`);
       return;
     }
@@ -146,6 +151,7 @@ export default function ProgressiveSearch() {
     try {
       const response = await apiRequest('POST', '/api/topics/generate', {
         title: result.title,
+        level,
       });
       const data = await response.json();
 
@@ -343,20 +349,44 @@ export default function ProgressiveSearch() {
                     </div>
                   </div>
 
+                  {/* Audience level selector — the same topic, pitched for a
+                      different age. Adults is the default. */}
+                  <div className="px-4 pt-4">
+                    <p className="text-xs font-medium text-muted-foreground mb-2 uppercase">Explain it for</p>
+                    <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted/50 p-1">
+                      {LEVELS.map((lv) => (
+                        <button
+                          key={lv}
+                          type="button"
+                          onClick={() => setLevel(lv)}
+                          className={cn(
+                            "rounded-md py-1.5 text-xs font-medium transition-colors",
+                            level === lv
+                              ? "bg-primary text-primary-foreground shadow-sm"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                          data-testid={`button-level-${lv}`}
+                        >
+                          {LEVEL_LABELS[lv]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* CTA — the action button (replaces the old key-points list) */}
                   <div className="p-4">
                     <Button
                       onClick={handleStartLearning}
                       className="w-full gap-2"
                     >
-                      {result.existing ? 'Start Learning' : 'Generate Full Lesson'}
+                      {result.existing && level === 'adult' ? 'Start Learning' : 'Generate Full Lesson'}
                       <ArrowRight className="h-4 w-4" />
                     </Button>
-                    {!result.existing && (
-                      <p className="text-xs text-muted-foreground text-center mt-2">
-                        Click to generate the complete lesson with principles and quizzes
-                      </p>
-                    )}
+                    <p className="text-xs text-muted-foreground text-center mt-2">
+                      {result.existing && level === 'adult'
+                        ? 'Ready to learn'
+                        : `Generate the complete ${LEVEL_LABELS[level]} lesson with principles and a quiz`}
+                    </p>
                   </div>
                 </div>
               )}

@@ -13,6 +13,8 @@ import type { Topic, User } from "@shared/schema";
 import Footer from "@/components/Footer";
 import GenerationProgress from "@/components/GenerationProgress";
 import { canonicalCategory, CANONICAL_ORDER } from "@/lib/categories";
+import { cn } from "@/lib/utils";
+import { LEVELS, LEVEL_LABELS, type Level } from "@shared/levels";
 
 type SourceFilter = "all" | "samples" | "mine";
 
@@ -34,6 +36,7 @@ export default function TopicsPage() {
   });
   const [, setLocation] = useLocation();
   const [jobId, setJobId] = useState<string | null>(null);
+  const [genLevel, setGenLevel] = useState<Level>('adult');
 
   // Scroll to top when page loads
   useEffect(() => {
@@ -83,8 +86,8 @@ export default function TopicsPage() {
   }, [searchAndSource]);
 
   const generateTopicMutation = useMutation({
-    mutationFn: async (title: string) => {
-      const response = await apiRequest("POST", "/api/topics/generate", { title });
+    mutationFn: async ({ title, level }: { title: string; level: Level }) => {
+      const response = await apiRequest("POST", "/api/topics/generate", { title, level });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         throw new Error(data.message || "Failed to generate topic");
@@ -136,7 +139,7 @@ export default function TopicsPage() {
   const handleGenerateTopic = (e: React.FormEvent) => {
     e.preventDefault();
     if (newTopicTitle.trim()) {
-      generateTopicMutation.mutate(newTopicTitle.trim());
+      generateTopicMutation.mutate({ title: newTopicTitle.trim(), level: genLevel });
     }
   };
 
@@ -161,6 +164,28 @@ export default function TopicsPage() {
                 <p className="text-sm text-muted-foreground mb-4">
                   Enter any topic you want to learn, and our AI will break it down into first principles.
                 </p>
+                <div className="mb-3">
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5 uppercase">Explain it for</p>
+                  <div className="inline-grid grid-cols-3 gap-1 rounded-lg bg-muted/50 p-1">
+                    {LEVELS.map((lv) => (
+                      <button
+                        key={lv}
+                        type="button"
+                        onClick={() => setGenLevel(lv)}
+                        disabled={generateTopicMutation.isPending || !!jobId}
+                        className={cn(
+                          "rounded-md px-4 py-1.5 text-xs font-medium transition-colors disabled:opacity-50",
+                          genLevel === lv
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                        data-testid={`button-genlevel-${lv}`}
+                      >
+                        {LEVEL_LABELS[lv]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div className="flex flex-col sm:flex-row gap-2">
                   <Input
                     type="text"

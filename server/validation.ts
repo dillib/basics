@@ -26,6 +26,8 @@ export const QuizAnswerSchema = z.object({
 
 export const TopicGenerateSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters').max(200, 'Title too long'),
+  // Audience level (see shared/levels.ts). Optional; defaults to adult.
+  level: z.enum(['kid', 'teen', 'adult']).default('adult'),
 });
 
 export const TopicUpdateSchema = z.object({
