@@ -43,7 +43,8 @@ export interface IStorage {
   getPrinciplesByIds(ids: string[]): Promise<Principle[]>;
   createPrinciple(principle: InsertPrinciple): Promise<Principle>;
   createPrinciples(principles: InsertPrinciple[]): Promise<Principle[]>;
-  
+  deletePrinciplesByTopic(topicId: string): Promise<void>;
+
   getQuiz(id: string): Promise<Quiz | undefined>;
   getQuizzesByTopic(topicId: string): Promise<Quiz[]>;
   createQuiz(quiz: InsertQuiz): Promise<Quiz>;
@@ -264,6 +265,12 @@ export class DatabaseStorage implements IStorage {
   async createPrinciples(principleList: InsertPrinciple[]): Promise<Principle[]> {
     if (principleList.length === 0) return [];
     return db.insert(principles).values(principleList).returning();
+  }
+
+  // Used by the regeneration script to replace a topic's principles wholesale
+  // (delete old, insert fresh) without touching the topic row / slug.
+  async deletePrinciplesByTopic(topicId: string): Promise<void> {
+    await db.delete(principles).where(eq(principles.topicId, topicId));
   }
 
   async getQuiz(id: string): Promise<Quiz | undefined> {
