@@ -383,6 +383,11 @@ export async function generateTutorResponse(
     throw new Error("Invalid input detected.");
   }
 
+  // Only send the most recent turns to Gemini. Without this the whole session
+  // transcript is re-sent every message, so per-message token cost grows with
+  // the conversation length; a sliding window keeps it flat.
+  const MAX_TUTOR_HISTORY_MESSAGES = 10;
+
   const focusContext = principleContext
     ? `The learner opened this chat while studying the principle "${principleContext.title}" within the topic "${topicTitle}". For your reference, here's that principle's explanation:\n${principleContext.explanation}`
     : `The learner opened this chat while studying the topic "${topicTitle}".`;
@@ -390,17 +395,30 @@ export async function generateTutorResponse(
   const model = genAI.getGenerativeModel({
     model: "gemini-2.5-flash",
     safetySettings,
+    // Hard ceiling on reply length. The prompt asks for 2-4 short paragraphs;
+    // this stops a pathological long answer from running up output-token cost.
+    generationConfig: { maxOutputTokens: 1024 },
     systemInstruction: `${SYSTEM_INSTRUCTION_HEADER}
 
 You are the BasicsTutor AI Tutor — a friendly, encouraging guide who teaches using first principles thinking.
 
 ${focusContext}
 
-Answer the learner's questions clearly and concisely (2-4 short paragraphs at most). Use analogies where they help. Build understanding from fundamentals rather than just stating facts. If a question strays far from the topic at hand, gently steer back toward it rather than refusing outright.`,
+Answer the learner's questions clearly and concisely (2-4 short paragraphs at most). Use analogies where they help. Build understanding from fundamentals rather than just stating facts.
+
+Stay on this topic. If a question is a reasonable tangent, answer briefly and tie it back to what they're studying. If it is clearly unrelated to the lesson (general chit-chat, coding help, an unrelated subject), do NOT answer it — in one sentence, say it's outside this lesson and suggest they search that as its own topic on BasicsTutor.`,
   });
 
+  // Only the most recent turns — bounds per-message token cost so a long
+  // session doesn't keep re-sending its entire transcript. Gemini requires the
+  // history to begin with a user turn, so drop any leading assistant messages
+  // the window may have started on.
+  let recentHistory = history.slice(-MAX_TUTOR_HISTORY_MESSAGES);
+  while (recentHistory.length > 0 && recentHistory[0].role === "assistant") {
+    recentHistory = recentHistory.slice(1);
+  }
   const chat = model.startChat({
-    history: history.map((m) => ({
+    history: recentHistory.map((m) => ({
       role: m.role === "assistant" ? "model" : "user",
       parts: [{ text: m.content }],
     })),
