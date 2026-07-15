@@ -43,8 +43,12 @@ export default function ProgressiveSearch() {
   const [genProgress, setGenProgress] = useState(0);
   // Audience level for the full lesson (Kids / Teens / Adults). Default adult.
   const [level, setLevel] = useState<Level>('adult');
+  const [errorMessage, setErrorMessage] = useState('Something went wrong');
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  // Bumped on every new search so a slow/retried in-flight request can't
+  // overwrite the results of a newer one the user has since typed.
+  const searchSeqRef = useRef(0);
   const [, setLocation] = useLocation();
 
   // Click outside to close
@@ -89,28 +93,49 @@ export default function ProgressiveSearch() {
   }, [query]);
 
   const performSearch = async (searchQuery: string) => {
+    const seq = ++searchSeqRef.current;
+    await runSearch(searchQuery, seq, 0);
+  };
+
+  // `seq` guards against stale responses; `attempt` gives one automatic retry so
+  // a transient AI/network blip doesn't dump the user straight to an error.
+  const runSearch = async (searchQuery: string, seq: number, attempt: number): Promise<void> => {
+    if (seq !== searchSeqRef.current) return; // superseded by a newer search
     setStatus('loading');
     setIsOpen(true);
 
     try {
-      const response = await apiRequest('POST', '/api/topics/quick-search', { 
-        title: searchQuery 
+      // Raw fetch (not apiRequest, which throws on non-2xx) so we can read the
+      // status and treat 429 specially.
+      const response = await fetch('/api/topics/quick-search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: searchQuery }),
+        credentials: 'include',
       });
-      
-      if (!response.ok) throw new Error('Search failed');
-      
-      const data = await response.json();
-      setResult(data);
-      
-      // If topic already exists, we're ready to go
-      if (data.existing && data.slug) {
-        setStatus('ready');
-      } else {
-        // Need to generate full topic
-        setStatus('ready');
+      if (seq !== searchSeqRef.current) return;
+
+      // Rate limited — don't retry (that makes it worse), just say so kindly.
+      if (response.status === 429) {
+        setErrorMessage("You're searching fast — give it a few seconds.");
+        setStatus('error');
+        return;
       }
+      if (!response.ok) throw new Error('Search failed');
+
+      const data = await response.json();
+      if (seq !== searchSeqRef.current) return;
+      setResult(data);
+      setStatus('ready');
     } catch (err) {
+      if (seq !== searchSeqRef.current) return;
+      // One quiet retry for transient failures before showing an error.
+      if (attempt < 1) {
+        await new Promise((r) => setTimeout(r, 900));
+        return runSearch(searchQuery, seq, attempt + 1);
+      }
       console.error('Search error:', err);
+      setErrorMessage('Something went wrong. Please try again.');
       setStatus('error');
     }
   };
@@ -311,7 +336,7 @@ export default function ProgressiveSearch() {
               {status === 'error' && (
                 <div className="p-6 text-center">
                   <AlertCircle className="h-6 w-6 text-destructive mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground mb-3">Something went wrong</p>
+                  <p className="text-sm text-muted-foreground mb-3">{errorMessage}</p>
                   <Button 
                     variant="outline" 
                     size="sm" 

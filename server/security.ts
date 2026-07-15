@@ -102,7 +102,7 @@ export const aiLimiter = rateLimit({
 /** Lighter limiter for the instant "quick search" preview endpoint. */
 export const quickSearchLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: parseInt(process.env.QUICK_SEARCH_RATE_LIMIT_PER_MIN || "15", 10),
+  max: parseInt(process.env.QUICK_SEARCH_RATE_LIMIT_PER_MIN || "30", 10),
   message: { message: "Too many searches. Please wait a moment and try again." },
   ...sharedOptions,
 });
