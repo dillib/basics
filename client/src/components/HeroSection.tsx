@@ -66,7 +66,7 @@ export default function HeroSection({
           >
             <Sparkles className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium text-primary" data-testid="text-hero-tagline">
-              First Principles Dictionary
+              First Principles Academy
             </span>
           </motion.div>
 
