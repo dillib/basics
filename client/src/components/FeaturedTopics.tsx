@@ -88,14 +88,17 @@ export default function FeaturedTopics({ onTopicClick }: FeaturedTopicsProps) {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
             {sampleTopics.map((topic, index) => (
-              <motion.article
+              <motion.div
                 key={topic.id}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
+              >
+              <Link
+                href={`/topic/${topic.slug}`}
                 onClick={() => onTopicClick?.(topic.slug)}
-                className="group cursor-pointer"
+                className="group block"
                 data-testid={`card-sample-topic-${topic.id}`}
               >
                 <div className="card-hover relative bg-card rounded-3xl p-8 sm:p-10 border border-border/50 h-full">
@@ -131,7 +134,8 @@ export default function FeaturedTopics({ onTopicClick }: FeaturedTopicsProps) {
                     </span>
                   </div>
                 </div>
-              </motion.article>
+              </Link>
+              </motion.div>
             ))}
           </div>
         )}

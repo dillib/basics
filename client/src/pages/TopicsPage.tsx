@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -300,11 +300,14 @@ export default function TopicsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
             {filteredTopics.map((topic) => (
-              <Card
+              <Link
                 key={topic.id}
-                className="card-hover group cursor-pointer border-card-border"
-                onClick={() => setLocation(`/topic/${topic.slug}`)}
+                href={`/topic/${topic.slug}`}
+                className="block"
                 data-testid={`card-topic-${topic.slug}`}
+              >
+              <Card
+                className="card-hover group cursor-pointer border-card-border h-full"
               >
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between gap-2 mb-4 flex-wrap">
@@ -363,6 +366,7 @@ export default function TopicsPage() {
                   </div>
                 </CardContent>
               </Card>
+              </Link>
             ))}
           </div>
         )}
