@@ -2,7 +2,7 @@ import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
 import { storage } from "./storage";
-import { buildTopicMeta, injectMeta, publicBaseUrl } from "./seo";
+import { buildTopicMeta, injectMeta, injectContent, renderContentSnapshot, publicBaseUrl } from "./seo";
 
 export function serveStatic(app: Express) {
   const distPath = path.resolve(__dirname, "public");
@@ -27,10 +27,10 @@ export function serveStatic(app: Express) {
         const topic = await storage.getTopicBySlug(slug);
         if (topic) {
           const meta = buildTopicMeta(topic, publicBaseUrl(req));
-          return res
-            .status(200)
-            .set("Content-Type", "text/html")
-            .send(injectMeta(indexHtml, meta));
+          const principles = await storage.getPrinciplesByTopic(topic.id);
+          const withMeta = injectMeta(indexHtml, meta);
+          const withContent = injectContent(withMeta, renderContentSnapshot(topic, principles));
+          return res.status(200).set("Content-Type", "text/html").send(withContent);
         }
       }
     } catch (err) {
