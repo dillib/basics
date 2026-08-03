@@ -20,9 +20,9 @@ export function serveStatic(app: Express) {
 
   // SPA fallback with server-side metadata injection for topic pages.
   app.use("*", async (req, res) => {
-    try {
-      const match = req.originalUrl.split("?")[0].match(/^\/topic\/([^/]+)$/);
-      if (match) {
+    const match = req.originalUrl.split("?")[0].match(/^\/topic\/([^/]+)$/);
+    if (match) {
+      try {
         const slug = decodeURIComponent(match[1]);
         const topic = await storage.getTopicBySlug(slug);
         if (topic) {
@@ -32,10 +32,16 @@ export function serveStatic(app: Express) {
           const withContent = injectContent(withMeta, renderContentSnapshot(topic, principles));
           return res.status(200).set("Content-Type", "text/html").send(withContent);
         }
+        // /topic/:slug shape but no such topic -- a real 404, not a 200 with
+        // an empty shell. Serving 200 here is what Search Console flags as a
+        // soft 404: it looks fine to the server, empty to everyone else.
+        return res.status(404).set("Content-Type", "text/html").send(indexHtml);
+      } catch (err) {
+        // A lookup failure isn't the same as "doesn't exist" -- fall back to
+        // the plain SPA shell rather than wrongly 404-ing a real page.
+        console.error("[SEO] Meta injection failed:", err);
+        return res.status(200).set("Content-Type", "text/html").send(indexHtml);
       }
-    } catch (err) {
-      // Never let a metadata lookup break page delivery — fall back to the SPA.
-      console.error("[SEO] Meta injection failed:", err);
     }
     res.status(200).set("Content-Type", "text/html").send(indexHtml);
   });
