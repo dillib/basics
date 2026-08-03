@@ -24,7 +24,7 @@ services:
       # host from each incoming request, which works but can mix
       # basicstutor.com and the onrender.com fallback across pages.
       - key: PUBLIC_URL
-        value: https://basicstutor.com
+        value: https://www.basicstutor.com
 
       # Database - Use Render PostgreSQL
       - key: DATABASE_URL
@@ -165,7 +165,7 @@ services:
           name: basicstutor-db
           property: connectionString
       - key: PUBLIC_URL
-        value: https://basicstutor.com
+        value: https://www.basicstutor.com
       - key: SESSION_SECRET
         fromService:
           type: web
