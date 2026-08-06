@@ -20,7 +20,7 @@ import {
   type SupportMessage, type InsertSupportMessage
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, ne, and, desc, inArray, sql, lte, gte, asc } from "drizzle-orm";
+import { eq, ne, and, desc, inArray, sql, lte, gte, lt, asc } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -57,7 +57,8 @@ export interface IStorage {
   getProgress(userId: string, topicId: string): Promise<Progress | undefined>;
   getProgressByUser(userId: string): Promise<Progress[]>;
   upsertProgress(progress: InsertProgress): Promise<Progress>;
-  
+  getMonthlyMasteryCounts(monthStart: Date, monthEnd: Date): Promise<{ userId: string; count: number }[]>;
+
   getTopicPurchase(userId: string, topicId: string): Promise<TopicPurchase | undefined>;
   getTopicPurchasesByUser(userId: string): Promise<TopicPurchase[]>;
   createTopicPurchase(purchase: InsertTopicPurchase): Promise<TopicPurchase>;
@@ -334,6 +335,19 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return prog;
+  }
+
+  // Counts, per user, how many topics they mastered (progress.completedAt
+  // set -- only true once a quiz clears the passing score) within
+  // [monthStart, monthEnd). Feeds computeMonthlyMasteryStats() in
+  // server/mastery.ts for the private "ahead of X% this month" stat.
+  async getMonthlyMasteryCounts(monthStart: Date, monthEnd: Date): Promise<{ userId: string; count: number }[]> {
+    const rows = await db
+      .select({ userId: progress.userId, count: sql<number>`count(*)` })
+      .from(progress)
+      .where(and(gte(progress.completedAt, monthStart), lt(progress.completedAt, monthEnd)))
+      .groupBy(progress.userId);
+    return rows.map((r) => ({ userId: r.userId, count: Number(r.count) }));
   }
 
   async getTopicPurchase(userId: string, topicId: string): Promise<TopicPurchase | undefined> {

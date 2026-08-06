@@ -39,6 +39,7 @@ import RelatedTopics from "./RelatedTopics";
 import { LEVEL_LABELS, isLevel, type Level } from "@shared/levels";
 import SimpleModeView from "./SimpleModeView";
 import ReferenceSheetGenerator from "./ReferenceSheetGenerator";
+import CertificateGenerator from "./CertificateGenerator";
 import QualityBadge from "./QualityBadge";
 import { ContentPaywall } from "./ContentPaywall";
 
@@ -455,10 +456,17 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                   <Clock className="h-4 w-4" />
                   <span>{formatTime(topic.estimatedMinutes || 30)} to complete</span>
                 </div>
-                <ReferenceSheetGenerator 
-                  topic={topic} 
+                <ReferenceSheetGenerator
+                  topic={topic}
                   principles={accessiblePrinciples}
                 />
+                {isAuthenticated && (
+                  <CertificateGenerator
+                    user={user}
+                    topic={topic}
+                    progress={userProgress?.find((p) => p.topicId === topic.id)}
+                  />
+                )}
               </div>
             </div>
 

@@ -8,10 +8,10 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  BookOpen, 
-  Trophy, 
-  Clock, 
+import {
+  BookOpen,
+  Trophy,
+  Clock,
   Flame,
   Star,
   ChevronRight,
@@ -21,7 +21,8 @@ import {
   Sparkles,
   BarChart3,
   RotateCcw,
-  LifeBuoy
+  LifeBuoy,
+  Award
 } from "lucide-react";
 import AnalyticsPanel from "./AnalyticsPanel";
 import ReviewPanel from "./ReviewPanel";
@@ -29,6 +30,7 @@ import { useAppConfig } from "@/hooks/useAppConfig";
 import type { Topic, Progress as ProgressType, User } from "@shared/schema";
 
 interface ReviewStats { dueCount: number; totalTracked: number; averageMastery: number; masteredCount: number; }
+interface MonthlyMasteryStats { masteredThisMonth: number; totalActiveLearners: number; percentile: number | null; }
 
 interface DashboardProps {
   user?: User;
@@ -56,6 +58,11 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
   const { data: progressList = [], isLoading: progressLoading } = useQuery<ProgressType[]>({
     queryKey: ['/api/user/progress'],
+  });
+
+  // Private to this user -- never a public leaderboard. See server/mastery.ts.
+  const { data: monthlyMastery } = useQuery<MonthlyMasteryStats>({
+    queryKey: ['/api/user/monthly-mastery'],
   });
 
   const userName = user?.firstName 
@@ -375,6 +382,35 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                   </Card>
                 ))}
               </div>
+            )}
+
+            {monthlyMastery && (
+              <Card className="border-card-border mb-8" data-testid="card-monthly-mastery">
+                <CardContent className="p-4 flex items-center gap-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                    <Award className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    {monthlyMastery.masteredThisMonth === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        Complete a topic's quiz to start tracking your progress this month.
+                      </p>
+                    ) : (
+                      <p className="text-sm">
+                        You've mastered{" "}
+                        <span className="font-semibold">
+                          {monthlyMastery.masteredThisMonth} topic{monthlyMastery.masteredThisMonth === 1 ? "" : "s"}
+                        </span>{" "}
+                        this month
+                        {monthlyMastery.percentile !== null && (
+                          <> — ahead of <span className="font-semibold">{monthlyMastery.percentile}%</span> of learners</>
+                        )}
+                        .
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             )}
 
             <Tabs defaultValue="in-progress" className="space-y-6">

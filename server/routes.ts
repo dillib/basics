@@ -27,6 +27,7 @@ import { buildTopicSlug } from "@shared/levels";
 import { config } from "./config";
 import { aiLimiter, quickSearchLimiter, formLimiter, tutorLimiter } from "./security";
 import { publicBaseUrl, buildSitemap } from "./seo";
+import { computeMonthlyMasteryStats, currentMonthRange } from "./mastery";
 import { renderTopicOgImage } from "./og-image";
 import Stripe from "stripe";
 
@@ -538,6 +539,16 @@ export async function registerRoutes(
     const userId = req.user.claims.sub;
     const progressList = await storage.getProgressByUser(userId);
     res.json(progressList);
+  });
+
+  // Private "ahead of X% of learners this month" stat -- never a public
+  // leaderboard. See server/mastery.ts for why the percentile hides itself
+  // until there's a real cohort to compare against.
+  app.get('/api/user/monthly-mastery', isAuthenticated, async (req: AuthenticatedRequest, res) => {
+    const userId = req.user.claims.sub;
+    const { start, end } = currentMonthRange();
+    const counts = await storage.getMonthlyMasteryCounts(start, end);
+    res.json(computeMonthlyMasteryStats(counts, userId));
   });
 
   app.get('/api/user/topics', isAuthenticated, async (req: AuthenticatedRequest, res) => {
