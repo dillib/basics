@@ -20,7 +20,8 @@ import {
   type SupportMessage, type InsertSupportMessage
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, ne, and, desc, inArray, sql, lte, gte, lt, asc } from "drizzle-orm";
+import { eq, ne, and, desc, inArray, sql, lte, gte, lt, asc, ilike } from "drizzle-orm";
+import { escapeLikePattern } from "./search-utils";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -32,6 +33,7 @@ export interface IStorage {
   getTopicsByUser(userId: string): Promise<Topic[]>;
   getTopicsByIds(ids: string[]): Promise<Topic[]>;
   getPublicTopics(): Promise<Topic[]>;
+  searchPublicTopics(query: string, limit?: number): Promise<Topic[]>;
   getSampleTopics(): Promise<Topic[]>;
   getRelatedTopics(topicId: string, category: string | null, limit?: number): Promise<Topic[]>;
   getTrendingTopics(): Promise<Topic[]>;
@@ -184,6 +186,22 @@ export class DatabaseStorage implements IStorage {
 
   async getPublicTopics(): Promise<Topic[]> {
     return db.select().from(topics).where(eq(topics.isPublic, true)).orderBy(desc(topics.createdAt));
+  }
+
+  // Instant library search for the hero search-as-you-type suggestions.
+  // Pure DB, no AI -- this is the free tier of the tiered search; the AI
+  // quick-search only runs when the user explicitly asks for a new lesson.
+  // Prefix matches sort above substring matches ("Entro" puts "Entropy"
+  // before "Negentropy").
+  async searchPublicTopics(query: string, limit = 6): Promise<Topic[]> {
+    const escaped = escapeLikePattern(query);
+    const prefix = `${escaped}%`;
+    return db
+      .select()
+      .from(topics)
+      .where(and(eq(topics.isPublic, true), ilike(topics.title, `%${escaped}%`)))
+      .orderBy(sql`CASE WHEN ${topics.title} ILIKE ${prefix} THEN 0 ELSE 1 END`, asc(topics.title))
+      .limit(limit);
   }
 
   async getSampleTopics(): Promise<Topic[]> {

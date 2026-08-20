@@ -1,23 +1,9 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
+import memoize from "memoizee";
+import { normalizeSearchTitle } from "./search-utils";
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || process.env.AI_INTEGRATIONS_GEMINI_API_KEY || "");
-
-// Lightweight model for quick responses
-const quickModel = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash",
-  generationConfig: {
-    temperature: 0.7,
-    maxOutputTokens: 1024,
-  },
-});
-
-// Full model for detailed content
-const fullModel = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash",
-  generationConfig: {
-    temperature: 0.7,
-    maxOutputTokens: 8192,
-  },
+const ai = new GoogleGenAI({
+  apiKey: process.env.GOOGLE_API_KEY || process.env.AI_INTEGRATIONS_GEMINI_API_KEY || "",
 });
 
 interface QuickTopicResult {
@@ -30,10 +16,16 @@ interface QuickTopicResult {
 }
 
 /**
- * Quick generation - Returns in ~2-3 seconds
- * Used for instant search results like Gemini
+ * Quick generation for instant search previews.
+ *
+ * Uses the current @google/genai SDK (the old @google/generative-ai one is
+ * deprecated) so we can turn thinking OFF: gemini-2.5-flash thinks by
+ * default, which added multiple seconds of latency for a structured-JSON
+ * task that doesn't benefit from it. Measured before this change: ~4.6-5.3s
+ * per quick-search. responseMimeType makes the model return clean JSON
+ * instead of prose we regex-extract from.
  */
-export async function generateQuickTopic(topicTitle: string): Promise<QuickTopicResult> {
+async function generateQuickTopicUncached(topicTitle: string): Promise<QuickTopicResult> {
   const prompt = `You are BasicsTutor, an educational AI that explains topics using first principles.
 
 The user wants to learn about: "${topicTitle}"
@@ -75,16 +67,32 @@ Example for "Marketing":
   ]
 }`;
 
-  const result = await quickModel.generateContent(prompt);
-  const text = result.response.text();
-  
-  // Extract JSON from response
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error("Failed to parse quick topic response");
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: prompt,
+    config: {
+      temperature: 0.7,
+      maxOutputTokens: 1024,
+      responseMimeType: "application/json",
+      // No thinking for a structured preview -- this is the latency fix.
+      thinkingConfig: { thinkingBudget: 0 },
+    },
+  });
+
+  const text = response.text ?? "";
+
+  let parsed: QuickTopicResult;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    // JSON mode should make this unreachable, but keep the old extraction as
+    // a safety net rather than failing the search outright.
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("Failed to parse quick topic response");
+    }
+    parsed = JSON.parse(jsonMatch[0]);
   }
-  
-  const parsed = JSON.parse(jsonMatch[0]);
 
   // Validate the response is about the right topic. Check against both the
   // raw input and whatever (possibly typo-corrected) title the model
@@ -110,81 +118,22 @@ Example for "Marketing":
       `Key principles that define ${topicTitle}`,
       `Practical applications of ${topicTitle}`,
       `Common misconceptions about ${topicTitle}`,
-      `How ${topicTitle} relates to real-world scenarios`
+      `How ${topicTitle} relates to real-world scenarios`,
     ];
   }
-  
+
   return parsed;
 }
 
 /**
- * Stream detailed content progressively
- * Sends updates as they're generated
+ * TTL-cached wrapper. Popular searches repeat; before this, every identical
+ * query paid full AI latency + cost again (measured: 5.3s on an immediate
+ * repeat). promise mode dedupes concurrent identical calls and drops
+ * rejections from the cache, so a transient AI failure isn't cached.
  */
-export async function* streamDetailedContent(topicTitle: string) {
-  // First yield the quick result immediately
-  const quickResult = await generateQuickTopic(topicTitle);
-  yield { type: 'quick', data: quickResult };
-  
-  // Then generate detailed principles
-  const principlesPrompt = `Topic: "${topicTitle}"
-
-Break this down into 4-6 first principles. For each principle provide:
-- Title
-- Brief explanation (2-3 sentences)
-- Real-world analogy
-- 2-3 key takeaways
-
-Return as JSON:
-{
-  "principles": [
-    {
-      "title": "...",
-      "explanation": "...",
-      "analogy": "...",
-      "keyTakeaways": ["..."]
-    }
-  ]
-}`;
-
-  const principlesResult = await fullModel.generateContent(principlesPrompt);
-  const principlesText = principlesResult.response.text();
-  const principlesJson = principlesText.match(/\{[\s\S]*\}/);
-  
-  if (principlesJson) {
-    yield { type: 'principles', data: JSON.parse(principlesJson[0]) };
-  }
-  
-  // Finally generate mind map
-  const mindMapPrompt = `Topic: "${topicTitle}"
-
-Create a mind map structure with:
-- Central topic node
-- 4-6 principle nodes connected to topic
-- 1-2 concept nodes connected to each principle
-
-Return as JSON:
-{
-  "mindMap": {
-    "nodes": [{"id": "...", "label": "...", "type": "topic|principle|concept"}],
-    "edges": [{"source": "...", "target": "..."}]
-  }
-}`;
-
-  const mindMapResult = await fullModel.generateContent(mindMapPrompt);
-  const mindMapText = mindMapResult.response.text();
-  const mindMapJson = mindMapText.match(/\{[\s\S]*\}/);
-  
-  if (mindMapJson) {
-    yield { type: 'mindmap', data: JSON.parse(mindMapJson[0]) };
-  }
-}
-
-/**
- * Legacy full generation (for background jobs)
- */
-export async function generateFullTopic(topicTitle: string) {
-  const prompt = `You are BasicsTutor... [full prompt]`;
-  const result = await fullModel.generateContent(prompt);
-  return result.response.text();
-}
+export const generateQuickTopic = memoize(generateQuickTopicUncached, {
+  promise: true,
+  maxAge: 60 * 60 * 1000, // 1 hour
+  max: 500,
+  normalizer: ([title]) => normalizeSearchTitle(title),
+});

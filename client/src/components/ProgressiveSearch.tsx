@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,11 +12,12 @@ import {
   X,
   BookOpen,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Sparkles
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
-import { LEVELS, LEVEL_LABELS, type Level } from "@shared/levels";
+import { LEVELS, LEVEL_LABELS, isLevel, type Level } from "@shared/levels";
 
 interface QuickResult {
   title: string;
@@ -27,14 +28,29 @@ interface QuickResult {
   keyPoints: string[];
   existing?: boolean;
   slug?: string;
+  /** Which audience levels already exist as pages (server-reported). */
+  existingLevels?: string[];
 }
 
-type SearchState = 'idle' | 'loading' | 'ready' | 'generating' | 'error';
+/** A row from the instant library search (GET /api/topics/search). */
+interface LibraryMatch {
+  slug: string;
+  title: string;
+  description: string | null;
+  category: string | null;
+  level: string | null;
+  estimatedMinutes: number | null;
+}
+
+// 'suggest' = typing, showing instant library matches (free, no AI).
+// The AI states (loading/ready/generating) only start on an explicit action.
+type SearchState = 'idle' | 'suggest' | 'loading' | 'ready' | 'generating' | 'error';
 
 export default function ProgressiveSearch() {
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [result, setResult] = useState<QuickResult | null>(null);
+  const [libraryResults, setLibraryResults] = useState<LibraryMatch[]>([]);
   const [status, setStatus] = useState<SearchState>('idle');
   // 0-100 for the "lesson forming" bar. The server reports real milestones
   // (10 start, 55 content generated, 75 validated, 95 saved); between those it
@@ -76,18 +92,34 @@ export default function ProgressiveSearch() {
     return () => clearInterval(id);
   }, [status]);
 
-  // Debounced search
+  // Debounced instant library search on keystrokes. Free DB lookup, so it can
+  // run on every pause -- the paid AI quick-search (performSearch) only fires
+  // on an explicit action (Enter or the "Create a lesson" row). Previously
+  // every 400ms typing pause triggered a full AI generation.
   useEffect(() => {
     if (!query.trim() || query.trim().length < 2) {
       setIsOpen(false);
       setResult(null);
+      setLibraryResults([]);
       setStatus('idle');
       return;
     }
 
-    const timer = setTimeout(() => {
-      performSearch(query.trim());
-    }, 400);
+    const timer = setTimeout(async () => {
+      const seq = ++searchSeqRef.current;
+      try {
+        const res = await fetch(`/api/topics/search?q=${encodeURIComponent(query.trim())}`, {
+          credentials: 'include',
+        });
+        if (seq !== searchSeqRef.current) return;
+        setLibraryResults(res.ok ? await res.json() : []);
+      } catch {
+        if (seq !== searchSeqRef.current) return;
+        setLibraryResults([]);
+      }
+      setStatus('suggest');
+      setIsOpen(true);
+    }, 250);
 
     return () => clearTimeout(timer);
   }, [query]);
@@ -141,10 +173,12 @@ export default function ProgressiveSearch() {
   };
 
   // Poll a background generation job until it finishes, resolving with the
-  // topic slug or throwing on failure/timeout.
-  const pollJob = async (jobId: string): Promise<string> => {
+  // topic slug or throwing on failure/timeout. Bails early if `seq` is
+  // superseded (the user started typing a new search mid-generation).
+  const pollJob = async (jobId: string, seq: number): Promise<string> => {
     for (let i = 0; i < 90; i++) { // ~3 minutes at 2s intervals
       await new Promise((r) => setTimeout(r, 2000));
+      if (seq !== searchSeqRef.current) throw new Error('superseded');
       const res = await apiRequest('GET', `/api/topics/generate/status/${jobId}`);
       if (!res.ok) continue;
       const s = await res.json();
@@ -157,15 +191,19 @@ export default function ProgressiveSearch() {
 
   const handleStartLearning = async () => {
     if (!result) return;
+    const seq = searchSeqRef.current;
 
     const fallbackSlug = result.slug || result.title.toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
 
-    // The existing-topic preview is the Adults version. If the learner picked
-    // Adults, go straight there; any other level generates its own version.
-    if (result.existing && level === 'adult') {
-      setLocation(`/topic/${fallbackSlug}`);
+    // Navigate straight to any level whose page already exists. The server
+    // reports existingLevels; fall back to the old adult-only behavior for
+    // responses that predate it.
+    const existingLevels = result.existingLevels ?? (result.existing ? ['adult'] : []);
+    if (existingLevels.includes(level)) {
+      const target = level === 'adult' ? fallbackSlug : `${fallbackSlug}-${level}`;
+      setLocation(`/topic/${target}`);
       return;
     }
 
@@ -179,32 +217,39 @@ export default function ProgressiveSearch() {
         level,
       });
       const data = await response.json();
+      if (seq !== searchSeqRef.current) return; // user moved on
 
       if (data.existing && data.topic?.slug) {
         setLocation(`/topic/${data.topic.slug}`);
         return;
       }
       if (data.jobId) {
-        const slug = await pollJob(data.jobId);
+        const slug = await pollJob(data.jobId, seq);
         setLocation(`/topic/${slug}`);
         return;
       }
       throw new Error(data.message || 'Failed to start generation');
     } catch (err) {
+      if (seq !== searchSeqRef.current) return; // superseded, not an error
       console.error('Generation error:', err);
       setStatus('error');
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && result && status === 'ready') {
+    if (e.key !== 'Enter') return;
+    if (status === 'ready' && result) {
       handleStartLearning();
+    } else if (query.trim().length >= 2 && status !== 'loading' && status !== 'generating') {
+      // Enter acts immediately -- no waiting out the debounce.
+      performSearch(query.trim());
     }
   };
 
   const clearSearch = () => {
     setQuery("");
     setResult(null);
+    setLibraryResults([]);
     setIsOpen(false);
     setStatus('idle');
     inputRef.current?.focus();
@@ -222,6 +267,10 @@ export default function ProgressiveSearch() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
+          role="combobox"
+          aria-expanded={isOpen}
+          aria-controls="search-suggestions"
+          aria-autocomplete="list"
           // Overrides Input's default bg-background — without this the input
           // surface is literally the same color as the page, so only a
           // near-invisible border separated it. bg-card + a real border give
@@ -263,12 +312,78 @@ export default function ProgressiveSearch() {
           >
           <Card className="shadow-glow-lg border overflow-hidden rounded-2xl">
             <CardContent className="p-0">
-              
+
+              {/* Suggest State — instant library matches + an explicit
+                  "create new" action. No AI has run yet at this point. */}
+              {status === 'suggest' && (
+                <div id="search-suggestions">
+                  {libraryResults.length > 0 && (
+                    <ul className="py-1">
+                      {libraryResults.map((t) => (
+                        <li key={t.slug}>
+                          <Link
+                            href={`/topic/${t.slug}`}
+                            className="flex items-start gap-3 px-4 py-2.5 hover:bg-muted/60 transition-colors group"
+                            data-testid={`link-search-${t.slug}`}
+                          >
+                            <div className="p-1.5 rounded-md bg-primary/10 shrink-0 mt-0.5">
+                              <BookOpen className="h-3.5 w-3.5 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium break-words">{t.title}</p>
+                              <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                                {t.category && (
+                                  <Badge variant="secondary" className="text-xs">{t.category}</Badge>
+                                )}
+                                {isLevel(t.level) && t.level !== 'adult' && (
+                                  <Badge variant="outline" className="text-xs border-primary/40 text-primary">
+                                    For {LEVEL_LABELS[t.level]}
+                                  </Badge>
+                                )}
+                                {t.estimatedMinutes ? (
+                                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    {t.estimatedMinutes} min
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+                            <ArrowRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-1" />
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className={libraryResults.length > 0 ? "border-t" : ""}>
+                    <button
+                      type="button"
+                      onClick={() => performSearch(query.trim())}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/60 transition-colors text-left"
+                      data-testid="button-search-generate"
+                    >
+                      <div className="p-1.5 rounded-md bg-primary/10 shrink-0">
+                        <Sparkles className="h-3.5 w-3.5 text-primary" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium break-words">
+                          Create a lesson on &ldquo;{query.trim()}&rdquo;
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {libraryResults.length > 0
+                            ? 'Want something different? AI builds a preview in seconds'
+                            : 'Not in the library yet — AI builds a preview in seconds'}
+                        </p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Loading State */}
               {status === 'loading' && (
                 <div className="p-6 text-center">
                   <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">Creating your lesson...</p>
+                  <p className="text-sm text-muted-foreground">Building a quick preview…</p>
                 </div>
               )}
 
@@ -348,7 +463,12 @@ export default function ProgressiveSearch() {
               )}
 
               {/* Result State */}
-              {status === 'ready' && result && (
+              {status === 'ready' && result && (() => {
+                // Which levels already exist as pages (server-reported, with a
+                // fallback for old responses that only had `existing`).
+                const readyLevels = result.existingLevels ?? (result.existing ? ['adult'] : []);
+                const levelReady = readyLevels.includes(level);
+                return (
                 <div>
                   {/* Header */}
                   <div className="p-4 border-b bg-slate-50 dark:bg-slate-900">
@@ -404,17 +524,18 @@ export default function ProgressiveSearch() {
                       onClick={handleStartLearning}
                       className="w-full gap-2"
                     >
-                      {result.existing && level === 'adult' ? 'Start Learning' : 'Generate Full Lesson'}
+                      {levelReady ? 'Start Learning' : 'Generate Full Lesson'}
                       <ArrowRight className="h-4 w-4" />
                     </Button>
                     <p className="text-xs text-muted-foreground text-center mt-2">
-                      {result.existing && level === 'adult'
+                      {levelReady
                         ? 'Ready to learn'
                         : `Generate the complete ${LEVEL_LABELS[level]} lesson with principles and a quiz`}
                     </p>
                   </div>
                 </div>
-              )}
+                );
+              })()}
             </CardContent>
           </Card>
           </motion.div>

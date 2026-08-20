@@ -379,6 +379,31 @@ export async function registerRoutes(
     }
   });
 
+  // -- LIBRARY SEARCH (instant, no AI) --
+
+  // Search-as-you-type over the existing public library. Cheap DB query so
+  // it can fire on every keystroke; the paid AI quick-search below only runs
+  // on an explicit user action. See ProgressiveSearch.tsx.
+  app.get('/api/topics/search', async (req: Request, res) => {
+    try {
+      const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+      if (q.length < 2) return res.json([]);
+      const matches = await storage.searchPublicTopics(q, 6);
+      res.json(matches.map((t) => ({
+        slug: t.slug,
+        title: t.title,
+        description: t.description,
+        category: t.category,
+        level: t.level,
+        estimatedMinutes: t.estimatedMinutes,
+      })));
+    } catch (error) {
+      console.error("[Library Search] Error:", error);
+      // Suggestions are an enhancement -- an empty list degrades gracefully.
+      res.json([]);
+    }
+  });
+
   // -- QUICK SEARCH (Fast AI) --
 
   app.post('/api/topics/quick-search', quickSearchLimiter, async (req: Request, res) => {
@@ -393,8 +418,17 @@ export async function registerRoutes(
       const existingTopic = await storage.getTopicBySlug(slug);
       
       if (existingTopic) {
-        // Return existing topic in quick format
-        const principles = await storage.getPrinciplesByTopic(existingTopic.id);
+        // Return existing topic in quick format. Also report which audience
+        // levels already exist so the client's level selector can say "Start
+        // Learning" (navigate) instead of "Generate" for versions we have.
+        const [principles, kidTopic, teenTopic] = await Promise.all([
+          storage.getPrinciplesByTopic(existingTopic.id),
+          storage.getTopicBySlug(`${slug}-kid`),
+          storage.getTopicBySlug(`${slug}-teen`),
+        ]);
+        const existingLevels = ['adult'];
+        if (kidTopic) existingLevels.push('kid');
+        if (teenTopic) existingLevels.push('teen');
         return res.json({
           title: existingTopic.title,
           description: existingTopic.description,
@@ -404,6 +438,7 @@ export async function registerRoutes(
           keyPoints: principles.slice(0, 5).map(p => p.title),
           existing: true,
           slug: existingTopic.slug,
+          existingLevels,
         });
       }
 
