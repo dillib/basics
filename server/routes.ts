@@ -300,6 +300,32 @@ export async function registerRoutes(
     res.json(trending);
   });
 
+  // Search-as-you-type over the existing public library. Cheap DB query so
+  // it can fire on every keystroke; the paid AI quick-search only runs on an
+  // explicit user action. See ProgressiveSearch.tsx.
+  // MUST be registered before /api/topics/:slug, which would otherwise
+  // swallow "search" as a slug and 404 (that's exactly why /trending is up
+  // here too).
+  app.get('/api/topics/search', async (req: Request, res) => {
+    try {
+      const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+      if (q.length < 2) return res.json([]);
+      const matches = await storage.searchPublicTopics(q, 6);
+      res.json(matches.map((t) => ({
+        slug: t.slug,
+        title: t.title,
+        description: t.description,
+        category: t.category,
+        level: t.level,
+        estimatedMinutes: t.estimatedMinutes,
+      })));
+    } catch (error) {
+      console.error("[Library Search] Error:", error);
+      // Suggestions are an enhancement -- an empty list degrades gracefully.
+      res.json([]);
+    }
+  });
+
   app.get('/api/topics/:slug', async (req, res) => {
     const topic = await storage.getTopicBySlug(req.params.slug);
     if (!topic) return res.status(404).json({ message: "Topic not found" });
@@ -376,31 +402,6 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("[Generation Status] Error:", error);
       res.status(500).json({ message: "Failed to fetch job status" });
-    }
-  });
-
-  // -- LIBRARY SEARCH (instant, no AI) --
-
-  // Search-as-you-type over the existing public library. Cheap DB query so
-  // it can fire on every keystroke; the paid AI quick-search below only runs
-  // on an explicit user action. See ProgressiveSearch.tsx.
-  app.get('/api/topics/search', async (req: Request, res) => {
-    try {
-      const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
-      if (q.length < 2) return res.json([]);
-      const matches = await storage.searchPublicTopics(q, 6);
-      res.json(matches.map((t) => ({
-        slug: t.slug,
-        title: t.title,
-        description: t.description,
-        category: t.category,
-        level: t.level,
-        estimatedMinutes: t.estimatedMinutes,
-      })));
-    } catch (error) {
-      console.error("[Library Search] Error:", error);
-      // Suggestions are an enhancement -- an empty list degrades gracefully.
-      res.json([]);
     }
   });
 
