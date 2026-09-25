@@ -58,6 +58,12 @@ services:
       - key: GOOGLE_API_KEY
         sync: false
 
+      # Optional: when set, concept-animation scenes are written by Claude
+      # Opus 5.5 instead of Gemini (server/visuals.ts). ~1 cent per scene,
+      # generated once per principle and cached in the DB.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
       # Abuse / cost protection (optional - defaults are sensible)
       - key: AI_RATE_LIMIT_PER_HOUR
         value: "20"
