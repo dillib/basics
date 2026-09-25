@@ -15,6 +15,7 @@ import GenerationProgress from "@/components/GenerationProgress";
 import { canonicalCategory, CANONICAL_ORDER } from "@/lib/categories";
 import { cn } from "@/lib/utils";
 import TopicCover, { CategoryBadge } from "@/components/TopicCover";
+import { categoryTheme } from "@/lib/categoryTheme";
 import { LEVELS, LEVEL_LABELS, type Level } from "@shared/levels";
 
 type SourceFilter = "all" | "samples" | "mine";
@@ -268,14 +269,26 @@ export default function TopicsPage() {
 
         <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="mb-8">
           <p className="text-sm font-medium text-muted-foreground mb-3">Filter by field</p>
-          <TabsList className="flex flex-wrap h-auto gap-2 bg-transparent p-0">
+          {/* Phones: one swipeable row (13 wrapped pills used to push the
+              first topic ~8 rows down). sm+: wraps as before. The fade on
+              the right edge hints there's more to swipe. */}
+          <div className="relative">
+          <TabsList className="-mx-4 flex h-auto snap-x justify-start gap-2 overflow-x-auto bg-transparent p-0 px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
             {categories.map((category) => (
               <TabsTrigger
                 key={category.name}
                 value={category.name}
-                className="group rounded-full border border-foreground/10 bg-muted/40 px-4 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-glow-sm"
+                onClick={(e) => e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" })}
+                className="group shrink-0 snap-start rounded-full border border-foreground/10 bg-muted/40 px-4 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-glow-sm"
                 data-testid={`tab-category-${category.name.toLowerCase().replace(/\s+/g, "-")}`}
               >
+                {category.name !== "All" && (
+                  <span
+                    aria-hidden
+                    className="mr-2 h-2 w-2 rounded-full group-data-[state=active]:ring-2 group-data-[state=active]:ring-primary-foreground/60"
+                    style={{ background: `hsl(${categoryTheme(category.name).hue} 70% 52%)` }}
+                  />
+                )}
                 {category.name}
                 <span className="ml-2 text-xs opacity-60 group-data-[state=active]:opacity-80">
                   {category.count}
@@ -283,6 +296,8 @@ export default function TopicsPage() {
               </TabsTrigger>
             ))}
           </TabsList>
+          <div aria-hidden className="pointer-events-none absolute inset-y-0 -right-4 w-10 bg-gradient-to-l from-background to-transparent sm:hidden" />
+          </div>
         </Tabs>
 
         {isLoading ? (
