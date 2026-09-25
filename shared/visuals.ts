@@ -97,6 +97,10 @@ export interface StoredVisual {
   authorType?: string;
   /** Scene-generator version; bumping it regenerates older scenes once. */
   gen?: number;
+  /** Which model wrote the scene, so a model upgrade can regenerate once. */
+  model?: string;
+  /** Claude was tried and failed/refused; don't retry it on every view. */
+  claudeFailed?: boolean;
 }
 
 /** Returns the scene if visual_data already holds a valid v2 scene. */

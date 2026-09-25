@@ -1,11 +1,23 @@
+import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenAI } from "@google/genai";
 import type { Principle } from "@shared/schema";
 import { parseVisualSpec, readStoredVisual, readVisualBrief, type StoredVisual, type VisualSpec } from "@shared/visuals";
 import { storage } from "./storage";
 
-const ai = new GoogleGenAI({
+const gemini = new GoogleGenAI({
   apiKey: process.env.GOOGLE_API_KEY || process.env.AI_INTEGRATIONS_GEMINI_API_KEY || "",
 });
+
+// Claude Opus 5.5 writes scenes when ANTHROPIC_API_KEY is set; otherwise (or
+// on a refusal / invalid scene) Gemini Flash does. Each scene is generated
+// once and saved, so this is roughly a one-time cost per principle.
+const claude = process.env.ANTHROPIC_API_KEY ? new Anthropic() : null;
+const CLAUDE_MODEL = "claude-opus-5-5";
+// Scene picking is a small structured task; low effort keeps thinking (and
+// output spend) minimal. Opus 5.5 can't disable thinking -- effort is the dial.
+const CLAUDE_EFFORT = (process.env.SCENE_EFFORT as "low" | "medium" | "high" | undefined) ?? "low";
+// $ per token, for the cost log line (Opus 5.5: $4 in / $20 out / $0.20 cache read per MTok).
+const PRICE = { input: 4e-6, output: 20e-6, cacheRead: 0.2e-6, cacheWrite: 5e-6 };
 
 // Bump to regenerate every saved scene once (e.g. after a prompt fix).
 // 2: stop inventing colors, prefer author's type, vary kinds within a topic.
@@ -26,20 +38,13 @@ interface SceneContext {
   siblingKinds: string[];
 }
 
-function buildScenePrompt(principle: Principle, ctx: SceneContext): string {
-  const { topicTitle, brief, authorType, siblingKinds } = ctx;
-  const explanation = (principle.explanation || "").slice(0, 1400);
-  const hint = authorType ? AUTHOR_TYPE_HINT[authorType] : undefined;
-  return `You design short concept animations for BasicsTutor, a site that teaches from first principles.
-Pick the ONE scene kind below that best SHOWS the mechanism of this principle, then fill it in.
-
-Topic: ${topicTitle}
-Principle: ${principle.title}
-Explanation: ${explanation}
-${principle.analogy ? `Analogy: ${principle.analogy}` : ""}
-${brief ? `Visual brief from the lesson author: ${brief}` : ""}
-${hint ? `The lesson author intended a "${hint}" scene. Use it unless it clearly can't show this principle.` : ""}
-${siblingKinds.length ? `Other principles in this lesson already use: ${siblingKinds.join(", ")}. Prefer a different kind so the lesson isn't repetitive -- repeat one only if nothing else genuinely fits.` : ""}
+/**
+ * Identical for every request -- kept free of per-principle data so Claude
+ * can serve it from the prompt cache (Opus 5.5 caches prefixes >= 512
+ * tokens; this is comfortably above that).
+ */
+const SCENE_INSTRUCTIONS = `You design short concept animations for BasicsTutor, a site that teaches from first principles.
+Given one principle from a lesson, pick the ONE scene kind below that best SHOWS its mechanism, then fill it in.
 
 Scene kinds (return exactly one JSON object matching one of these):
 - {"kind":"particles","caption":"...","mode":"spread"|"mix"|"cluster","startLabel":"...","endLabel":"..."}
@@ -51,21 +56,106 @@ Scene kinds (return exactly one JSON object matching one of these):
 - {"kind":"scale","caption":"...","unit":"...","items":[{"label":"...","value":123}]}  2-6 items with positive numbers. ONLY if the explanation itself supports the magnitudes -- never invent statistics.
 - {"kind":"layers","caption":"...","layers":[{"label":"...","detail":"..."}]}  2-5 layers ordered FOUNDATION FIRST: layers[0] is the most fundamental truth, each next layer is built on the one below.
 
+How to choose:
+- Ask what the learner should SEE change. Many units dispersing or gathering -> particles. One thing causing the next -> flow. An effect that loops back to amplify or stabilize its cause -> cycle. A common belief against the real mechanism, or two regimes side by side -> compare. Ideas that only make sense built on a more basic idea -> layers. Numbers whose sizes matter -> scale (only with real numbers from the text). Change over dated time -> timeline.
+- If the lesson author's intended kind is given, use it unless it clearly can't show this principle.
+- If other principles in the lesson already use some kinds, prefer a different one so the lesson isn't repetitive -- repeat only if nothing else genuinely fits.
+
 Rules:
-1. Accuracy beats flourish. Every label must be true to the explanation above.
+1. Accuracy beats flourish. Every label must be true to the principle's explanation.
 2. Labels are short noun phrases (max 40 characters). "detail" max 80 characters.
 3. caption is one plain sentence (max 140 characters) telling the learner what to watch for.
 4. Never mention colors, shapes, or styling in any text -- the app decides how scenes look, so a caption like "the red dots" will be wrong.
-5. Return only the JSON object.`;
+5. Return only the JSON object.
+
+Example. Principle: "Compound interest grows on past growth" (explanation: interest earned is added to the balance, so the next period's interest is computed on a larger base, which makes growth accelerate).
+Good scene: {"kind":"cycle","caption":"Follow the loop: every pass adds interest, and a bigger balance earns bigger interest next time.","steps":[{"label":"Balance earns interest"},{"label":"Interest joins the balance"},{"label":"Bigger balance"}]}
+Why it's good: the mechanism IS a loop that feeds itself; a flow would hide that the last step drives the first.`;
+
+function buildPrincipleMessage(principle: Principle, ctx: SceneContext): string {
+  const { topicTitle, brief, authorType, siblingKinds } = ctx;
+  const hint = authorType ? AUTHOR_TYPE_HINT[authorType] : undefined;
+  return [
+    `Topic: ${topicTitle}`,
+    `Principle: ${principle.title}`,
+    `Explanation: ${(principle.explanation || "").slice(0, 1400)}`,
+    principle.analogy ? `Analogy: ${principle.analogy}` : "",
+    brief ? `Visual brief from the lesson author: ${brief}` : "",
+    hint ? `The lesson author intended a "${hint}" scene.` : "",
+    siblingKinds.length ? `Other principles in this lesson already use: ${siblingKinds.join(", ")}.` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
-async function generateScene(principle: Principle, ctx: SceneContext): Promise<VisualSpec | null> {
-  const prompt = buildScenePrompt(principle, ctx);
+// JSON schema for Claude's structured output. Length/count limits aren't
+// expressible here (unsupported by structured outputs), so parseVisualSpec's
+// zod schema still validates the result.
+const str = { type: "string" };
+const obj = (properties: Record<string, unknown>, required: string[]) => ({
+  type: "object",
+  properties,
+  required,
+  additionalProperties: false,
+});
+const kind = (k: string) => ({ type: "string", enum: [k] });
+const SCENE_JSON_SCHEMA = {
+  anyOf: [
+    obj({ kind: kind("particles"), caption: str, mode: { type: "string", enum: ["spread", "mix", "cluster"] }, startLabel: str, endLabel: str },
+      ["kind", "caption", "mode", "startLabel", "endLabel"]),
+    obj({ kind: kind("flow"), caption: str, steps: { type: "array", items: obj({ label: str, detail: str }, ["label"]) } },
+      ["kind", "caption", "steps"]),
+    obj({ kind: kind("cycle"), caption: str, steps: { type: "array", items: obj({ label: str }, ["label"]) } },
+      ["kind", "caption", "steps"]),
+    obj({
+      kind: kind("compare"), caption: str,
+      left: obj({ title: str, points: { type: "array", items: str } }, ["title", "points"]),
+      right: obj({ title: str, points: { type: "array", items: str } }, ["title", "points"]),
+    }, ["kind", "caption", "left", "right"]),
+    obj({ kind: kind("timeline"), caption: str, events: { type: "array", items: obj({ when: str, label: str }, ["when", "label"]) } },
+      ["kind", "caption", "events"]),
+    obj({ kind: kind("scale"), caption: str, unit: str, items: { type: "array", items: obj({ label: str, value: { type: "number" } }, ["label", "value"]) } },
+      ["kind", "caption", "items"]),
+    obj({ kind: kind("layers"), caption: str, layers: { type: "array", items: obj({ label: str, detail: str }, ["label"]) } },
+      ["kind", "caption", "layers"]),
+  ],
+};
 
+async function generateWithClaude(client: Anthropic, message: string, principleId: string): Promise<VisualSpec | null> {
+  const response = await client.messages.create({
+    model: CLAUDE_MODEL,
+    max_tokens: 4000, // a ceiling, not a spend -- only generated tokens bill
+    system: [{ type: "text", text: SCENE_INSTRUCTIONS, cache_control: { type: "ephemeral" } }],
+    messages: [{ role: "user", content: message }],
+    output_config: { effort: CLAUDE_EFFORT, format: { type: "json_schema", schema: SCENE_JSON_SCHEMA } },
+  });
+
+  const u = response.usage;
+  const cost =
+    (u.input_tokens ?? 0) * PRICE.input +
+    (u.cache_read_input_tokens ?? 0) * PRICE.cacheRead +
+    (u.cache_creation_input_tokens ?? 0) * PRICE.cacheWrite +
+    (u.output_tokens ?? 0) * PRICE.output;
+  console.log(
+    `[Visuals] ${CLAUDE_MODEL} principle=${principleId} in=${u.input_tokens} cacheRead=${u.cache_read_input_tokens ?? 0} ` +
+      `cacheWrite=${u.cache_creation_input_tokens ?? 0} out=${u.output_tokens} stop=${response.stop_reason} ~$${cost.toFixed(4)}`,
+  );
+
+  if (response.stop_reason !== "end_turn") return null; // refusal / max_tokens -> Gemini fallback
+  const text = response.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text ?? "";
+  try {
+    return parseVisualSpec(JSON.parse(text));
+  } catch {
+    return null;
+  }
+}
+
+async function generateWithGemini(principle: Principle, ctx: SceneContext): Promise<VisualSpec | null> {
+  const prompt = `${SCENE_INSTRUCTIONS}\n\n${buildPrincipleMessage(principle, ctx)}`;
   // Two attempts: JSON mode makes malformed output rare, but a scene can
   // still fail validation (e.g. a label over the length limit).
   for (let attempt = 0; attempt < 2; attempt++) {
-    const response = await ai.models.generateContent({
+    const response = await gemini.models.generateContent({
       model: "gemini-2.5-flash",
       contents: prompt,
       config: {
@@ -84,6 +174,40 @@ async function generateScene(principle: Principle, ctx: SceneContext): Promise<V
   }
   return null;
 }
+
+const GEMINI_MODEL = "gemini-2.5-flash";
+
+async function generateScene(
+  principle: Principle,
+  ctx: SceneContext,
+): Promise<{ spec: VisualSpec; model: string; claudeFailed: boolean } | null> {
+  if (claude) {
+    try {
+      // One Claude attempt only: structured output guarantees the JSON shape,
+      // so a miss is a length-limit or refusal -- cheaper to hand to Gemini
+      // than to pay Opus twice.
+      const spec = await generateWithClaude(claude, buildPrincipleMessage(principle, ctx), principle.id);
+      if (spec) return { spec, model: CLAUDE_MODEL, claudeFailed: false };
+    } catch (err) {
+      console.error(`[Visuals] Claude scene failed for ${principle.id}, falling back to Gemini:`, err);
+    }
+  }
+  const spec = await generateWithGemini(principle, ctx);
+  return spec ? { spec, model: GEMINI_MODEL, claudeFailed: !!claude } : null;
+}
+
+/**
+ * A saved scene is current if it's from this generator version and -- when
+ * Claude is configured -- was written by Claude. So adding ANTHROPIC_API_KEY
+ * upgrades each Gemini-era scene exactly once, on its next view.
+ */
+function isCurrent(stored: Partial<StoredVisual> | null): boolean {
+  if (stored?.gen !== SCENE_GENERATOR_VERSION) return false;
+  // claudeFailed: Claude already had its one shot at this principle and
+  // refused/failed -- retrying on every view would re-bill Opus forever.
+  return !claude || stored.model === CLAUDE_MODEL || stored.claudeFailed === true;
+}
+
 
 // Dedupe concurrent requests for the same principle (a page renders several
 // visuals at once, and two visitors can open the same fresh topic together),
@@ -105,7 +229,7 @@ export async function getOrCreateScene(principleId: string): Promise<VisualSpec 
 
   const stored = principle.visualData as Partial<StoredVisual> | null;
   const existing = readStoredVisual(principle.visualData);
-  if (existing && stored?.gen === SCENE_GENERATOR_VERSION) return existing;
+  if (existing && isCurrent(stored)) return existing;
   // An older-generation scene still beats nothing: serve it if regeneration
   // is failing or throttled, rather than dropping a working visual.
   const fallback = existing ?? null;
@@ -129,24 +253,32 @@ export async function getOrCreateScene(principleId: string): Promise<VisualSpec 
         ? principle.visualType
         : stored?.authorType;
       const siblingKinds = siblings
-        .filter((s) => s.id !== principleId && (s.visualData as Partial<StoredVisual> | null)?.gen === SCENE_GENERATOR_VERSION)
+        .filter((s) => s.id !== principleId && isCurrent(s.visualData as Partial<StoredVisual> | null))
         .map((s) => readStoredVisual(s.visualData)?.kind)
         .filter((k): k is VisualSpec["kind"] => !!k);
       const brief = readVisualBrief(principle.visualData);
 
-      const spec = await generateScene(principle, {
+      const result = await generateScene(principle, {
         topicTitle: topic?.title ?? principle.title,
         brief,
         authorType,
         siblingKinds,
       });
-      if (!spec) {
+      if (!result) {
         recentFailures.set(principleId, Date.now());
         return fallback;
       }
-      const next: StoredVisual = { v: 2, spec, brief, authorType, gen: SCENE_GENERATOR_VERSION };
+      const next: StoredVisual = {
+        v: 2,
+        spec: result.spec,
+        brief,
+        authorType,
+        gen: SCENE_GENERATOR_VERSION,
+        model: result.model,
+        claudeFailed: result.claudeFailed,
+      };
       await storage.updatePrincipleVisual(principleId, "animated", next);
-      return spec;
+      return result.spec;
     } catch (err) {
       console.error(`[Visuals] Scene generation failed for principle ${principleId}:`, err);
       recentFailures.set(principleId, Date.now());
