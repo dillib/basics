@@ -14,6 +14,7 @@ import Footer from "@/components/Footer";
 import GenerationProgress from "@/components/GenerationProgress";
 import { canonicalCategory, CANONICAL_ORDER } from "@/lib/categories";
 import { cn } from "@/lib/utils";
+import TopicCover, { CategoryBadge } from "@/components/TopicCover";
 import { LEVELS, LEVEL_LABELS, type Level } from "@shared/levels";
 
 type SourceFilter = "all" | "samples" | "mine";
@@ -307,14 +308,17 @@ export default function TopicsPage() {
                 data-testid={`card-topic-${topic.slug}`}
               >
               <Card
-                className="card-hover group cursor-pointer border-card-border h-full"
+                className="card-hover group cursor-pointer border-card-border h-full overflow-hidden"
               >
+                <TopicCover
+                  slug={topic.slug}
+                  category={topic.category}
+                  className="h-24 border-b border-card-border transition-transform duration-500 group-hover:scale-[1.03]"
+                />
                 <CardContent className="p-6">
-                  <div className="flex items-start justify-between gap-2 mb-4 flex-wrap">
-                    <div className="flex gap-2 flex-wrap">
-                      <Badge variant="secondary" className="text-xs">
-                        {canonicalCategory(topic.category)}
-                      </Badge>
+                  <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <CategoryBadge category={topic.category} />
                       {topic.isSample && (
                         <Badge variant="outline" className="text-xs">Sample</Badge>
                       )}

@@ -6,6 +6,7 @@ import { ArrowRight, Clock, Sparkles, BookOpen } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { Topic } from "@shared/schema";
 import { Link } from "wouter";
+import TopicCover, { CategoryBadge } from "./TopicCover";
 
 const difficultyColors = {
   beginner: "text-emerald-600 dark:text-emerald-400",
@@ -101,10 +102,16 @@ export default function FeaturedTopics({ onTopicClick }: FeaturedTopicsProps) {
                 className="group block"
                 data-testid={`card-sample-topic-${topic.id}`}
               >
-                <div className="card-hover relative bg-card rounded-3xl p-8 sm:p-10 border border-border/50 h-full">
+                <div className="card-hover relative bg-card rounded-3xl border border-border/50 h-full overflow-hidden">
+                  <TopicCover
+                    slug={topic.slug}
+                    category={topic.category}
+                    className="h-32 border-b border-border/50 transition-transform duration-500 group-hover:scale-[1.03]"
+                  />
+                  <div className="p-8 sm:p-10 sm:pt-8">
                   <div className="flex items-start justify-between gap-4 mb-6">
                     <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-muted-foreground">{topic.category || "General"}</span>
+                      <CategoryBadge category={topic.category} />
                       <span className="text-muted-foreground/30">·</span>
                       <span className={`text-sm font-medium capitalize ${difficultyColors[topic.difficulty as keyof typeof difficultyColors] || difficultyColors.beginner}`}>
                         {topic.difficulty || "Beginner"}
@@ -132,6 +139,7 @@ export default function FeaturedTopics({ onTopicClick }: FeaturedTopicsProps) {
                       Start learning
                       <ArrowRight className="h-4 w-4" />
                     </span>
+                  </div>
                   </div>
                 </div>
               </Link>

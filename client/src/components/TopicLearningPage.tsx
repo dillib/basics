@@ -41,6 +41,7 @@ import SimpleModeView from "./SimpleModeView";
 import ReferenceSheetGenerator from "./ReferenceSheetGenerator";
 import CertificateGenerator from "./CertificateGenerator";
 import ConceptVisual from "./visuals/ConceptVisual";
+import TopicCover from "./TopicCover";
 import QualityBadge from "./QualityBadge";
 import { ContentPaywall } from "./ContentPaywall";
 
@@ -425,8 +426,15 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
         <div className="flex flex-col lg:flex-row gap-8">
           <main className="flex-1 max-w-3xl">
             <div className="mb-8">
+              {/* Same generative cover as the topic's card, so the lesson
+                  visibly continues the card the reader clicked. */}
+              <TopicCover
+                slug={topic.slug}
+                category={topic.category}
+                className="mb-6 h-28 rounded-2xl border border-card-border sm:h-36"
+              />
               <div className="flex flex-wrap items-center gap-3 mb-4">
-                <h1 className="text-3xl sm:text-4xl font-bold" data-testid="text-topic-title">{topic.title}</h1>
+                <h1 className="text-3xl sm:text-4xl font-bold [text-wrap:balance]" data-testid="text-topic-title">{topic.title}</h1>
                 {isLevel(topic.level) && topic.level !== 'adult' && (
                   <Badge variant="outline" className="border-primary/40 text-primary" data-testid="badge-level">
                     For {LEVEL_LABELS[topic.level as Level]}

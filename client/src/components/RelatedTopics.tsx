@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock, ArrowRight } from "lucide-react";
-import { canonicalCategory } from "@/lib/categories";
+import TopicCover, { CategoryBadge } from "./TopicCover";
 
 interface RelatedTopic {
   slug: string;
@@ -53,14 +53,15 @@ export default function RelatedTopics({ slug }: { slug: string }) {
               className="group block"
               data-testid={`link-related-${t.slug}`}
             >
-              <Card className="card-hover h-full border-card-border">
+              <Card className="card-hover h-full overflow-hidden border-card-border">
+                <TopicCover
+                  slug={t.slug}
+                  category={t.category}
+                  className="h-20 border-b border-card-border transition-transform duration-500 group-hover:scale-[1.03]"
+                />
                 <CardContent className="p-5">
                   <div className="flex items-center gap-2 mb-3 flex-wrap">
-                    {t.category && (
-                      <Badge variant="secondary" className="text-xs">
-                        {canonicalCategory(t.category)}
-                      </Badge>
-                    )}
+                    <CategoryBadge category={t.category} />
                     {t.estimatedMinutes ? (
                       <span className="text-xs text-muted-foreground flex items-center gap-1">
                         <Clock className="h-3 w-3" />

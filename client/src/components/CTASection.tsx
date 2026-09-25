@@ -2,12 +2,15 @@ import { motion } from "framer-motion";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
+import HeroField from "./HeroField";
 
 export default function CTASection() {
   const [, setLocation] = useLocation();
   return (
     <section className="py-32 sm:py-40 bg-background relative overflow-hidden">
       <div className="absolute inset-0 overflow-hidden">
+        {/* Bookends the page: the same living field as the hero. */}
+        <HeroField />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] bg-gradient-to-br from-indigo-500/5 via-purple-500/5 to-pink-500/5 rounded-full blur-3xl" />
       </div>
 

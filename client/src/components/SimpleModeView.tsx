@@ -67,30 +67,20 @@ export default function SimpleModeView({
 
   return (
     <div className="space-y-6">
-      {/* Header Card */}
-      <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-        <CardContent className="pt-6">
-          <div className="flex items-start gap-4">
-            <div className="p-3 rounded-xl bg-primary/10">
-              <Sparkles className="w-6 h-6 text-primary" />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-xl font-semibold mb-2">{topicTitle}</h2>
-              <p className="text-muted-foreground text-sm leading-relaxed mb-3">
-                {topicDescription}
-              </p>
-              <button
-                onClick={() => handleAskAI()}
-                className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
-                data-testid="button-ask-ai-topic"
-              >
-                <MessageCircle className="w-3.5 h-3.5" />
-                Ask Basics Tutor about this topic
-              </button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* The page header above already shows the title and description;
+          this used to repeat both. Keep only the tutor entry point. */}
+      <button
+        onClick={() => handleAskAI()}
+        className="flex w-full items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-left text-sm transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        data-testid="button-ask-ai-topic"
+      >
+        <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+        <span className="flex-1">
+          <span className="font-medium">Stuck on something?</span>{" "}
+          <span className="text-muted-foreground">Ask Basics Tutor about {topicTitle}.</span>
+        </span>
+        <MessageCircle className="h-4 w-4 shrink-0 text-muted-foreground" />
+      </button>
 
       {/* Quick Principles List */}
       <div className="space-y-3">

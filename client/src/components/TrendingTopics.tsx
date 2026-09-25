@@ -4,6 +4,7 @@ import { Flame, Clock } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { Topic } from "@shared/schema";
 import { Link } from "wouter";
+import TopicCover, { CategoryBadge } from "./TopicCover";
 
 const difficultyColors = {
   beginner: "text-emerald-600 dark:text-emerald-400",
@@ -67,13 +68,17 @@ export default function TrendingTopics({ onTopicClick }: TrendingTopicsProps) {
               <Link
                 href={`/topic/${topic.slug}`}
                 onClick={() => onTopicClick?.(topic.slug)}
-                className="card-hover group block h-full rounded-2xl border border-border/50 bg-card p-6"
+                className="card-hover group block h-full overflow-hidden rounded-2xl border border-border/50 bg-card"
                 data-testid={`card-trending-topic-${topic.id}`}
               >
+                <TopicCover
+                  slug={topic.slug}
+                  category={topic.category}
+                  className="h-24 border-b border-border/50 transition-transform duration-500 group-hover:scale-[1.03]"
+                />
+                <div className="p-6">
                 <div className="flex items-start justify-between gap-3 mb-3">
-                  <Badge variant="secondary" className="text-xs">
-                    {topic.category || "General"}
-                  </Badge>
+                  <CategoryBadge category={topic.category} />
                   <Badge variant="outline" className="text-xs gap-1 border-orange-500/30 text-orange-600 dark:text-orange-400">
                     <Flame className="h-3 w-3" />
                     Trending
@@ -93,6 +98,7 @@ export default function TrendingTopics({ onTopicClick }: TrendingTopicsProps) {
                     <Clock className="h-3.5 w-3.5" />
                     <span>{formatTime(topic.estimatedMinutes)}</span>
                   </div>
+                </div>
                 </div>
               </Link>
             </motion.div>
