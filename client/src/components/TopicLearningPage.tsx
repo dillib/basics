@@ -586,13 +586,14 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                       {isExpanded && !isLocked && (
                         <CardContent className="pt-0 space-y-6">
                           <div className="pl-12">
+                            {/* Visual first: see the mechanism, then read why. */}
+                            <div className="mb-5">
+                              <ConceptVisual principleId={principle.id} />
+                            </div>
+
                             <p className="text-muted-foreground leading-relaxed mb-4 whitespace-pre-line">
                               {principle.explanation}
                             </p>
-
-                            <div className="mb-4">
-                              <ConceptVisual principleId={principle.id} />
-                            </div>
 
                             {principle.analogy && (
                               <div className="bg-accent/50 rounded-lg p-4 border border-accent mb-4">

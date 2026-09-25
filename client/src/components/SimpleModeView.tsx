@@ -122,15 +122,20 @@ export default function SimpleModeView({
                   <p className="text-sm text-muted-foreground line-clamp-2">
                     {getSimpleSummary(principle)}
                   </p>
-                  
+
+                  {/* Visual-first: every principle leads with its animated
+                      scene, no click needed. Clicks inside (Replay) must not
+                      toggle the card. */}
+                  <div className="mt-3 cursor-default" onClick={(e) => e.stopPropagation()}>
+                    <ConceptVisual principleId={principle.id} />
+                  </div>
+
                   {selectedPrinciple?.id === principle.id && (
                     <div
                       className="mt-3 pt-3 border-t space-y-3 animate-in slide-in-from-top-2 cursor-default"
                       // Replay / scene clicks shouldn't collapse the card.
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <ConceptVisual principleId={principle.id} />
-
                       {principle.analogy && (
                         <div className="bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg">
                           <p className="text-sm font-medium text-amber-700 dark:text-amber-400 mb-1">

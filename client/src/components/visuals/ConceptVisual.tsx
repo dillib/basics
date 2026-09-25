@@ -33,7 +33,9 @@ export function ConceptVisualView({ spec }: { spec: VisualSpec }) {
   // The ref'd element must exist on first render: useInView only starts
   // observing if ref.current is set when its effect runs.
   const ref = useRef<HTMLElement>(null);
-  const inView = useInView(ref, { once: true, amount: 0.35 });
+  // Low threshold: a scene that's partly on screen but hasn't started yet
+  // shows empty frames (labels at opacity 0), which reads as broken.
+  const inView = useInView(ref, { once: true, amount: 0.15 });
   const reduceMotion = !!useReducedMotion();
   const [runKey, setRunKey] = useState(0);
 
@@ -66,20 +68,32 @@ export function ConceptVisualView({ spec }: { spec: VisualSpec }) {
  * a blocker for reading the lesson.
  */
 export default function ConceptVisual({ principleId }: { principleId: string }) {
+  // Only fetch (and, server-side, possibly generate) once the reader is about
+  // to reach this principle -- a long lesson shouldn't generate scenes for
+  // sections nobody scrolls to. The wrapper div must render from the first
+  // pass so useInView has a node to observe.
+  const ref = useRef<HTMLDivElement>(null);
+  const nearView = useInView(ref, { once: true, margin: "300px 0px" });
   const { data, isLoading } = useQuery<{ spec: unknown }>({
     queryKey: ["/api/principles", principleId, "visual"],
     staleTime: Infinity,
     retry: false,
+    enabled: nearView,
   });
 
-  if (isLoading) {
-    return (
-      <div className="flex h-36 animate-pulse items-center justify-center rounded-xl border border-card-border bg-muted/30 text-xs text-muted-foreground">
-        Drawing a visual…
-      </div>
-    );
-  }
-
   const spec = parseVisualSpec(data?.spec);
-  return spec ? <ConceptVisualView spec={spec} /> : null;
+  const loading = !nearView || isLoading;
+
+  if (!loading && !spec) return <div ref={ref} />;
+  return (
+    <div ref={ref}>
+      {loading ? (
+        <div className="flex h-36 animate-pulse items-center justify-center rounded-xl border border-card-border bg-muted/30 text-xs text-muted-foreground">
+          Drawing a visual…
+        </div>
+      ) : (
+        <ConceptVisualView spec={spec!} />
+      )}
+    </div>
+  );
 }

@@ -3,6 +3,7 @@ import { Sparkles, Users, BookOpen, Zap, Bot, Coins, Wallet, Leaf, type LucideIc
 import { motion } from "framer-motion";
 import GenerationProgress from "./GenerationProgress";
 import ProgressiveSearch from "./ProgressiveSearch";
+import HeroField from "./HeroField";
 
 interface HeroSectionProps {
   onGenerateTopic?: (query: string) => void;
@@ -47,9 +48,9 @@ export default function HeroSection({
   return (
     <section className="relative min-h-[85vh] flex items-center justify-center overflow-hidden bg-gradient-to-b from-background via-background to-muted/30">
       <div className="absolute inset-0 overflow-hidden">
-        {/* Quiet structure instead of empty space — a faint dot-grid, fading
-            out toward the edges so it never competes with the content. */}
-        <div className="absolute inset-0 bg-dot-grid [mask-image:radial-gradient(ellipse_60%_60%_at_50%_35%,black,transparent)]" />
+        {/* Live generative field: scattered points gathering into small
+            structures and letting go. Masked clear of the center text. */}
+        <HeroField />
         {/* One focused spotlight anchored behind the search bar — the single
             most important element on the page — rather than decorative blobs
             scattered around it. */}

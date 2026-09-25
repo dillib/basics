@@ -96,7 +96,9 @@ export function CycleScene({ spec, play, instant }: SceneProps<"cycle">) {
         return (
           <div
             key={i}
-            className="absolute max-w-[36%] -translate-x-1/2 -translate-y-1/2"
+            // Fewer steps = more room around the ring; wider labels avoid
+            // cramped 4-line wraps like "Interest / joins / the / balance".
+            className={`absolute -translate-x-1/2 -translate-y-1/2 ${n <= 4 ? "max-w-[44%]" : "max-w-[36%]"}`}
             style={{ left: `${50 + R * Math.cos(a)}%`, top: `${50 + R * Math.sin(a)}%` }}
           >
             <motion.div
