@@ -12,6 +12,7 @@ import {
   HelpCircle
 } from "lucide-react";
 import TutorChat from "./TutorChat";
+import ConceptVisual from "./visuals/ConceptVisual";
 import type { Principle } from "@shared/schema";
 
 interface SimpleModeViewProps {
@@ -123,7 +124,13 @@ export default function SimpleModeView({
                   </p>
                   
                   {selectedPrinciple?.id === principle.id && (
-                    <div className="mt-3 pt-3 border-t space-y-3 animate-in slide-in-from-top-2">
+                    <div
+                      className="mt-3 pt-3 border-t space-y-3 animate-in slide-in-from-top-2 cursor-default"
+                      // Replay / scene clicks shouldn't collapse the card.
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <ConceptVisual principleId={principle.id} />
+
                       {principle.analogy && (
                         <div className="bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg">
                           <p className="text-sm font-medium text-amber-700 dark:text-amber-400 mb-1">

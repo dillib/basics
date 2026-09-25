@@ -40,6 +40,7 @@ import { LEVEL_LABELS, isLevel, type Level } from "@shared/levels";
 import SimpleModeView from "./SimpleModeView";
 import ReferenceSheetGenerator from "./ReferenceSheetGenerator";
 import CertificateGenerator from "./CertificateGenerator";
+import ConceptVisual from "./visuals/ConceptVisual";
 import QualityBadge from "./QualityBadge";
 import { ContentPaywall } from "./ContentPaywall";
 
@@ -588,7 +589,11 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                             <p className="text-muted-foreground leading-relaxed mb-4 whitespace-pre-line">
                               {principle.explanation}
                             </p>
-                            
+
+                            <div className="mb-4">
+                              <ConceptVisual principleId={principle.id} />
+                            </div>
+
                             {principle.analogy && (
                               <div className="bg-accent/50 rounded-lg p-4 border border-accent mb-4">
                                 <div className="flex items-start gap-2">

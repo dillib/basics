@@ -43,6 +43,7 @@ export interface IStorage {
   
   getPrinciplesByTopic(topicId: string): Promise<Principle[]>;
   getPrinciplesByIds(ids: string[]): Promise<Principle[]>;
+  updatePrincipleVisual(id: string, visualType: string, visualData: unknown): Promise<void>;
   createPrinciple(principle: InsertPrinciple): Promise<Principle>;
   createPrinciples(principles: InsertPrinciple[]): Promise<Principle[]>;
   deletePrinciplesByTopic(topicId: string): Promise<void>;
@@ -274,6 +275,10 @@ export class DatabaseStorage implements IStorage {
   async getPrinciplesByIds(ids: string[]): Promise<Principle[]> {
     if (ids.length === 0) return [];
     return db.select().from(principles).where(inArray(principles.id, ids));
+  }
+
+  async updatePrincipleVisual(id: string, visualType: string, visualData: unknown): Promise<void> {
+    await db.update(principles).set({ visualType, visualData }).where(eq(principles.id, id));
   }
 
   async createPrinciple(principle: InsertPrinciple): Promise<Principle> {

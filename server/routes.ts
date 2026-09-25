@@ -28,6 +28,7 @@ import { config } from "./config";
 import { aiLimiter, quickSearchLimiter, formLimiter, tutorLimiter } from "./security";
 import { publicBaseUrl, buildSitemap } from "./seo";
 import { computeMonthlyMasteryStats, currentMonthRange } from "./mastery";
+import { getOrCreateScene } from "./visuals";
 import { renderTopicOgImage } from "./og-image";
 import Stripe from "stripe";
 
@@ -330,6 +331,20 @@ export async function registerRoutes(
     const topic = await storage.getTopicBySlug(req.params.slug);
     if (!topic) return res.status(404).json({ message: "Topic not found" });
     res.json(topic);
+  });
+
+  // Concept animation scene for one principle (see server/visuals.ts). Lazily
+  // generated + saved on first request, then served from the DB. Always 200
+  // with {spec: null} when unavailable -- the visual is an enhancement, so
+  // the client just renders nothing rather than an error.
+  app.get('/api/principles/:id/visual', async (req, res) => {
+    try {
+      const spec = await getOrCreateScene(req.params.id);
+      res.json({ spec });
+    } catch (error) {
+      console.error("[Visuals] Error:", error);
+      res.json({ spec: null });
+    }
   });
 
   app.get('/api/topics/:topicId/principles', async (req, res) => {
