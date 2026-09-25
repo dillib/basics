@@ -93,6 +93,10 @@ export interface StoredVisual {
   v: 2;
   spec: VisualSpec;
   brief?: string;
+  /** The topic author's original visualType ("comparison", "flowchart"...). */
+  authorType?: string;
+  /** Scene-generator version; bumping it regenerates older scenes once. */
+  gen?: number;
 }
 
 /** Returns the scene if visual_data already holds a valid v2 scene. */
