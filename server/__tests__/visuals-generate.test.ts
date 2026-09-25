@@ -79,6 +79,25 @@ beforeEach(() => {
   storageMock.getPrinciplesByTopic.mockResolvedValue([]);
 });
 
+describe('canAccessVisuals (paid-feature gate)', () => {
+  it('free launch mode: everyone gets visuals, including signed-out visitors', async () => {
+    const { canAccessVisuals } = await freshModule();
+    expect(canAccessVisuals(false, undefined)).toBe(true);
+    expect(canAccessVisuals(false, { plan: 'free' })).toBe(true);
+  });
+
+  it('monetization on: only an active Pro subscription gets visuals', async () => {
+    const { canAccessVisuals } = await freshModule();
+    const future = new Date(Date.now() + 86_400_000);
+    const past = new Date(Date.now() - 86_400_000);
+    expect(canAccessVisuals(true, undefined)).toBe(false);
+    expect(canAccessVisuals(true, { plan: 'free' })).toBe(false);
+    expect(canAccessVisuals(true, { plan: 'pro', proExpiresAt: past })).toBe(false);
+    expect(canAccessVisuals(true, { plan: 'pro', proExpiresAt: future })).toBe(true);
+    expect(canAccessVisuals(true, { plan: 'pro', proExpiresAt: null })).toBe(true);
+  });
+});
+
 describe('scene generation with Claude Opus 5.5', () => {
   it('sends a cached system prompt, low effort, and a JSON schema to claude-opus-5-5', async () => {
     storageMock.getPrinciplesByIds.mockResolvedValue([principle({ type: 'x', description: 'brief' })]);

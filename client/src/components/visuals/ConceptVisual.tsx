@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useInView, useReducedMotion } from "framer-motion";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Sparkles } from "lucide-react";
 import { parseVisualSpec, type VisualKind, type VisualSpec } from "@shared/visuals";
 import { CompareScene, CycleScene, FlowScene, LayersScene, ScaleScene, TimelineScene } from "./scenes";
 import ParticlesScene from "./ParticlesScene";
@@ -74,7 +74,7 @@ export default function ConceptVisual({ principleId }: { principleId: string }) 
   // pass so useInView has a node to observe.
   const ref = useRef<HTMLDivElement>(null);
   const nearView = useInView(ref, { once: true, margin: "300px 0px" });
-  const { data, isLoading } = useQuery<{ spec: unknown }>({
+  const { data, isLoading } = useQuery<{ spec: unknown; locked?: boolean }>({
     queryKey: ["/api/principles", principleId, "visual"],
     staleTime: Infinity,
     retry: false,
@@ -84,6 +84,24 @@ export default function ConceptVisual({ principleId }: { principleId: string }) 
   const spec = parseVisualSpec(data?.spec);
   const loading = !nearView || isLoading;
 
+  // Only reachable once monetization is on: the server marks visuals Pro-only.
+  if (!loading && data?.locked) {
+    return (
+      <div ref={ref}>
+        <a
+          href="/pricing"
+          className="flex items-center gap-3 rounded-xl border border-dashed border-primary/30 bg-primary/5 px-4 py-3 text-sm transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          data-testid="link-visual-upgrade"
+        >
+          <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+          <span>
+            <span className="font-medium">Animated visuals are part of Pro.</span>{" "}
+            <span className="text-muted-foreground">See every principle in motion.</span>
+          </span>
+        </a>
+      </div>
+    );
+  }
   if (!loading && !spec) return <div ref={ref} />;
   return (
     <div ref={ref}>

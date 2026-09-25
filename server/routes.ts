@@ -28,7 +28,7 @@ import { config } from "./config";
 import { aiLimiter, quickSearchLimiter, formLimiter, tutorLimiter } from "./security";
 import { publicBaseUrl, buildSitemap } from "./seo";
 import { computeMonthlyMasteryStats, currentMonthRange } from "./mastery";
-import { getOrCreateScene } from "./visuals";
+import { canAccessVisuals, getOrCreateScene } from "./visuals";
 import { renderTopicOgImage } from "./og-image";
 import Stripe from "stripe";
 
@@ -337,8 +337,17 @@ export async function registerRoutes(
   // generated + saved on first request, then served from the DB. Always 200
   // with {spec: null} when unavailable -- the visual is an enhancement, so
   // the client just renders nothing rather than an error.
-  app.get('/api/principles/:id/visual', async (req, res) => {
+  app.get('/api/principles/:id/visual', async (req: Request, res) => {
     try {
+      if (config.features.monetizationEnabled) {
+        const userId = (req as AuthenticatedRequest).user?.claims?.sub;
+        const user = userId ? await storage.getUser(userId) : undefined;
+        if (!canAccessVisuals(true, user)) {
+          // Checked before getOrCreateScene so free users never trigger
+          // (or receive) a generated scene.
+          return res.json({ spec: null, locked: true });
+        }
+      }
       const spec = await getOrCreateScene(req.params.id);
       res.json({ spec });
     } catch (error) {

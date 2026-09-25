@@ -43,6 +43,7 @@ const pricingTiers: PricingTier[] = [
     features: [
       "Unlimited topic access for 1 year",
       "AI Tutor Chat for personalized help",
+      "Animated visuals for every principle",
       "Quiz Performance Analytics",
       "Spaced Repetition Review System",
       "All principles and quizzes unlocked",

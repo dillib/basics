@@ -177,6 +177,20 @@ async function generateWithGemini(principle: Principle, ctx: SceneContext): Prom
 
 const GEMINI_MODEL = "gemini-2.5-flash";
 
+/**
+ * Who gets concept animations. Free launch mode (monetization off): everyone,
+ * signed in or not. Once monetization is on they're a Pro feature, matching
+ * the AI Tutor -- which also means only paying users can trigger generation.
+ */
+export function canAccessVisuals(
+  monetizationEnabled: boolean,
+  user: { plan?: string | null; proExpiresAt?: Date | string | null } | undefined,
+): boolean {
+  if (!monetizationEnabled) return true;
+  if (!user || user.plan !== "pro") return false;
+  return !user.proExpiresAt || new Date(user.proExpiresAt) >= new Date();
+}
+
 async function generateScene(
   principle: Principle,
   ctx: SceneContext,
