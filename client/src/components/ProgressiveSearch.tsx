@@ -339,7 +339,9 @@ export default function ProgressiveSearch() {
             transition={{ duration: 0.15, ease: [0.25, 0.4, 0.25, 1] }}
             className="absolute top-full left-0 right-0 mt-2 z-50"
           >
-          <Card className="shadow-glow-lg border overflow-hidden rounded-2xl">
+          {/* text-left: the hero is text-center, and a centered result list
+              detaches each title from its icon. */}
+          <Card className="shadow-glow-lg border overflow-hidden rounded-2xl text-left">
             <CardContent className="p-0">
 
               {/* Suggest State — instant library matches + an explicit
