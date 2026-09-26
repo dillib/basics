@@ -176,7 +176,7 @@ export default function AccountPage() {
     switch (user.plan) {
       case "pro":
         return (
-          <Badge className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-0" data-testid="badge-plan-pro">
+          <Badge className="bg-brand-accent text-[hsl(30_60%_12%)] border-0" data-testid="badge-plan-pro">
             <Crown className="h-3 w-3 mr-1" />
             Pro
           </Badge>

@@ -18,27 +18,29 @@
   --sidebar: 30 15% 97%;
   --sidebar-foreground: 20 14% 10%;
   --sidebar-border: 30 10% 90%;
-  --sidebar-primary: 250 70% 55%;
+  --sidebar-primary: 176 72% 30%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 250 50% 96%;
+  --sidebar-accent: 176 45% 95%;
   --sidebar-accent-foreground: 20 14% 10%;
-  --sidebar-ring: 250 70% 55%;
+  --sidebar-ring: 176 72% 30%;
   --popover: 0 0% 100%;
   --popover-foreground: 20 14% 10%;
   --popover-border: 30 10% 90%;
-  --primary: 250 70% 55%;
+  --primary: 176 72% 30%;
+  /* Warm "spark" accent (logo, highlights); pairs with the teal primary. */
+  --brand-accent: 36 95% 48%;
   --primary-foreground: 0 0% 100%;
   --secondary: 30 15% 95%;
   --secondary-foreground: 20 14% 15%;
   --muted: 30 15% 96%;
   --muted-foreground: 20 10% 45%;
-  --accent: 250 50% 97%;
-  --accent-foreground: 250 70% 45%;
+  --accent: 176 45% 96%;
+  --accent-foreground: 176 72% 24%;
   --destructive: 0 72% 55%;
   --destructive-foreground: 0 0% 100%;
   --input: 30 10% 90%;
-  --ring: 250 70% 55%;
-  --chart-1: 250 70% 55%;
+  --ring: 176 72% 30%;
+  --chart-1: 176 72% 30%;
   --chart-2: 173 55% 42%;
   --chart-3: 200 40% 35%;
   --chart-4: 38 80% 52%;
@@ -106,27 +108,29 @@
   --sidebar: 225 15% 7%;
   --sidebar-foreground: 30 20% 96%;
   --sidebar-border: 225 10% 14%;
-  --sidebar-primary: 250 75% 62%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 250 40% 16%;
+  --sidebar-primary: 174 62% 44%;
+  --sidebar-primary-foreground: 176 60% 7%;
+  --sidebar-accent: 176 35% 15%;
   --sidebar-accent-foreground: 30 20% 96%;
-  --sidebar-ring: 250 75% 62%;
+  --sidebar-ring: 174 62% 44%;
   --popover: 225 15% 10%;
   --popover-foreground: 30 20% 96%;
   --popover-border: 225 10% 14%;
-  --primary: 250 75% 62%;
-  --primary-foreground: 0 0% 100%;
+  --primary: 174 62% 44%;
+  /* Warm "spark" accent (logo, highlights); pairs with the teal primary. */
+  --brand-accent: 38 95% 58%;
+  --primary-foreground: 176 60% 7%;
   --secondary: 225 10% 14%;
   --secondary-foreground: 30 20% 96%;
   --muted: 225 10% 14%;
   --muted-foreground: 225 10% 55%;
-  --accent: 250 40% 16%;
-  --accent-foreground: 250 75% 75%;
+  --accent: 176 35% 15%;
+  --accent-foreground: 174 60% 72%;
   --destructive: 0 65% 55%;
   --destructive-foreground: 0 0% 100%;
   --input: 225 10% 18%;
-  --ring: 250 75% 62%;
-  --chart-1: 250 75% 65%;
+  --ring: 174 62% 44%;
+  --chart-1: 174 62% 48%;
   --chart-2: 173 55% 50%;
   --chart-3: 200 40% 50%;
   --chart-4: 38 80% 60%;
@@ -328,6 +332,17 @@
   .shadow-glow-sm { box-shadow: var(--shadow-glow-sm); }
   .shadow-glow { box-shadow: var(--shadow-glow); }
   .shadow-glow-lg { box-shadow: var(--shadow-glow-lg); }
+
+  /* Brand gradient text (teal -> amber). Interpolated in OKLCH where
+     supported: a plain sRGB blend between these hues passes through a
+     muddy olive; OKLCH keeps the midpoint vivid. */
+  .text-brand-gradient {
+    background-image: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--brand-accent)));
+    background-image: linear-gradient(90deg in oklch, hsl(var(--primary)), hsl(var(--brand-accent)));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
 
   /* Consistent hover treatment for interactive cards: lift + glow + border tint. */
   .card-hover {

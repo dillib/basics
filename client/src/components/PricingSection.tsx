@@ -131,7 +131,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
               <div 
                 className={`relative rounded-3xl p-8 sm:p-10 h-full transition-all duration-300 ${
                   tier.highlighted
-                    ? "bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 text-white shadow-2xl shadow-indigo-500/20"
+                    ? "bg-gradient-to-br from-[hsl(176_72%_26%)] to-[hsl(188_70%_16%)] text-white shadow-2xl shadow-primary/20"
                     : "bg-card border border-border/50"
                 }`}
               >
@@ -177,7 +177,7 @@ export default function PricingSection({ onSelectPlan }: PricingSectionProps) {
                   size="lg"
                   className={`w-full rounded-full ${
                     tier.highlighted
-                      ? "bg-white text-primary hover:bg-white/90"
+                      ? "bg-white text-[hsl(176_72%_24%)] hover:bg-white/90"
                       : ""
                   }`}
                   variant={tier.highlighted ? "secondary" : "outline"}

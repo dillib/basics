@@ -281,7 +281,7 @@ export default function ProgressiveSearch() {
         >
           <div
             className={cn(
-              "absolute left-1/2 top-1/2 aspect-square w-[160%] -translate-x-1/2 -translate-y-1/2 animate-[spin_5s_linear_infinite] bg-[conic-gradient(from_0deg,transparent_0deg,hsl(var(--primary))_70deg,#ec4899_130deg,transparent_200deg,transparent_360deg)] motion-reduce:animate-none",
+              "absolute left-1/2 top-1/2 aspect-square w-[160%] -translate-x-1/2 -translate-y-1/2 animate-[spin_5s_linear_infinite] bg-[conic-gradient(from_0deg,transparent_0deg,hsl(var(--primary))_70deg,hsl(var(--brand-accent))_130deg,transparent_200deg,transparent_360deg)] motion-reduce:animate-none",
               (status === 'loading' || status === 'generating') && "[animation-duration:1.1s]",
             )}
           />

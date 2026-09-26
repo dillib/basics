@@ -71,18 +71,17 @@ export async function renderTopicOgImage(topic: Topic): Promise<Buffer> {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <defs>
     <radialGradient id="glowA" cx="12%" cy="8%" r="85%">
-      <stop offset="0%" stop-color="#6d28d9" stop-opacity="0.55"/>
-      <stop offset="45%" stop-color="#6d28d9" stop-opacity="0.12"/>
-      <stop offset="100%" stop-color="#6d28d9" stop-opacity="0"/>
+      <stop offset="0%" stop-color="#0f766e" stop-opacity="0.6"/>
+      <stop offset="45%" stop-color="#0f766e" stop-opacity="0.14"/>
+      <stop offset="100%" stop-color="#0f766e" stop-opacity="0"/>
     </radialGradient>
     <radialGradient id="glowB" cx="92%" cy="98%" r="70%">
-      <stop offset="0%" stop-color="#ec4899" stop-opacity="0.30"/>
-      <stop offset="60%" stop-color="#ec4899" stop-opacity="0"/>
+      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.26"/>
+      <stop offset="60%" stop-color="#f59e0b" stop-opacity="0"/>
     </radialGradient>
     <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#6366f1"/>
-      <stop offset="50%" stop-color="#a855f7"/>
-      <stop offset="100%" stop-color="#ec4899"/>
+      <stop offset="0%" stop-color="#14b8a6"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
     </linearGradient>
   </defs>
 
@@ -92,11 +91,18 @@ export async function renderTopicOgImage(topic: Topic): Promise<Buffer> {
   <rect x="0" y="0" width="1200" height="8" fill="url(#accent)"/>
 
   <!-- Brand mark + wordmark -->
-  <rect x="80" y="70" width="40" height="40" rx="10" fill="url(#accent)"/>
-  <text x="136" y="100" font-family="sans-serif" font-size="30" font-weight="700" fill="#f8fafc">BasicsTutor.com</text>
+  <!-- Capstone mark (client/src/components/Logo.tsx), 64-unit grid scaled to 44px. -->
+  <g transform="translate(80 66) scale(0.6875)">
+    <rect width="64" height="64" rx="16" fill="#15847c"/>
+    <rect x="13" y="43" width="38" height="8" rx="3" fill="#ffffff"/>
+    <rect x="18.5" y="33" width="27" height="8" rx="3" fill="#ffffff" fill-opacity="0.9"/>
+    <rect x="24" y="23" width="16" height="8" rx="3" fill="#ffffff" fill-opacity="0.8"/>
+    <circle cx="32" cy="14.5" r="4.6" fill="#f5a524"/>
+  </g>
+  <text x="138" y="100" font-family="Inter, Arial, Helvetica, DejaVu Sans, sans-serif" font-size="30" font-weight="700" fill="#f8fafc">Basics<tspan fill="#2dd4bf" font-weight="600">Tutor</tspan></text>
 
   <!-- Category / difficulty -->
-  ${metaBits ? `<text x="80" y="185" font-family="sans-serif" font-size="24" font-weight="600" letter-spacing="1" fill="#a78bfa">${metaBits}</text>` : ""}
+  ${metaBits ? `<text x="80" y="185" font-family="sans-serif" font-size="24" font-weight="600" letter-spacing="1" fill="#5eead4">${metaBits}</text>` : ""}
 
   <!-- Title -->
   <text x="80" y="${titleStartY}" font-family="sans-serif" font-size="${fontSize}" font-weight="800" fill="#f8fafc">${titleTspans}</text>

@@ -58,24 +58,24 @@ interface Palette {
 // The central topic uses the same purple gradient in both themes (it pops on
 // light and dark alike); everything else flips so nodes read as solid cards on
 // the dark app instead of the old washed-out near-white boxes.
-const TOPIC_GRADIENT = "linear-gradient(135deg, hsl(262 83% 62%), hsl(283 80% 55%))";
+const TOPIC_GRADIENT = "linear-gradient(135deg, hsl(176 68% 40%), hsl(192 72% 36%))";
 
 const LIGHT_PALETTE: Palette = {
-  topic: { bg: TOPIC_GRADIENT, border: "hsl(262 83% 48%)", text: "#ffffff", glow: "0 8px 24px hsl(262 83% 50% / 0.4)" },
-  principle: { bg: "#ffffff", border: "hsl(262 55% 78%)", text: "hsl(262 45% 32%)", shadow: "0 2px 8px hsl(262 40% 40% / 0.1)" },
-  concept: { bg: "hsl(262 40% 98%)", border: "hsl(262 35% 86%)", text: "hsl(262 30% 45%)" },
-  edgePrimary: "hsl(262 83% 60%)",
-  edgeSecondary: "hsl(262 25% 80%)",
-  dots: "hsl(262 20% 90%)",
+  topic: { bg: TOPIC_GRADIENT, border: "hsl(176 83% 48%)", text: "#ffffff", glow: "0 8px 24px hsl(176 83% 50% / 0.4)" },
+  principle: { bg: "#ffffff", border: "hsl(176 55% 78%)", text: "hsl(176 45% 32%)", shadow: "0 2px 8px hsl(176 40% 40% / 0.1)" },
+  concept: { bg: "hsl(176 40% 98%)", border: "hsl(176 35% 86%)", text: "hsl(176 30% 45%)" },
+  edgePrimary: "hsl(176 83% 60%)",
+  edgeSecondary: "hsl(176 25% 80%)",
+  dots: "hsl(176 20% 90%)",
 };
 
 const DARK_PALETTE: Palette = {
-  topic: { bg: TOPIC_GRADIENT, border: "hsl(262 70% 62%)", text: "#ffffff", glow: "0 8px 26px hsl(262 83% 40% / 0.55)" },
-  principle: { bg: "hsl(262 30% 17%)", border: "hsl(262 45% 45%)", text: "hsl(262 40% 90%)", shadow: "0 2px 10px hsl(262 60% 6% / 0.6)" },
-  concept: { bg: "hsl(262 24% 13%)", border: "hsl(262 28% 34%)", text: "hsl(262 25% 80%)" },
-  edgePrimary: "hsl(262 83% 64%)",
-  edgeSecondary: "hsl(262 20% 40%)",
-  dots: "hsl(262 15% 24%)",
+  topic: { bg: TOPIC_GRADIENT, border: "hsl(176 70% 62%)", text: "#ffffff", glow: "0 8px 26px hsl(176 83% 40% / 0.55)" },
+  principle: { bg: "hsl(176 30% 17%)", border: "hsl(176 45% 45%)", text: "hsl(176 40% 90%)", shadow: "0 2px 10px hsl(176 60% 6% / 0.6)" },
+  concept: { bg: "hsl(176 24% 13%)", border: "hsl(176 28% 34%)", text: "hsl(176 25% 80%)" },
+  edgePrimary: "hsl(176 83% 64%)",
+  edgeSecondary: "hsl(176 20% 40%)",
+  dots: "hsl(176 15% 24%)",
 };
 
 function calculateNodePositions(data: MindMapData, palette: Palette): { nodes: Node[]; edges: Edge[] } {

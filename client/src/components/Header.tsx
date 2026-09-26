@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import type { User } from "@shared/schema";
-import pencilLogo from "@assets/generated_images/smiling_upright_purple_pencil.png";
+import Logo from "./Logo";
 
 interface HeaderProps {
   isLoggedIn?: boolean;
@@ -58,11 +58,8 @@ export default function Header({ isLoggedIn = false, onLogin, onLogout, user, is
     >
 
       <div className="container mx-auto flex h-16 items-center justify-between gap-4 px-6">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="h-9 w-9 rounded-lg bg-primary/10 dark:bg-primary/20 p-0.5 flex items-center justify-center">
-            <img src={pencilLogo} alt="BasicsTutor" className="h-full w-full object-contain rounded-md" />
-          </div>
-          <span className="text-lg font-semibold" data-testid="text-logo">BasicsTutor.com</span>
+        <Link href="/" className="flex items-center" aria-label="BasicsTutor home" data-testid="text-logo">
+          <Logo />
         </Link>
 
         <nav className="hidden md:flex items-center gap-1">

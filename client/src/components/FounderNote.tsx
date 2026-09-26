@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import pencilLogo from "@assets/generated_images/smiling_upright_purple_pencil.png";
+import { LogoMark } from "./Logo";
 
 // Personalize this — put your real name here to sign the note. Leave it blank
 // and it signs "The BasicsTutor Founder" (honest, just less personal).
@@ -44,9 +44,7 @@ export default function FounderNote() {
           </div>
 
           <figcaption className="mt-10 flex items-center justify-center gap-3">
-            <div className="h-11 w-11 rounded-full bg-primary/10 dark:bg-primary/20 p-0.5 flex items-center justify-center shrink-0">
-              <img src={pencilLogo} alt="" className="h-full w-full object-contain rounded-full" />
-            </div>
+            <LogoMark className="h-11 w-11 shrink-0" />
             <div className="text-left">
               <p className="font-semibold text-foreground">
                 {FOUNDER_NAME || "The BasicsTutor Founder"}

@@ -1,6 +1,6 @@
 import { Link } from "wouter";
 import { Mail } from "lucide-react";
-import pencilLogo from "@assets/generated_images/smiling_upright_purple_pencil.png";
+import Logo from "./Logo";
 
 const footerLinks = {
   product: [
@@ -27,10 +27,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-10 sm:gap-12 mb-16">
           <div className="sm:col-span-2">
             <Link href="/" className="flex items-center gap-3 mb-6" onClick={() => window.scrollTo(0, 0)}>
-              <div className="h-9 w-9 rounded-lg bg-primary/10 dark:bg-primary/20 p-0.5 flex items-center justify-center">
-                <img src={pencilLogo} alt="BasicsTutor" className="h-full w-full object-contain rounded-md" />
-              </div>
-              <span className="text-xl font-semibold" data-testid="text-footer-logo">BasicsTutor.com</span>
+              <span data-testid="text-footer-logo"><Logo /></span>
             </Link>
             <p className="text-muted-foreground mb-6 max-w-xs leading-relaxed">
               Learn anything by understanding its fundamental truths. AI-powered education that builds knowledge from the ground up.

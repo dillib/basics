@@ -83,7 +83,7 @@ export default function HeroSection({
             data-hero-avoid
           >
             Understand{" "}
-            <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+            <span className="text-brand-gradient">
               anything
             </span>
             , explained from first principles
@@ -173,8 +173,8 @@ export default function HeroSection({
               <span>Classroom ready</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-500/10">
-                <Users className="h-4 w-4 text-purple-500" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-accent/10">
+                <Users className="h-4 w-4 text-brand-accent" />
               </div>
               <span>For teachers & students</span>
             </div>

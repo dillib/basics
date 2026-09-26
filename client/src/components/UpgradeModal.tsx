@@ -136,7 +136,7 @@ export function UpgradeModal({ isOpen, onClose, type, currentCount = 0, maxCount
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-primary to-purple-600">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/75">
             <Zap className="h-6 w-6 text-white" />
           </div>
           <DialogTitle className="text-center text-2xl">
@@ -154,7 +154,7 @@ export function UpgradeModal({ isOpen, onClose, type, currentCount = 0, maxCount
           </div>
           <div className="w-full bg-muted rounded-full h-2">
             <div
-              className="bg-gradient-to-r from-primary to-purple-600 h-2 rounded-full transition-all"
+              className="bg-gradient-to-r from-primary to-primary/75 h-2 rounded-full transition-all"
               style={{ width: "100%" }}
             />
           </div>
@@ -184,7 +184,7 @@ export function UpgradeModal({ isOpen, onClose, type, currentCount = 0, maxCount
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-primary/10 to-purple-600/10 rounded-lg p-4 my-4">
+        <div className="bg-gradient-to-r from-primary/10 to-brand-accent/10 rounded-lg p-4 my-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Pro Plan</p>

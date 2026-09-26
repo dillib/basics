@@ -24,10 +24,10 @@ export function generateReferenceSheetPDF(topic: Topic, principles: Principle[])
   const contentWidth = pageWidth - margin * 2;
   let yPosition = margin;
 
-  const primaryColor = [88, 28, 135];
+  const primaryColor = [21, 132, 124]; // brand teal, hsl(176 72% 30%)
   const textColor = [30, 30, 30];
   const mutedColor = [100, 100, 100];
-  const accentBg = [248, 245, 255];
+  const accentBg = [236, 248, 247];
 
   pdf.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
   pdf.rect(0, 0, pageWidth, 45, "F");
@@ -85,7 +85,7 @@ export function generateReferenceSheetPDF(topic: Topic, principles: Principle[])
     }
 
     pdf.setFillColor(accentBg[0], accentBg[1], accentBg[2]);
-    pdf.setDrawColor(220, 215, 230);
+    pdf.setDrawColor(205, 230, 228);
     
     const principleStartY = yPosition;
     let contentHeight = 0;

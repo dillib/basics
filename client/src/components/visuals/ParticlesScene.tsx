@@ -32,7 +32,7 @@ export default function ParticlesScene({ spec, play, instant }: SceneProps<"part
     let colors = { a: "", b: "", barrier: "" };
     const readColors = () => {
       colors = {
-        a: themeColor("--primary", "#7c3aed"),
+        a: themeColor("--primary", "#15847c"),
         b: "hsl(38 92% 50%)",
         barrier: themeColor("--muted-foreground", "#888"),
       };

@@ -115,10 +115,10 @@ export function ContentPaywall({
                     </Card>
 
                     {/* Pro subscription option */}
-                    <Card className="border-2 border-primary/50 bg-gradient-to-br from-primary/5 to-purple-500/5 hover:border-primary transition-colors cursor-pointer group">
+                    <Card className="border-2 border-primary/50 bg-gradient-to-br from-primary/5 to-brand-accent/5 hover:border-primary transition-colors cursor-pointer group">
                       <CardContent className="p-4" onClick={handleUpgradeToPro}>
                         <div className="flex items-start gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary to-purple-600 flex-shrink-0">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/75 flex-shrink-0">
                             <Zap className="h-5 w-5 text-white" />
                           </div>
                           <div className="flex-1">
@@ -138,7 +138,7 @@ export function ContentPaywall({
                             <Button
                               size="sm"
                               variant="default"
-                              className="w-full mt-2 bg-gradient-to-r from-primary to-purple-600 hover:opacity-90"
+                              className="w-full mt-2 bg-gradient-to-r from-primary to-primary/75 hover:opacity-90"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleUpgradeToPro();
