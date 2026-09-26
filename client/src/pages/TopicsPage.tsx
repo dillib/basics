@@ -16,7 +16,7 @@ import { canonicalCategory, CANONICAL_ORDER } from "@/lib/categories";
 import { cn } from "@/lib/utils";
 import TopicCover, { CategoryBadge } from "@/components/TopicCover";
 import { categoryTheme } from "@/lib/categoryTheme";
-import { LEVELS, LEVEL_LABELS, type Level } from "@shared/levels";
+import { LEVELS, LEVEL_LABELS, LEVEL_HINTS, type Level } from "@shared/levels";
 
 type SourceFilter = "all" | "samples" | "mine";
 
@@ -156,66 +156,99 @@ export default function TopicsPage() {
             Choose any topic and learn it from its fundamental building blocks.
           </p>
 
-          <Card className="border-card-border mb-8">
-            <CardContent className="p-6">
-              <form onSubmit={handleGenerateTopic} className="space-y-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                  <h3 className="font-semibold">Learn a New Topic</h3>
-                </div>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Enter any topic you want to learn, and our AI will break it down into first principles.
-                </p>
-                <div className="mb-3">
-                  <p className="text-xs font-medium text-muted-foreground mb-1.5 uppercase">Explain it for</p>
-                  <div className="inline-grid grid-cols-3 gap-1 rounded-lg bg-muted/50 p-1">
-                    {LEVELS.map((lv) => (
-                      <button
-                        key={lv}
-                        type="button"
-                        onClick={() => setGenLevel(lv)}
-                        disabled={generateTopicMutation.isPending || !!jobId}
-                        className={cn(
-                          "rounded-md px-4 py-1.5 text-xs font-medium transition-colors disabled:opacity-50",
-                          genLevel === lv
-                            ? "bg-primary text-primary-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground"
-                        )}
-                        data-testid={`button-genlevel-${lv}`}
-                      >
-                        {LEVEL_LABELS[lv]}
-                      </button>
-                    ))}
+          {/* Lesson composer. 1px teal->amber gradient edge (padding over a
+              gradient background), soft amber glow in the corner. */}
+          <div className="mb-8 rounded-2xl bg-gradient-to-br from-primary/60 via-primary/15 to-brand-accent/50 p-px shadow-glow">
+            <div className="relative overflow-hidden rounded-[15px] bg-card">
+              <div aria-hidden className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-brand-accent/15 blur-3xl" />
+              <form onSubmit={handleGenerateTopic} className="relative space-y-5 p-5 sm:p-7">
+                <div className="flex items-start gap-3.5">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold tracking-tight">Can't find it? Create a lesson</h2>
+                    <p className="mt-0.5 text-sm text-muted-foreground">
+                      Name any topic. AI breaks it into first principles, with animated visuals and a quiz, in about 30 seconds.
+                    </p>
                   </div>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-2">
+
+                {/* One command bar: input + action, like the homepage search. */}
+                <div className="flex flex-col gap-2 sm:relative sm:block">
                   <Input
                     type="text"
-                    placeholder="e.g., Quantum Computing, Game Theory, Stoic Philosophy..."
+                    placeholder="What do you want to understand?"
                     value={newTopicTitle}
                     onChange={(e) => setNewTopicTitle(e.target.value)}
-                    className="flex-1"
+                    className="h-14 rounded-xl border-2 border-foreground/10 bg-background pl-4 text-base focus-visible:border-primary/50 focus-visible:ring-offset-0 sm:pr-40"
                     data-testid="input-new-topic"
                     disabled={generateTopicMutation.isPending || !!jobId}
                   />
                   <Button
                     type="submit"
                     disabled={!newTopicTitle.trim() || generateTopicMutation.isPending || !!jobId}
-                    className="sm:w-auto w-full"
+                    // Disabled must stay legible: a faded teal read as broken.
+                    className="h-11 rounded-lg px-5 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 sm:absolute sm:right-1.5 sm:top-1.5"
                     data-testid="button-generate-topic"
                   >
                     {generateTopicMutation.isPending || jobId ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Generating...
+                        Generating…
                       </>
                     ) : (
                       <>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Generate
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Create lesson
                       </>
                     )}
                   </Button>
+                </div>
+
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Explain it for</span>
+                    <div role="radiogroup" aria-label="Audience level" className="inline-grid grid-cols-3 gap-1 rounded-lg bg-muted/60 p-1">
+                      {LEVELS.map((lv) => (
+                        <button
+                          key={lv}
+                          type="button"
+                          role="radio"
+                          aria-checked={genLevel === lv}
+                          onClick={() => setGenLevel(lv)}
+                          disabled={generateTopicMutation.isPending || !!jobId}
+                          className={cn(
+                            "rounded-md px-3.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
+                            genLevel === lv
+                              ? "bg-primary text-primary-foreground shadow-sm"
+                              : "text-muted-foreground hover:text-foreground"
+                          )}
+                          data-testid={`button-genlevel-${lv}`}
+                        >
+                          {LEVEL_LABELS[lv]}
+                        </button>
+                      ))}
+                    </div>
+                    <span className="text-xs text-muted-foreground" aria-live="polite">{LEVEL_HINTS[genLevel]}</span>
+                  </div>
+                </div>
+
+                {/* Blank-box friction: one tap fills a good example. */}
+                <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-4">
+                  <span className="text-xs text-muted-foreground">Try:</span>
+                  {["Black holes", "Inflation", "How vaccines work", "Game theory", "Supply and demand"].map((idea) => (
+                    <button
+                      key={idea}
+                      type="button"
+                      onClick={() => setNewTopicTitle(idea)}
+                      disabled={generateTopicMutation.isPending || !!jobId}
+                      className="rounded-full border border-border bg-background/60 px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                      data-testid={`button-try-${idea.toLowerCase().replace(/\s+/g, "-")}`}
+                    >
+                      {idea}
+                    </button>
+                  ))}
                 </div>
                 {generateTopicMutation.isError && (
                   <p className="text-sm text-destructive">
@@ -231,8 +264,8 @@ export default function TopicsPage() {
                   onError={handleGenerationError}
                 />
               </form>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
