@@ -57,7 +57,7 @@ export default function HeroGalaxy() {
     // thinner halo at wider spread keeps it from looking drawn-on.
     const dust: Star[] = Array.from({ length: DUST }, (_, i) => ({
       ...place(dustRng, Math.floor(dustRng() * ARMS), i < DUST * 0.8 ? 0.8 : 2),
-      hue: 250 + (dustRng() - 0.5) * 60,
+      hue: (dustRng() - 0.5) * 60, // offset from the brand hue, resolved at draw time
       size: 0.45 + dustRng() * 0.85,
       phase: dustRng() * Math.PI * 2,
       glow: 0,
@@ -80,6 +80,9 @@ export default function HeroGalaxy() {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let w = 0, h = 0, dpr = 1;
     let dark = document.documentElement.classList.contains("dark");
+    // Core glow + dust follow the theme primary, so a rebrand recolors the galaxy.
+    const readBrandHue = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--primary")) || 250;
+    let brandHue = readBrandHue();
     let visible = true, frame = 0, last = performance.now();
     let yaw = 0.6, spin = 0; // spin: extra angular speed while thinking
     let mx = 0, my = 0, emx = 0, emy = 0; // mouse target / eased
@@ -144,8 +147,8 @@ export default function HeroGalaxy() {
 
       // Soft galactic core.
       const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.55);
-      core.addColorStop(0, `hsla(255, 90%, ${dark ? 70 : 60}%, ${0.16 + thinking * 0.16})`);
-      core.addColorStop(1, "hsla(255, 90%, 60%, 0)");
+      core.addColorStop(0, `hsla(${brandHue}, 90%, ${dark ? 70 : 60}%, ${0.16 + thinking * 0.16})`);
+      core.addColorStop(1, `hsla(${brandHue}, 90%, 60%, 0)`);
       ctx.fillStyle = core;
       ctx.fillRect(0, 0, w, h);
 
@@ -164,6 +167,7 @@ export default function HeroGalaxy() {
         const depth = Math.max(0.25, Math.min(1, 0.75 - z2 * 0.5));
         const twinkle = reduce ? 1 : 0.8 + 0.2 * Math.sin(now * 0.0015 + s.phase);
         const isTopic = !!s.slug;
+        const hue = isTopic ? s.hue : brandHue + s.hue;
         if (isTopic) {
           const target = matches.has(s.slug!) ? 1 : 0;
           s.glow += (target - s.glow) * Math.min(1, dt * 5);
@@ -181,7 +185,7 @@ export default function HeroGalaxy() {
           ctx.beginPath(); ctx.arc(px, py, 18 * s.glow + 4, 0, Math.PI * 2); ctx.fill();
           labels.push({ x: px, y: py, title: s.title!, hue: s.hue, glow: s.glow });
         }
-        ctx.fillStyle = `hsla(${s.hue}, ${isTopic ? 85 : 60}%, ${light}%, ${Math.min(1, alpha)})`;
+        ctx.fillStyle = `hsla(${hue}, ${isTopic ? 85 : 60}%, ${light}%, ${Math.min(1, alpha)})`;
         ctx.beginPath(); ctx.arc(px, py, size, 0, Math.PI * 2); ctx.fill();
       }
 
@@ -229,8 +233,8 @@ export default function HeroGalaxy() {
     ro.observe(canvas);
     const io = new IntersectionObserver(([e]) => { visible = e.isIntersecting; });
     io.observe(canvas);
-    const mo = new MutationObserver(() => { dark = document.documentElement.classList.contains("dark"); });
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    const mo = new MutationObserver(() => { dark = document.documentElement.classList.contains("dark"); brandHue = readBrandHue(); });
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "style"] });
     window.addEventListener("mousemove", onMouse, { passive: true });
     window.addEventListener("scroll", measureSearch, { passive: true });
     frame = requestAnimationFrame(loop);
