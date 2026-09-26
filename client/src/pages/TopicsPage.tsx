@@ -174,22 +174,26 @@ export default function TopicsPage() {
                   </div>
                 </div>
 
-                {/* One command bar: input + action, like the homepage search. */}
-                <div className="flex flex-col gap-2 sm:relative sm:block">
+                {/* One command bar: on sm+ the bordered row itself is the "input"
+                    and holds both the field and the action (a flex row, not an
+                    absolutely-positioned button -- the Button's own positioning
+                    styles override that). Phones: field, then full-width button. */}
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2 sm:rounded-xl sm:border-2 sm:border-foreground/10 sm:bg-background sm:p-1.5 sm:transition-colors sm:focus-within:border-primary/50">
                   <Input
                     type="text"
                     placeholder="What do you want to understand?"
                     value={newTopicTitle}
                     onChange={(e) => setNewTopicTitle(e.target.value)}
-                    className="h-14 rounded-xl border-2 border-foreground/10 bg-background pl-4 text-base focus-visible:border-primary/50 focus-visible:ring-offset-0 sm:pr-40"
+                    className="h-12 flex-1 rounded-xl border-2 border-foreground/10 bg-background px-4 text-base focus-visible:border-primary/50 focus-visible:ring-offset-0 sm:h-11 sm:rounded-lg sm:border-0 sm:bg-transparent sm:px-2.5 sm:focus-visible:ring-0"
                     data-testid="input-new-topic"
                     disabled={generateTopicMutation.isPending || !!jobId}
                   />
                   <Button
                     type="submit"
                     disabled={!newTopicTitle.trim() || generateTopicMutation.isPending || !!jobId}
-                    // Disabled must stay legible: a faded teal read as broken.
-                    className="h-11 rounded-lg px-5 disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 sm:absolute sm:right-1.5 sm:top-1.5"
+                    // Disabled must stay legible (a faded teal read as broken),
+                    // and drop the primary border so it doesn't look focused.
+                    className="h-11 shrink-0 rounded-lg px-5 disabled:border-transparent disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
                     data-testid="button-generate-topic"
                   >
                     {generateTopicMutation.isPending || jobId ? (
