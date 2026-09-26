@@ -45,10 +45,15 @@ export default function Header({ isLoggedIn = false, onLogin, onLogout, user, is
 
   return (
     <header
-      className={`sticky top-0 z-50 w-full backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 transition-shadow duration-300 ${
-        isScrolled
-          ? "border-b border-border bg-background/90 shadow-sm"
-          : "border-b border-border/50 bg-background/80"
+      className={`sticky top-0 z-50 w-full transition-[background-color,border-color,box-shadow] duration-300 ${
+        // At the top of the homepage the header floats over the hero galaxy
+        // (HeroSection slides under it); anywhere else, or once scrolled,
+        // it's the usual frosted bar.
+        location === "/" && !isScrolled && !isMenuOpen
+          ? "border-b border-transparent bg-transparent"
+          : isScrolled
+            ? "border-b border-border bg-background/90 shadow-sm backdrop-blur-xl supports-[backdrop-filter]:bg-background/60"
+            : "border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60"
       }`}
     >
 

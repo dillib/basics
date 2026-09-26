@@ -18,6 +18,7 @@ import {
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { LEVELS, LEVEL_LABELS, isLevel, type Level } from "@shared/levels";
+import { emitHeroSignal } from "@/lib/heroSignals";
 
 interface QuickResult {
   title: string;
@@ -66,6 +67,17 @@ export default function ProgressiveSearch() {
   // overwrite the results of a newer one the user has since typed.
   const searchSeqRef = useRef(0);
   const [, setLocation] = useLocation();
+
+  // Drive the hero galaxy from search state: typed matches flare their
+  // stars, AI work spirals the galaxy inward. See HeroGalaxy.
+  useEffect(() => {
+    if (status === 'suggest') emitHeroSignal({ type: 'matches', slugs: libraryResults.map((t) => t.slug) });
+    else if (status === 'loading') emitHeroSignal({ type: 'thinking', intensity: 0.45 });
+    else if (status === 'generating') emitHeroSignal({ type: 'thinking', intensity: 1 });
+    else if (status === 'ready') emitHeroSignal({ type: 'matches', slugs: result?.slug ? [result.slug] : [] });
+    else emitHeroSignal({ type: 'idle' });
+  }, [status, libraryResults, result]);
+  useEffect(() => () => emitHeroSignal({ type: 'idle' }), []);
 
   // Click outside to close
   useEffect(() => {
@@ -257,8 +269,24 @@ export default function ProgressiveSearch() {
 
   return (
     <div className="w-full max-w-xl mx-auto relative" ref={dropdownRef}>
-      {/* Search Input */}
-      <div className="relative rounded-2xl shadow-glow transition-shadow duration-300 focus-within:shadow-glow-lg">
+      {/* Search Input. data-hero-search: HeroGalaxy aims its threads here. */}
+      <div data-hero-search className="group/search relative rounded-[18px] p-[2px] shadow-glow transition-shadow duration-300 focus-within:shadow-glow-lg">
+        {/* Rotating light ring: appears on focus, races while the AI works. */}
+        <div
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute inset-0 overflow-hidden rounded-[18px] transition-opacity duration-500",
+            status === 'loading' || status === 'generating' ? "opacity-100" : "opacity-0 group-focus-within/search:opacity-100",
+          )}
+        >
+          <div
+            className={cn(
+              "absolute left-1/2 top-1/2 aspect-square w-[160%] -translate-x-1/2 -translate-y-1/2 animate-[spin_5s_linear_infinite] bg-[conic-gradient(from_0deg,transparent_0deg,hsl(var(--primary))_70deg,#ec4899_130deg,transparent_200deg,transparent_360deg)] motion-reduce:animate-none",
+              (status === 'loading' || status === 'generating') && "[animation-duration:1.1s]",
+            )}
+          />
+        </div>
+      <div className="relative rounded-2xl">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
         <Input
           ref={inputRef}
@@ -298,6 +326,7 @@ export default function ProgressiveSearch() {
             <X className="h-4 w-4 text-muted-foreground" />
           </button>
         ) : null}
+      </div>
       </div>
 
       {/* Results Dropdown */}

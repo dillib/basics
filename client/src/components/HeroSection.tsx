@@ -3,7 +3,7 @@ import { Sparkles, Users, BookOpen, Zap, Bot, Coins, Wallet, Leaf, type LucideIc
 import { motion } from "framer-motion";
 import GenerationProgress from "./GenerationProgress";
 import ProgressiveSearch from "./ProgressiveSearch";
-import HeroField from "./HeroField";
+import HeroGalaxy from "./HeroGalaxy";
 
 interface HeroSectionProps {
   onGenerateTopic?: (query: string) => void;
@@ -46,11 +46,12 @@ export default function HeroSection({
   const [searchQuery, setSearchQuery] = useState("");
 
   return (
-    <section className="relative min-h-[85vh] flex items-center justify-center overflow-hidden bg-gradient-to-b from-background via-background to-muted/30">
+    // -mt-16/pt-16: slide up under the (transparent-at-top) sticky header so
+    // the galaxy fills the logo/nav area too.
+    <section className="relative -mt-16 pt-16 min-h-[85vh] flex items-center justify-center overflow-hidden bg-gradient-to-b from-background via-background to-muted/30">
       <div className="absolute inset-0 overflow-hidden">
-        {/* Live generative field: scattered points gathering into small
-            structures and letting go. Masked clear of the center text. */}
-        <HeroField />
+        {/* The library as a living galaxy; answers the search box. */}
+        <HeroGalaxy />
         {/* One focused spotlight anchored behind the search bar — the single
             most important element on the page — rather than decorative blobs
             scattered around it. */}
@@ -63,6 +64,7 @@ export default function HeroSection({
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
+            data-hero-avoid
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 shadow-glow-sm mb-8"
           >
             <Sparkles className="h-4 w-4 text-primary" />
@@ -78,6 +80,7 @@ export default function HeroSection({
             custom={0.1}
             className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold tracking-tight text-foreground mb-6"
             data-testid="text-hero-headline"
+            data-hero-avoid
           >
             Understand{" "}
             <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
@@ -91,6 +94,7 @@ export default function HeroSection({
             initial="hidden"
             animate="visible"
             custom={0.2}
+            data-hero-avoid
             className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed"
           >
             Stop memorizing. Start understanding. Any topic—from quantum physics to baking bread—instantly broken down to its fundamentals and rebuilt until it finally clicks.
@@ -107,6 +111,7 @@ export default function HeroSection({
           </motion.div>
 
           <motion.div
+            data-hero-avoid
             className="flex flex-wrap items-center justify-center gap-2 mb-10"
             variants={fadeUpVariants}
             initial="hidden"
@@ -148,6 +153,7 @@ export default function HeroSection({
           )}
 
           <motion.div 
+            data-hero-avoid
             className="flex flex-wrap items-center justify-center gap-6 sm:gap-10 text-sm text-muted-foreground"
             variants={fadeUpVariants}
             initial="hidden"
