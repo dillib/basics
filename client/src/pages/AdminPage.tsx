@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import AdminFeedback from "@/components/admin/AdminFeedback";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import type { User, Topic, TopicPurchase, SupportRequest, SupportMessage } from "@shared/schema";
 
@@ -1292,7 +1293,7 @@ export default function AdminPage() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5 max-w-2xl">
+        <TabsList className="grid w-full grid-cols-6 max-w-3xl">
           <TabsTrigger value="overview" data-testid="tab-overview">
             Overview
           </TabsTrigger>
@@ -1307,6 +1308,9 @@ export default function AdminPage() {
           </TabsTrigger>
           <TabsTrigger value="support" data-testid="tab-support">
             Support
+          </TabsTrigger>
+          <TabsTrigger value="feedback" data-testid="tab-feedback">
+            Feedback
           </TabsTrigger>
         </TabsList>
 
@@ -1328,6 +1332,10 @@ export default function AdminPage() {
 
         <TabsContent value="support" id="support">
           <AdminSupport />
+        </TabsContent>
+
+        <TabsContent value="feedback" id="feedback">
+          <AdminFeedback />
         </TabsContent>
       </Tabs>
     </div>

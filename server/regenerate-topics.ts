@@ -31,6 +31,7 @@
 import { storage } from "./storage";
 import { generateTopicContent, validateTopicContent } from "./ai";
 import { pool } from "./db";
+import { applyTopicContent } from "./topic-content";
 import type { Topic } from "@shared/schema";
 import type { Level } from "@shared/levels";
 
@@ -61,42 +62,21 @@ async function regenerateOne(topic: Topic): Promise<Result> {
       // Non-fatal — a topic without a fresh score still ships.
     }
   }
-  // Web-research sources (shown on the lesson page) live in validationData;
-  // keep them even when the validation pass is skipped.
-  if (content.research?.sources.length && !validationResult?.sources?.length) {
-    validationResult = { ...(validationResult ?? {}), sources: content.research.sources };
-  } else if (!content.research && validationResult?.sources) {
-    // Research didn't run this time: drop sources that described old content.
-    const { sources: _stale, ...rest } = validationResult;
-    validationResult = rest;
+  // Web-research sources (shown on the lesson page) live in validationData.
+  // Always reflect THIS run: new sources if research ran, none if it didn't
+  // (old ones described the old content).
+  if (!RUN_VALIDATION || !content.research) {
+    const { sources: _old, ...rest } = validationResult ?? {};
+    validationResult = content.research?.sources.length ? { ...rest, sources: content.research.sources } : rest;
   }
 
-  await storage.updateTopic(topic.id, {
-    description: content.description,
-    category: content.category,
-    difficulty: content.difficulty,
-    level,
-    practicalSteps: content.practicalSteps,
-    estimatedMinutes: content.estimatedMinutes,
-    mindMapData: content.mindMap,
+  // Snapshot + in-place principle swap: learners' progress survives, and the
+  // old version can be restored from Admin > Feedback.
+  await applyTopicContent(topic, content, {
+    reason: "regenerate",
     confidenceScore,
     validationData: validationResult,
   });
-
-  // Replace principles wholesale (delete old, insert fresh).
-  await storage.deletePrinciplesByTopic(topic.id);
-  await storage.createPrinciples(
-    content.principles.map((p, index) => ({
-      topicId: topic.id,
-      orderIndex: index,
-      title: p.title,
-      explanation: p.explanation,
-      analogy: p.analogy,
-      visualType: p.visualType,
-      visualData: p.visualData,
-      keyTakeaways: p.keyTakeaways,
-    })),
-  );
 
   const steps = content.practicalSteps?.length ? `, ${content.practicalSteps.length} practice steps` : "";
   return { title: topic.title, status: "regenerated", detail: `${content.principles.length} principles${steps}` };

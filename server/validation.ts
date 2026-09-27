@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { FEEDBACK_REASONS } from "@shared/schema";
 import type { Request, Response, NextFunction } from 'express';
 
 /**
@@ -51,6 +52,14 @@ export const SupportRequestUpdateSchema = z.object({
 
 export const MessageSchema = z.object({
   message: z.string().min(1, 'Message cannot be empty').max(5000, 'Message too long'),
+});
+
+export const TopicFeedbackSchema = z.object({
+  vote: z.union([z.literal(1), z.literal(-1)]),
+  reasons: z.array(z.enum(FEEDBACK_REASONS)).max(FEEDBACK_REASONS.length).optional(),
+  comment: z.string().trim().max(1000, 'Please keep feedback under 1000 characters').optional(),
+  // Random id the browser keeps, so anonymous readers get one vote each.
+  visitorId: z.string().regex(/^[a-zA-Z0-9-]{8,64}$/).optional(),
 });
 
 export const WaitlistSchema = z.object({

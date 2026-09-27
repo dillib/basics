@@ -2,6 +2,8 @@ import {
   users, topics, principles, quizzes, questions, progress, topicPurchases,
   quizAttempts, principleMastery, reviewSchedule, tutorSessions, tutorMessages,
   supportRequests, supportMessages, generationJobs, waitlistSignups,
+  topicFeedback, topicDailyViews, topicVersions,
+  type TopicFeedback, type TopicVersion, type TopicSnapshot, type FeedbackReason,
   type GenerationJob, type InsertGenerationJob,
   type WaitlistSignup, type InsertWaitlistSignup,
   type User, type InsertUser,
@@ -47,6 +49,17 @@ export interface IStorage {
   createPrinciple(principle: InsertPrinciple): Promise<Principle>;
   createPrinciples(principles: InsertPrinciple[]): Promise<Principle[]>;
   deletePrinciplesByTopic(topicId: string): Promise<void>;
+  replaceTopicPrinciples(topicId: string, next: InsertPrinciple[]): Promise<void>;
+
+  // Reader feedback, views, and content versions (self-heal)
+  recordTopicView(topicId: string): Promise<void>;
+  upsertTopicFeedback(entry: NewTopicFeedback): Promise<TopicFeedback>;
+  getFeedbackStats(opts?: { topicIds?: string[] }): Promise<TopicFeedbackStats[]>;
+  getFeedbackComments(topicId: string, contentVersion: number, limit?: number): Promise<Pick<TopicFeedback, "vote" | "reasons" | "comment" | "createdAt">[]>;
+  createTopicVersion(entry: { topicId: string; contentVersion: number; snapshot: TopicSnapshot; reason: string }): Promise<TopicVersion>;
+  getTopicVersion(id: string): Promise<TopicVersion | undefined>;
+  getRecentTopicVersions(limit?: number): Promise<(TopicVersion & { title: string; slug: string })[]>;
+  markTopicVersionRestored(id: string): Promise<void>;
 
   getQuiz(id: string): Promise<Quiz | undefined>;
   getQuizzesByTopic(topicId: string): Promise<Quiz[]>;
@@ -136,6 +149,36 @@ export interface IStorage {
   addToWaitlist(entry: InsertWaitlistSignup): Promise<WaitlistSignup | undefined>;
   getWaitlist(limit?: number, offset?: number): Promise<WaitlistSignup[]>;
   getWaitlistCount(): Promise<number>;
+}
+
+export interface NewTopicFeedback {
+  topicId: string;
+  contentVersion: number;
+  voterKey: string;
+  userId: string | null;
+  ipHash: string | null;
+  vote: 1 | -1;
+  reasons: FeedbackReason[] | null;
+  comment: string | null;
+}
+
+export interface TopicFeedbackStats {
+  topicId: string;
+  title: string;
+  slug: string;
+  level: string | null;
+  isTrending: boolean;
+  confidenceScore: number | null;
+  contentVersion: number;
+  up: number;
+  down: number;
+  /** Distinct people (by salted IP) who voted down -- resists one person spamming. */
+  downPeople: number;
+  reasons: Record<Exclude<FeedbackReason, "other">, number>;
+  comments: number;
+  views7d: number;
+  lastFeedbackAt: Date | null;
+  lastReplacedAt: Date | null;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -295,6 +338,124 @@ export class DatabaseStorage implements IStorage {
   // (delete old, insert fresh) without touching the topic row / slug.
   async deletePrinciplesByTopic(topicId: string): Promise<void> {
     await db.delete(principles).where(eq(principles.topicId, topicId));
+  }
+
+  /**
+   * Swap in a lesson's new principles without breaking what points at the old
+   * ones. Quiz questions, mastery, review schedules and tutor sessions
+   * reference principle ids, so a plain delete fails (FK) for any lesson
+   * someone has studied. Instead: rewrite existing rows in place (ids -- and
+   * learners' progress -- survive), insert any extra, and only for principles
+   * that no longer exist detach their references before deleting them.
+   */
+  async replaceTopicPrinciples(topicId: string, next: InsertPrinciple[]): Promise<void> {
+    await db.transaction(async (tx) => {
+      const current = await tx.select().from(principles)
+        .where(eq(principles.topicId, topicId)).orderBy(asc(principles.orderIndex));
+      for (let i = 0; i < next.length; i++) {
+        const { topicId: _t, ...fields } = next[i];
+        if (i < current.length) {
+          await tx.update(principles).set({ ...fields, orderIndex: i }).where(eq(principles.id, current[i].id));
+        } else {
+          await tx.insert(principles).values({ ...next[i], topicId, orderIndex: i });
+        }
+      }
+      const surplus = current.slice(next.length).map((p) => p.id);
+      if (surplus.length) {
+        await tx.delete(principleMastery).where(inArray(principleMastery.principleId, surplus));
+        await tx.delete(reviewSchedule).where(inArray(reviewSchedule.principleId, surplus));
+        await tx.update(questions).set({ principleId: null }).where(inArray(questions.principleId, surplus));
+        await tx.update(tutorSessions).set({ principleId: null }).where(inArray(tutorSessions.principleId, surplus));
+        await tx.delete(principles).where(inArray(principles.id, surplus));
+      }
+    });
+  }
+
+  async recordTopicView(topicId: string): Promise<void> {
+    const day = new Date().toISOString().slice(0, 10);
+    await db.insert(topicDailyViews).values({ topicId, day, views: 1 })
+      .onConflictDoUpdate({
+        target: [topicDailyViews.topicId, topicDailyViews.day],
+        set: { views: sql`${topicDailyViews.views} + 1` },
+      });
+  }
+
+  async upsertTopicFeedback(entry: NewTopicFeedback): Promise<TopicFeedback> {
+    const [row] = await db.insert(topicFeedback).values(entry)
+      .onConflictDoUpdate({
+        target: [topicFeedback.topicId, topicFeedback.voterKey, topicFeedback.contentVersion],
+        set: { vote: entry.vote, reasons: entry.reasons, comment: entry.comment, ipHash: entry.ipHash, updatedAt: new Date() },
+      })
+      .returning();
+    return row;
+  }
+
+  /** Per-topic feedback on each topic's CURRENT content version, plus 7-day views. */
+  async getFeedbackStats(opts: { topicIds?: string[] } = {}): Promise<TopicFeedbackStats[]> {
+    const filter = opts.topicIds?.length
+      ? sql`AND t.id IN (${sql.join(opts.topicIds.map((id) => sql`${id}`), sql`, `)})`
+      : sql``;
+    const result = await db.execute(sql`
+      SELECT t.id, t.title, t.slug, t.level, t.is_trending, t.confidence_score,
+             COALESCE(t.content_version, 1) AS content_version,
+             COUNT(*) FILTER (WHERE f.vote = 1)::int AS up,
+             COUNT(*) FILTER (WHERE f.vote = -1)::int AS down,
+             COUNT(DISTINCT COALESCE(f.ip_hash, f.voter_key)) FILTER (WHERE f.vote = -1)::int AS down_people,
+             COUNT(*) FILTER (WHERE f.reasons ? 'inaccurate')::int AS inaccurate,
+             COUNT(*) FILTER (WHERE f.reasons ? 'outdated')::int AS outdated,
+             COUNT(*) FILTER (WHERE f.reasons ? 'confusing')::int AS confusing,
+             COUNT(*) FILTER (WHERE f.reasons ? 'too_basic')::int AS too_basic,
+             COUNT(*) FILTER (WHERE f.reasons ? 'too_advanced')::int AS too_advanced,
+             COUNT(*) FILTER (WHERE f.comment IS NOT NULL AND f.comment <> '')::int AS comments,
+             MAX(f.updated_at) AS last_feedback_at,
+             (SELECT COALESCE(SUM(v.views), 0)::int FROM topic_daily_views v
+               WHERE v.topic_id = t.id AND v.day >= to_char(NOW() - INTERVAL '7 days', 'YYYY-MM-DD')) AS views_7d,
+             (SELECT MAX(tv.created_at) FROM topic_versions tv WHERE tv.topic_id = t.id) AS last_replaced_at
+      FROM topics t
+      JOIN topic_feedback f ON f.topic_id = t.id AND f.content_version = COALESCE(t.content_version, 1)
+      WHERE TRUE ${filter}
+      GROUP BY t.id
+      ORDER BY down DESC, up DESC
+      LIMIT 500
+    `);
+    return (result.rows as any[]).map((r) => ({
+      topicId: r.id, title: r.title, slug: r.slug, level: r.level, isTrending: !!r.is_trending,
+      confidenceScore: r.confidence_score, contentVersion: Number(r.content_version),
+      up: r.up, down: r.down, downPeople: r.down_people,
+      reasons: { inaccurate: r.inaccurate, outdated: r.outdated, confusing: r.confusing, too_basic: r.too_basic, too_advanced: r.too_advanced },
+      comments: r.comments, views7d: r.views_7d,
+      lastFeedbackAt: r.last_feedback_at ? new Date(r.last_feedback_at) : null,
+      lastReplacedAt: r.last_replaced_at ? new Date(r.last_replaced_at) : null,
+    }));
+  }
+
+  async getFeedbackComments(topicId: string, contentVersion: number, limit = 25) {
+    return db.select({ vote: topicFeedback.vote, reasons: topicFeedback.reasons, comment: topicFeedback.comment, createdAt: topicFeedback.createdAt })
+      .from(topicFeedback)
+      .where(and(eq(topicFeedback.topicId, topicId), eq(topicFeedback.contentVersion, contentVersion), eq(topicFeedback.vote, -1)))
+      .orderBy(desc(topicFeedback.updatedAt))
+      .limit(limit);
+  }
+
+  async createTopicVersion(entry: { topicId: string; contentVersion: number; snapshot: TopicSnapshot; reason: string }): Promise<TopicVersion> {
+    const [row] = await db.insert(topicVersions).values(entry).returning();
+    return row;
+  }
+
+  async getTopicVersion(id: string): Promise<TopicVersion | undefined> {
+    const [row] = await db.select().from(topicVersions).where(eq(topicVersions.id, id));
+    return row || undefined;
+  }
+
+  async getRecentTopicVersions(limit = 30) {
+    const rows = await db.select({ v: topicVersions, title: topics.title, slug: topics.slug })
+      .from(topicVersions).innerJoin(topics, eq(topics.id, topicVersions.topicId))
+      .orderBy(desc(topicVersions.createdAt)).limit(limit);
+    return rows.map((r) => ({ ...r.v, title: r.title, slug: r.slug }));
+  }
+
+  async markTopicVersionRestored(id: string): Promise<void> {
+    await db.update(topicVersions).set({ restoredAt: new Date() }).where(eq(topicVersions.id, id));
   }
 
   async getQuiz(id: string): Promise<Quiz | undefined> {
@@ -781,12 +942,26 @@ export class DatabaseStorage implements IStorage {
     return user || undefined;
   }
 
+  // Nothing references topics with ON DELETE CASCADE (except the feedback /
+  // views / versions tables), so remove dependents children-first -- otherwise
+  // deleting any lesson someone studied, quizzed on or chatted about fails.
   async deleteTopicById(id: string): Promise<void> {
-    await db.delete(principles).where(eq(principles.topicId, id));
-    await db.delete(quizzes).where(eq(quizzes.topicId, id));
-    await db.delete(progress).where(eq(progress.topicId, id));
-    await db.delete(topicPurchases).where(eq(topicPurchases.topicId, id));
-    await db.delete(topics).where(eq(topics.id, id));
+    await db.transaction(async (tx) => {
+      const sessionIds = tx.select({ id: tutorSessions.id }).from(tutorSessions).where(eq(tutorSessions.topicId, id));
+      const quizIds = tx.select({ id: quizzes.id }).from(quizzes).where(eq(quizzes.topicId, id));
+      await tx.delete(tutorMessages).where(inArray(tutorMessages.sessionId, sessionIds));
+      await tx.delete(tutorSessions).where(eq(tutorSessions.topicId, id));
+      await tx.delete(reviewSchedule).where(eq(reviewSchedule.topicId, id));
+      await tx.delete(principleMastery).where(eq(principleMastery.topicId, id));
+      await tx.delete(quizAttempts).where(eq(quizAttempts.topicId, id));
+      await tx.delete(questions).where(inArray(questions.quizId, quizIds));
+      await tx.delete(quizzes).where(eq(quizzes.topicId, id));
+      await tx.delete(principles).where(eq(principles.topicId, id));
+      await tx.delete(progress).where(eq(progress.topicId, id));
+      await tx.delete(topicPurchases).where(eq(topicPurchases.topicId, id));
+      await tx.update(generationJobs).set({ topicId: null }).where(eq(generationJobs.topicId, id));
+      await tx.delete(topics).where(eq(topics.id, id));
+    });
   }
 
   // Support Request Methods

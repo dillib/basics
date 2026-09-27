@@ -13,6 +13,7 @@
     "seo:seed": "tsx server/seed-seo-topics.ts",
     "regenerate:topics": "tsx server/regenerate-topics.ts",
     "refresh:trending": "tsx server/refresh-trending-topics.ts",
+    "heal:topics": "tsx server/self-heal-topics.ts",
     "delete:topic": "tsx server/delete-topic-by-slug.ts",
     "rename:topic": "tsx server/rename-topic.ts",
     "report:daily": "tsx server/send-report.ts daily",

@@ -20,17 +20,24 @@ import {
   TutorMessageSchema,
   ReviewGradeSchema,
   ProgressUpdateSchema,
+  TopicFeedbackSchema,
 } from "./validation";
+import { createHash } from "crypto";
+import { restoreTopicVersion } from "./topic-content";
+import { selectHealCandidates } from "./self-heal";
 import { applySm2, nextMasteryScore, MASTERED_THRESHOLD } from "./spaced-repetition";
 import { verifyUnsubscribe } from "./email-unsubscribe";
 import { buildTopicSlug } from "@shared/levels";
 import { config } from "./config";
-import { aiLimiter, quickSearchLimiter, formLimiter, tutorLimiter } from "./security";
+import { aiLimiter, quickSearchLimiter, formLimiter, tutorLimiter, feedbackLimiter } from "./security";
 import { publicBaseUrl, buildSitemap } from "./seo";
 import { computeMonthlyMasteryStats, currentMonthRange } from "./mastery";
 import { canAccessVisuals, getOrCreateScene } from "./visuals";
 import { renderTopicOgImage } from "./og-image";
 import Stripe from "stripe";
+
+// Crawlers, link unfurlers, and uptime checks -- not readers.
+const BOT_UA = /bot|crawl|spider|slurp|preview|facebookexternalhit|embedly|quora link|whatsapp|telegram|headless|lighthouse|pingdom|uptime|monitor|curl|wget|python-requests|axios|node-fetch|go-http/i;
 
 const isProUser = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
@@ -93,9 +100,9 @@ async function scheduleReviews(userId: string, topicId: string, principleIds: st
   );
 }
 
-const isAdmin = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+const isAdmin = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = req.user?.claims?.sub;
+    const userId = (req as AuthenticatedRequest).user?.claims?.sub;
     if (!userId) throw Errors.unauthorized();
 
     const user = await storage.getUser(userId);
@@ -330,7 +337,46 @@ export async function registerRoutes(
   app.get('/api/topics/:slug', async (req, res) => {
     const topic = await storage.getTopicBySlug(req.params.slug);
     if (!topic) return res.status(404).json({ message: "Topic not found" });
+    // Count a read (the traffic signal for trending + self-heal priority).
+    // Fire-and-forget; skip bots and prefetches.
+    const ua = req.get('user-agent') || '';
+    const purpose = req.get('purpose') || req.get('sec-purpose') || '';
+    if (ua && !BOT_UA.test(ua) && !/prefetch/i.test(purpose)) {
+      storage.recordTopicView(topic.id).catch((err) => console.error('[Views] record failed:', err?.message));
+    }
     res.json(topic);
+  });
+
+  // -- READER FEEDBACK (thumbs up/down; feeds server/self-heal-topics.ts) --
+  // Anyone can vote. One vote per reader per lesson version: signed-in readers
+  // by user id, others by a random browser id. The salted IP hash lets the
+  // self-heal job count distinct people, so one person can't force a rewrite.
+  app.post('/api/topics/:topicId/feedback', feedbackLimiter, validate(TopicFeedbackSchema), async (req: Request, res) => {
+    try {
+      const topic = await storage.getTopic(req.params.topicId);
+      if (!topic || !topic.isPublic) throw Errors.notFound('Topic');
+      const userId: string | null = (req as any).user?.claims?.sub || null;
+      const { vote, reasons, comment, visitorId } = req.body;
+      if (!userId && !visitorId) return res.status(400).json({ message: "Missing visitor id" });
+
+      const salt = process.env.SESSION_SECRET || 'basicstutor';
+      const ipHash = req.ip ? createHash('sha256').update(salt + req.ip).digest('hex').slice(0, 32) : null;
+      const contentVersion = topic.contentVersion ?? 1;
+      await storage.upsertTopicFeedback({
+        topicId: topic.id,
+        contentVersion,
+        voterKey: userId ? `user:${userId}` : `anon:${visitorId}`,
+        userId,
+        ipHash,
+        vote,
+        // Reasons + comment only make sense on "not helpful".
+        reasons: vote === -1 && reasons?.length ? Array.from(new Set(reasons)) : null,
+        comment: vote === -1 && comment ? comment : null,
+      });
+      res.status(201).json({ success: true, contentVersion });
+    } catch (error) {
+      return handleError(error, res, 'Topic Feedback');
+    }
   });
 
   // Concept animation scene for one principle (see server/visuals.ts). Lazily
@@ -1084,6 +1130,45 @@ export async function registerRoutes(
       res.json({ success: true });
   });
   
+  // Reader feedback overview + self-heal history (Admin > Feedback).
+  app.get('/api/admin/feedback', isAuthenticated, isAdmin, async (_req: Request, res) => {
+    try {
+      const [stats, versions] = await Promise.all([
+        storage.getFeedbackStats(),
+        storage.getRecentTopicVersions(30),
+      ]);
+      const flagged = new Set(selectHealCandidates(stats).map((c) => c.stats.topicId));
+      res.json({
+        topics: stats.map((s) => ({ ...s, flagged: flagged.has(s.topicId) })),
+        versions: versions.map(({ snapshot: _s, ...v }) => v), // snapshots are large; not needed in the list
+      });
+    } catch (error) {
+      return handleError(error, res, 'Admin Feedback');
+    }
+  });
+
+  app.get('/api/admin/topics/:topicId/feedback', isAuthenticated, isAdmin, async (req: Request, res) => {
+    try {
+      const topic = await storage.getTopic(req.params.topicId);
+      if (!topic) throw Errors.notFound('Topic');
+      res.json(await storage.getFeedbackComments(topic.id, topic.contentVersion ?? 1, 100));
+    } catch (error) {
+      return handleError(error, res, 'Admin Topic Feedback');
+    }
+  });
+
+  // One-click undo of a self-heal / regeneration (the replaced content is
+  // itself snapshotted first, so a restore can be undone too).
+  app.post('/api/admin/topic-versions/:versionId/restore', isAuthenticated, isAdmin, async (req: Request, res) => {
+    try {
+      const topic = await restoreTopicVersion(req.params.versionId);
+      res.json({ success: true, slug: topic.slug });
+    } catch (error) {
+      if (error instanceof Error && /not found/i.test(error.message)) return handleError(Errors.notFound('Version'), res, 'Admin Restore');
+      return handleError(error, res, 'Admin Restore');
+    }
+  });
+
   app.get('/api/admin/support', isAuthenticated, isAdmin, async (req: AuthenticatedRequest, res) => {
       const limit = parseInt(req.query.limit) || 50;
       const offset = parseInt(req.query.offset) || 0;

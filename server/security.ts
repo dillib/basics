@@ -107,6 +107,14 @@ export const quickSearchLimiter = rateLimit({
   ...sharedOptions,
 });
 
+/** Thumbs up/down + feedback on lessons: generous for real readers, not for scripts. */
+export const feedbackLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 60,
+  message: { message: "Too much feedback at once. Please try again later." },
+  ...sharedOptions,
+});
+
 /** Limiter for public write endpoints like waitlist / support submissions. */
 export const formLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour

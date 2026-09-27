@@ -44,6 +44,7 @@ import ConceptVisual from "./visuals/ConceptVisual";
 import TopicCover from "./TopicCover";
 import QualityBadge from "./QualityBadge";
 import InlineText from "./InlineText";
+import LessonFeedback from "./LessonFeedback";
 import { ContentPaywall } from "./ContentPaywall";
 
 interface TopicLearningPageProps {
@@ -930,6 +931,8 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
           </section>
         );
       })()}
+
+      {topic.isPublic && <LessonFeedback topicId={topic.id} contentVersion={topic.contentVersion} />}
 
       {slug && <RelatedTopics slug={slug} />}
 

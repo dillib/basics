@@ -63,6 +63,10 @@ export const topics = pgTable("topics", {
   // on each refresh run rather than accumulating indefinitely.
   isTrending: boolean("is_trending").default(false),
   trendingRank: integer("trending_rank"),
+  // Bumped whenever the lesson content is replaced (self-heal, regeneration,
+  // rollback). Reader feedback is tied to a version, so complaints about old
+  // content don't count against the fixed one.
+  contentVersion: integer("content_version").default(1),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -302,6 +306,59 @@ export const waitlistSignups = pgTable("waitlist_signups", {
 export const insertWaitlistSchema = createInsertSchema(waitlistSignups).omit({ id: true, createdAt: true });
 export type InsertWaitlistSignup = z.infer<typeof insertWaitlistSchema>;
 export type WaitlistSignup = typeof waitlistSignups.$inferSelect;
+
+// Reader feedback: one thumbs up/down per voter per lesson version. Anyone can
+// vote; voterKey is "user:<id>" or "anon:<browser id>", and ipHash (salted)
+// lets the self-heal job count distinct people rather than distinct browsers.
+export const FEEDBACK_REASONS = ["outdated", "inaccurate", "confusing", "too_basic", "too_advanced", "other"] as const;
+export type FeedbackReason = (typeof FEEDBACK_REASONS)[number];
+
+export const topicFeedback = pgTable("topic_feedback", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
+  topicId: varchar("topic_id", { length: 255 }).references(() => topics.id, { onDelete: "cascade" }).notNull(),
+  contentVersion: integer("content_version").notNull().default(1),
+  voterKey: varchar("voter_key", { length: 255 }).notNull(),
+  userId: varchar("user_id", { length: 255 }),
+  ipHash: varchar("ip_hash", { length: 64 }),
+  vote: integer("vote").notNull(), // 1 = helpful, -1 = not helpful
+  reasons: jsonb("reasons").$type<FeedbackReason[]>(),
+  comment: text("comment"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("topic_feedback_voter_unique").on(table.topicId, table.voterKey, table.contentVersion),
+  index("topic_feedback_topic_idx").on(table.topicId, table.contentVersion),
+]);
+export type TopicFeedback = typeof topicFeedback.$inferSelect;
+
+// Daily read counts per lesson (no personal data) -- the traffic signal.
+export const topicDailyViews = pgTable("topic_daily_views", {
+  topicId: varchar("topic_id", { length: 255 }).references(() => topics.id, { onDelete: "cascade" }).notNull(),
+  day: text("day").notNull(), // YYYY-MM-DD (UTC)
+  views: integer("views").notNull().default(0),
+}, (table) => [
+  uniqueIndex("topic_daily_views_pk").on(table.topicId, table.day),
+]);
+
+// Snapshot of a lesson taken just before its content is replaced, so any
+// self-heal or regeneration can be rolled back in one click.
+export interface TopicSnapshot {
+  topic: Pick<Topic, "description" | "category" | "difficulty" | "practicalSteps" | "estimatedMinutes" | "mindMapData" | "confidenceScore" | "validationData">;
+  principles: Pick<Principle, "orderIndex" | "title" | "explanation" | "analogy" | "visualType" | "visualData" | "keyTakeaways">[];
+}
+export const topicVersions = pgTable("topic_versions", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
+  topicId: varchar("topic_id", { length: 255 }).references(() => topics.id, { onDelete: "cascade" }).notNull(),
+  contentVersion: integer("content_version").notNull(), // the version this snapshot preserves
+  snapshot: jsonb("snapshot").$type<TopicSnapshot>().notNull(),
+  // Why the content was replaced: "self-heal: ...", "regenerate", "rollback".
+  reason: text("reason"),
+  restoredAt: timestamp("restored_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("topic_versions_topic_idx").on(table.topicId, table.createdAt),
+]);
+export type TopicVersion = typeof topicVersions.$inferSelect;
 
 export const insertUserSchema = createInsertSchema(users).omit({ createdAt: true });
 export const insertTopicSchema = createInsertSchema(topics).omit({ id: true, createdAt: true, updatedAt: true });

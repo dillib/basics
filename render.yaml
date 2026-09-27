@@ -98,6 +98,56 @@ services:
           property: connectionString
       - key: GOOGLE_API_KEY
         sync: false
+      # Web-research new trending lessons (server/research.ts): copied from
+      # the web service, so the key is only ever set in one place.
+      - key: PERPLEXITY_API_KEY
+        fromService:
+          type: web
+          name: basicstutor
+          envVarKey: PERPLEXITY_API_KEY
+
+  # Cron Job: nightly self-heal. Lessons whose reader feedback crosses the
+  # thresholds get fresh research + an AI check of the complaints; only valid
+  # ones are rewritten (old version kept for one-click restore in Admin >
+  # Feedback), then REPORT_EMAIL gets a summary. See server/self-heal-topics.ts.
+  # Spend is capped per run (HEAL_MAX_TRIAGE / HEAL_MAX_REWRITES).
+  - type: cron
+    name: self-heal-topics
+    runtime: node
+    plan: starter
+    schedule: "0 7 * * *" # 7am UTC daily = ~3am Eastern, low traffic
+    buildCommand: npm install --include=dev
+    startCommand: npm run heal:topics
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: basicstutor-db
+          property: connectionString
+      - key: PUBLIC_URL
+        value: https://www.basicstutor.com
+      - key: GOOGLE_API_KEY
+        fromService:
+          type: web
+          name: basicstutor
+          envVarKey: GOOGLE_API_KEY
+      - key: PERPLEXITY_API_KEY
+        fromService:
+          type: web
+          name: basicstutor
+          envVarKey: PERPLEXITY_API_KEY
+      - key: RESEND_API_KEY
+        fromService:
+          type: web
+          name: basicstutor
+          envVarKey: RESEND_API_KEY
+      - key: REPORT_EMAIL
+        value: dillib@gmail.com
+      - key: HEAL_MAX_TRIAGE
+        value: "10"
+      - key: HEAL_MAX_REWRITES
+        value: "5"
 
   # Cron Jobs: email a traction summary (new users, new topics with titles,
   # waitlist total) on three cadences. See server/send-report.ts -- one

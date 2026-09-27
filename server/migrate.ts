@@ -49,6 +49,40 @@ async function migrate() {
       ALTER TABLE topics ADD COLUMN IF NOT EXISTS level TEXT DEFAULT 'adult';
       ALTER TABLE topics ADD COLUMN IF NOT EXISTS practical_steps JSONB;
       ALTER TABLE generation_jobs ADD COLUMN IF NOT EXISTS level TEXT DEFAULT 'adult';
+
+      -- Reader feedback + self-heal (server/self-heal-topics.ts)
+      ALTER TABLE topics ADD COLUMN IF NOT EXISTS content_version INTEGER DEFAULT 1;
+      CREATE TABLE IF NOT EXISTS topic_feedback (
+        id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+        topic_id VARCHAR(255) NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+        content_version INTEGER NOT NULL DEFAULT 1,
+        voter_key VARCHAR(255) NOT NULL,
+        user_id VARCHAR(255),
+        ip_hash VARCHAR(64),
+        vote INTEGER NOT NULL,
+        reasons JSONB,
+        comment TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS topic_feedback_voter_unique ON topic_feedback(topic_id, voter_key, content_version);
+      CREATE INDEX IF NOT EXISTS topic_feedback_topic_idx ON topic_feedback(topic_id, content_version);
+      CREATE TABLE IF NOT EXISTS topic_daily_views (
+        topic_id VARCHAR(255) NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+        day TEXT NOT NULL,
+        views INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS topic_daily_views_pk ON topic_daily_views(topic_id, day);
+      CREATE TABLE IF NOT EXISTS topic_versions (
+        id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
+        topic_id VARCHAR(255) NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+        content_version INTEGER NOT NULL,
+        snapshot JSONB NOT NULL,
+        reason TEXT,
+        restored_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS topic_versions_topic_idx ON topic_versions(topic_id, created_at);
     `);
   }
 
