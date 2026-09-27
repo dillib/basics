@@ -78,12 +78,12 @@ export default function HeroSection({
             initial="hidden"
             animate="visible"
             custom={0.1}
-            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold tracking-tight text-foreground mb-6"
+            className="font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-foreground mb-6"
             data-testid="text-hero-headline"
             data-hero-avoid
           >
             Understand{" "}
-            <span className="text-brand-gradient">
+            <span className="text-brand-emphasis">
               anything
             </span>
             , explained from first principles
@@ -161,20 +161,20 @@ export default function HeroSection({
             custom={0.5}
           >
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-500/10">
-                <Zap className="h-4 w-4 text-green-500" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground/5">
+                <Zap className="h-4 w-4 text-foreground" />
               </div>
               <span>Printable reference sheets</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/10">
-                <BookOpen className="h-4 w-4 text-blue-500" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground/5">
+                <BookOpen className="h-4 w-4 text-foreground" />
               </div>
               <span>Classroom ready</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-accent/10">
-                <Users className="h-4 w-4 text-brand-accent" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground/5">
+                <Users className="h-4 w-4 text-foreground" />
               </div>
               <span>For teachers & students</span>
             </div>

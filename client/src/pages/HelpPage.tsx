@@ -8,8 +8,6 @@ import { Link } from "wouter";
 import Footer from "@/components/Footer";
 import PageHero from "@/components/PageHero";
 
-// Category tile hues, from the same palette as topic covers.
-const HELP_HUES = [174, 216, 36, 290];
 
 interface FAQItem {
   question: string;
@@ -186,8 +184,7 @@ export default function HelpPage() {
                 >
                   <CardContent className="p-6 text-center">
                     <div
-                      className="inline-flex h-12 w-12 items-center justify-center rounded-xl mb-4"
-                      style={{ background: `hsl(${HELP_HUES[faqCategories.indexOf(category) % HELP_HUES.length]} 70% 50% / 0.12)`, color: `hsl(${HELP_HUES[faqCategories.indexOf(category) % HELP_HUES.length]} 65% 46%)` }}
+                      className="inline-flex h-12 w-12 items-center justify-center rounded-xl mb-4 bg-ink text-gold ring-1 ring-inset ring-white/10"
                     >
                       <category.icon className="h-6 w-6" />
                     </div>

@@ -5,17 +5,20 @@ import { categoryTheme, type CoverMotif } from "@/lib/categoryTheme";
 /**
  * Generative cover art for a topic: a motif suited to its field (orbits for
  * physics, circuit traces for technology, branching growth for biology...),
- * tinted in the field's hue and seeded from the slug -- unique per topic,
- * identical on every visit. Pure SVG: no requests, no AI, crisp at any size.
+ * seeded from the slug -- unique per topic, identical on every visit. Pure
+ * SVG: no requests, no AI, crisp at any size.
+ *
+ * Drawn in the brand identity: the motif's lines in Ink (Paper in dark
+ * mode) on a Chalk ground, and its nodes/points in Principle Gold -- the
+ * field is told apart by its motif, not by colour.
  */
 
 const W = 320;
 const H = 120;
 
-// Colors come from CSS custom properties so one render works in both themes
-// (the wrapper sets --cat-h; dark mode lifts lightness via --cat-l).
-const ink = (alpha = 1): CSSProperties => ({ stroke: `hsl(var(--cat-h) 70% var(--cat-l) / ${alpha})` });
-const fill = (alpha = 1): CSSProperties => ({ fill: `hsl(var(--cat-h) 70% var(--cat-l) / ${alpha})` });
+// Colours come from theme variables, so one render works in both themes.
+const ink = (alpha = 1): CSSProperties => ({ stroke: `hsl(var(--foreground) / ${alpha * 0.8})` });
+const fill = (alpha = 1): CSSProperties => ({ fill: `hsl(var(--gold) / ${alpha})` });
 
 type Rng = () => number;
 const between = (rng: Rng, a: number, b: number) => a + rng() * (b - a);
@@ -188,11 +191,7 @@ export default function TopicCover({
   return (
     <div
       aria-hidden
-      className={`relative overflow-hidden [--cat-l:46%] dark:[--cat-l:68%] ${className}`}
-      style={{
-        ["--cat-h" as string]: theme.hue,
-        background: `linear-gradient(135deg, hsl(${theme.hue} 75% 60% / 0.16), hsl(${theme.hue + 30} 75% 60% / 0.05))`,
-      } as CSSProperties}
+      className={`relative overflow-hidden bg-muted ${className}`}
     >
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid slice" className="h-full w-full">
         {art}
@@ -201,12 +200,12 @@ export default function TopicCover({
   );
 }
 
-/** Small colored dot + field name, matching the cover hue. */
+/** Small dot + field name. */
 export function CategoryBadge({ category }: { category: string | null | undefined }) {
   const theme = categoryTheme(category);
   return (
     <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-      <span aria-hidden className="h-2 w-2 rounded-full" style={{ background: `hsl(${theme.hue} 70% 52%)` }} />
+      <span aria-hidden className="h-2 w-2 rounded-full bg-gold" />
       {theme.name}
     </span>
   );

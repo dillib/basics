@@ -15,8 +15,8 @@ import GenerationProgress from "@/components/GenerationProgress";
 import { canonicalCategory, CANONICAL_ORDER } from "@/lib/categories";
 import { cn } from "@/lib/utils";
 import TopicCover, { CategoryBadge } from "@/components/TopicCover";
-import { categoryTheme } from "@/lib/categoryTheme";
 import { LEVELS, LEVEL_LABELS, LEVEL_HINTS, type Level } from "@shared/levels";
+import { LEVEL_POINT } from "@/lib/levelColors";
 
 type SourceFilter = "all" | "samples" | "mine";
 
@@ -223,13 +223,14 @@ export default function TopicsPage() {
                           onClick={() => setGenLevel(lv)}
                           disabled={generateTopicMutation.isPending || !!jobId}
                           className={cn(
-                            "rounded-md px-3.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
+                            "inline-flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
                             genLevel === lv
                               ? "bg-primary text-primary-foreground shadow-sm"
                               : "text-muted-foreground hover:text-foreground"
                           )}
                           data-testid={`button-genlevel-${lv}`}
                         >
+                          <span aria-hidden className={`h-1.5 w-1.5 shrink-0 rounded-full ${LEVEL_POINT[lv]}`} />
                           {LEVEL_LABELS[lv]}
                         </button>
                       ))}
@@ -322,8 +323,7 @@ export default function TopicsPage() {
                 {category.name !== "All" && (
                   <span
                     aria-hidden
-                    className="mr-2 h-2 w-2 rounded-full group-data-[state=active]:ring-2 group-data-[state=active]:ring-primary-foreground/60"
-                    style={{ background: `hsl(${categoryTheme(category.name).hue} 70% 52%)` }}
+                    className="mr-2 h-2 w-2 rounded-full bg-gold group-data-[state=active]:ring-2 group-data-[state=active]:ring-primary-foreground/60"
                   />
                 )}
                 {category.name}

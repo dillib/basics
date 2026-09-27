@@ -1,4 +1,5 @@
 import { useState } from "react";
+import InlineText from "./InlineText";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -107,10 +108,10 @@ export default function SimpleModeView({
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="font-medium text-base mb-1 group-hover:text-primary transition-colors">
-                    {principle.title}
+                    <InlineText text={principle.title} />
                   </h4>
                   <p className="text-sm text-muted-foreground line-clamp-2">
-                    {getSimpleSummary(principle)}
+                    <InlineText text={getSimpleSummary(principle)} />
                   </p>
 
                   {/* Visual-first: every principle leads with its animated
@@ -146,7 +147,7 @@ export default function SimpleModeView({
                             {principle.keyTakeaways.slice(0, 3).map((takeaway, i) => (
                               <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
                                 <ChevronRight className="w-3.5 h-3.5 mt-0.5 text-primary flex-shrink-0" />
-                                {takeaway}
+                                <InlineText text={takeaway} />
                               </li>
                             ))}
                           </ul>

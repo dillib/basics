@@ -18,6 +18,7 @@ import {
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
 import { LEVELS, LEVEL_LABELS, isLevel, type Level } from "@shared/levels";
+import { LEVEL_POINT } from "@/lib/levelColors";
 import { emitHeroSignal } from "@/lib/heroSignals";
 
 interface QuickResult {
@@ -536,13 +537,14 @@ export default function ProgressiveSearch() {
                           type="button"
                           onClick={() => setLevel(lv)}
                           className={cn(
-                            "rounded-md py-1.5 text-xs font-medium transition-colors",
+                            "inline-flex items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-colors",
                             level === lv
                               ? "bg-primary text-primary-foreground shadow-sm"
                               : "text-muted-foreground hover:text-foreground"
                           )}
                           data-testid={`button-level-${lv}`}
                         >
+                          <span aria-hidden className={`h-1.5 w-1.5 shrink-0 rounded-full ${LEVEL_POINT[lv]}`} />
                           {LEVEL_LABELS[lv]}
                         </button>
                       ))}

@@ -125,12 +125,12 @@ export default function AdminFeedback() {
                       <TableRow>
                         <TableCell>
                           <a href={`/topic/${t.slug}`} target="_blank" rel="noreferrer" className="font-medium hover:underline">{t.title}</a>
-                          {t.flagged && <Badge variant="outline" className="ml-2 border-brand-accent text-brand-accent">Review tonight</Badge>}
+                          {t.flagged && <Badge variant="outline" className="ml-2 border-brand-accent text-brand-accent-text">Review tonight</Badge>}
                           <div className="text-xs text-muted-foreground">v{t.contentVersion}{t.lastFeedbackAt ? ` · last ${formatDistanceToNow(new Date(t.lastFeedbackAt), { addSuffix: true })}` : ""}</div>
                         </TableCell>
                         <TableCell className="text-right tabular-nums"><ThumbsUp className="mr-1 inline h-3.5 w-3.5 text-primary" />{t.up}</TableCell>
                         <TableCell className="text-right tabular-nums">
-                          <ThumbsDown className="mr-1 inline h-3.5 w-3.5 text-brand-accent" />{t.down}
+                          <ThumbsDown className="mr-1 inline h-3.5 w-3.5 text-brand-accent-text" />{t.down}
                           {t.downPeople !== t.down && <span className="text-xs text-muted-foreground"> ({t.downPeople} people)</span>}
                         </TableCell>
                         <TableCell className="text-sm">{reasons.map(([r, n]) => `${REASON_LABELS[r] ?? r} ${n}`).join(" · ") || "—"}</TableCell>

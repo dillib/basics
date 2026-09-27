@@ -9,50 +9,60 @@
   --opaque-button-border-intensity: -8;
   --elevate-1: rgba(0,0,0, .03);
   --elevate-2: rgba(0,0,0, .08);
-  --background: 30 20% 99%;
-  --foreground: 20 14% 10%;
-  --border: 30 10% 90%;
+  --background: 40 40% 94%;
+  --foreground: 215 55% 13%;
+  --border: 40 29% 84%;
   --card: 0 0% 100%;
-  --card-foreground: 20 14% 10%;
-  --card-border: 30 10% 92%;
-  --sidebar: 30 15% 97%;
-  --sidebar-foreground: 20 14% 10%;
-  --sidebar-border: 30 10% 90%;
-  --sidebar-primary: 176 72% 30%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 176 45% 95%;
-  --sidebar-accent-foreground: 20 14% 10%;
-  --sidebar-ring: 176 72% 30%;
+  --card-foreground: 215 55% 13%;
+  --card-border: 40 29% 84%;
+  --sidebar: 40 36% 91%;
+  --sidebar-foreground: 215 55% 13%;
+  --sidebar-border: 40 29% 84%;
+  --sidebar-primary: 215 55% 13%;
+  --sidebar-primary-foreground: 40 40% 94%;
+  --sidebar-accent: 40 30% 86%;
+  --sidebar-accent-foreground: 215 55% 13%;
+  --sidebar-ring: 215 55% 13%;
   --popover: 0 0% 100%;
-  --popover-foreground: 20 14% 10%;
-  --popover-border: 30 10% 90%;
-  --primary: 176 72% 30%;
-  /* Warm "spark" accent (logo, highlights); pairs with the teal primary. */
-  --brand-accent: 36 95% 48%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 30 15% 95%;
-  --secondary-foreground: 20 14% 15%;
-  --muted: 30 15% 96%;
-  --muted-foreground: 20 10% 45%;
-  --accent: 176 45% 96%;
-  --accent-foreground: 176 72% 24%;
-  --destructive: 0 72% 55%;
+  --popover-foreground: 215 55% 13%;
+  --popover-border: 40 29% 84%;
+  --primary: 215 55% 13%;
+  /* Principle Gold: the Point. Fills and highlights, used sparingly. As
+     text on Paper it is only 2.2:1, so text uses --brand-accent-text. */
+  --brand-accent: 42 53% 54%;
+  --brand-accent-text: 43 67% 29%;
+  /* Fixed brand colours (same in both themes). */
+  --gold: 42 53% 54%;
+  --ink: 215 55% 13%;
+  --paper: 40 40% 94%;
+  /* All-ages system: the Point takes the learner's age colour. */
+  --level-kid: 15 82% 63%;
+  --level-teen: 212 85% 65%;
+  --level-adult: 42 53% 54%;
+  --primary-foreground: 40 40% 94%;
+  --secondary: 40 30% 86%;
+  --secondary-foreground: 215 55% 13%;
+  --muted: 40 30% 86%;
+  --muted-foreground: 218 13% 41%;
+  --accent: 40 32% 89%;
+  --accent-foreground: 215 55% 13%;
+  --destructive: 4 70% 46%;
   --destructive-foreground: 0 0% 100%;
-  --input: 30 10% 90%;
-  --ring: 176 72% 30%;
-  --chart-1: 176 72% 30%;
-  --chart-2: 173 55% 42%;
-  --chart-3: 200 40% 35%;
-  --chart-4: 38 80% 52%;
-  --chart-5: 25 85% 60%;
+  --input: 40 29% 84%;
+  --ring: 215 55% 13%;
+  --chart-1: 215 55% 13%;
+  --chart-2: 42 53% 54%;
+  --chart-3: 212 85% 55%;
+  --chart-4: 15 82% 58%;
+  --chart-5: 218 13% 41%;
   --success: 152 60% 42%;
   --success-foreground: 0 0% 100%;
   --warning: 38 92% 50%;
   --warning-foreground: 0 0% 100%;
-  --font-sans: Inter, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-serif: Georgia, serif;
+  --font-sans: Jost, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: Fraunces, Georgia, 'Times New Roman', serif;
   --font-mono: JetBrains Mono, monospace;
-  --radius: .5rem;
+  --radius: .625rem;
   --shadow-2xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.00);
   --shadow-xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.00);
   --shadow-sm: 0px 2px 0px 0px hsl(0 0% 0% / 0.00), 0px 1px 2px -1px hsl(0 0% 0% / 0.00);
@@ -99,42 +109,43 @@
   --opaque-button-border-intensity: 9;
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
-  --background: 225 15% 6%;
-  --foreground: 30 20% 96%;
-  --border: 225 10% 14%;
-  --card: 225 15% 8%;
-  --card-foreground: 30 20% 96%;
-  --card-border: 225 10% 14%;
-  --sidebar: 225 15% 7%;
-  --sidebar-foreground: 30 20% 96%;
-  --sidebar-border: 225 10% 14%;
-  --sidebar-primary: 174 62% 44%;
-  --sidebar-primary-foreground: 176 60% 7%;
-  --sidebar-accent: 176 35% 15%;
-  --sidebar-accent-foreground: 30 20% 96%;
-  --sidebar-ring: 174 62% 44%;
-  --popover: 225 15% 10%;
-  --popover-foreground: 30 20% 96%;
-  --popover-border: 225 10% 14%;
-  --primary: 174 62% 44%;
-  /* Warm "spark" accent (logo, highlights); pairs with the teal primary. */
-  --brand-accent: 38 95% 58%;
-  --primary-foreground: 176 60% 7%;
-  --secondary: 225 10% 14%;
-  --secondary-foreground: 30 20% 96%;
-  --muted: 225 10% 14%;
-  --muted-foreground: 225 10% 55%;
-  --accent: 176 35% 15%;
-  --accent-foreground: 174 60% 72%;
-  --destructive: 0 65% 55%;
+  --background: 215 55% 13%;
+  --foreground: 40 40% 94%;
+  --border: 216 30% 25%;
+  --card: 216 52% 17%;
+  --card-foreground: 40 40% 94%;
+  --card-border: 216 30% 25%;
+  --sidebar: 215 55% 11%;
+  --sidebar-foreground: 40 40% 94%;
+  --sidebar-border: 216 30% 25%;
+  --sidebar-primary: 42 53% 54%;
+  --sidebar-primary-foreground: 215 55% 13%;
+  --sidebar-accent: 216 40% 21%;
+  --sidebar-accent-foreground: 40 40% 94%;
+  --sidebar-ring: 42 53% 54%;
+  --popover: 216 50% 19%;
+  --popover-foreground: 40 40% 94%;
+  --popover-border: 216 30% 25%;
+  --primary: 42 53% 54%;
+  /* On Ink, gold reads at 7:1, so it is also the text accent. */
+  --brand-accent: 42 53% 54%;
+  --brand-accent-text: 42 53% 54%;
+  --primary-foreground: 215 55% 13%;
+  --secondary: 216 40% 21%;
+  --secondary-foreground: 40 40% 94%;
+  --muted: 216 40% 20%;
+  --muted-foreground: 217 14% 72%;
+  --accent: 216 40% 22%;
+  --accent-foreground: 40 40% 94%;
+  --destructive: 4 72% 58%;
   --destructive-foreground: 0 0% 100%;
-  --input: 225 10% 18%;
-  --ring: 174 62% 44%;
-  --chart-1: 174 62% 48%;
-  --chart-2: 173 55% 50%;
-  --chart-3: 200 40% 50%;
-  --chart-4: 38 80% 60%;
-  --chart-5: 25 85% 65%;
+  --input: 216 30% 25%;
+  --ring: 42 53% 54%;
+  --chart-1: 42 53% 54%;
+  --chart-2: 212 85% 65%;
+  --chart-3: 15 82% 63%;
+  --chart-4: 217 14% 72%;
+  --chart-5: 218 13% 55%;
   --success: 152 60% 48%;
   --success-foreground: 0 0% 100%;
   --warning: 38 92% 55%;
@@ -339,15 +350,19 @@
   .shadow-glow { box-shadow: var(--shadow-glow); }
   .shadow-glow-lg { box-shadow: var(--shadow-glow-lg); }
 
-  /* Brand gradient text (teal -> amber). Interpolated in OKLCH where
-     supported: a plain sRGB blend between these hues passes through a
-     muddy olive; OKLCH keeps the midpoint vivid. */
-  .text-brand-gradient {
-    background-image: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--brand-accent)));
-    background-image: linear-gradient(90deg in oklch, hsl(var(--primary)), hsl(var(--brand-accent)));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+  /* Emphasis in the identity is a voice change, not a colour effect:
+     italic Fraunces ("One mark. *Three Points.*"). */
+  .text-brand-emphasis {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-weight: 400;
+  }
+
+  /* Display headlines: Fraunces Light, as on the brand sheets. */
+  .font-display {
+    font-family: var(--font-serif);
+    font-weight: 300;
+    letter-spacing: -0.01em;
   }
 
   /* Consistent hover treatment for interactive cards: lift + glow + border tint. */

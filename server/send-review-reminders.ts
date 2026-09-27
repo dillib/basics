@@ -32,7 +32,7 @@ function reminderHtml(firstName: string | null, dueCount: number, unsubUrl: stri
         and it sticks.
       </p>
       <a href="${SITE_URL}/dashboard"
-         style="display:inline-block;margin:16px 0;background:#6d28d9;color:#fff;text-decoration:none;
+         style="display:inline-block;margin:16px 0;background:#0F1E33;color:#F6F2EA;text-decoration:none;
                 padding:12px 22px;border-radius:8px;font-weight:600;">
         Review ${dueCount} now →
       </a>

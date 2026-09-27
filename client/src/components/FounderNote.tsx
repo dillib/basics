@@ -20,7 +20,7 @@ export default function FounderNote() {
             A note from the founder
           </p>
 
-          <blockquote className="text-2xl sm:text-3xl font-medium leading-snug tracking-tight text-foreground">
+          <blockquote className="font-display text-3xl sm:text-4xl leading-snug text-foreground">
             I spent years “learning” things I never actually understood —
             memorizing enough to pass, then forgetting it a week later.
           </blockquote>

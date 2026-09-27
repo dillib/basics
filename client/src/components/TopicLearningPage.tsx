@@ -37,13 +37,14 @@ import TutorChat from "./TutorChat";
 import MindMapPanel from "./MindMapPanel";
 import RelatedTopics from "./RelatedTopics";
 import { LEVEL_LABELS, isLevel, type Level } from "@shared/levels";
+import { LEVEL_POINT } from "@/lib/levelColors";
 import SimpleModeView from "./SimpleModeView";
 import ReferenceSheetGenerator from "./ReferenceSheetGenerator";
 import CertificateGenerator from "./CertificateGenerator";
 import ConceptVisual from "./visuals/ConceptVisual";
 import TopicCover from "./TopicCover";
 import QualityBadge from "./QualityBadge";
-import InlineText from "./InlineText";
+import InlineText, { plainText } from "./InlineText";
 import LessonFeedback from "./LessonFeedback";
 import { reportLessonView } from "@/lib/attribution";
 import { ContentPaywall } from "./ContentPaywall";
@@ -374,7 +375,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
             ) : (
               <div className="h-4 w-4 rounded-full border border-current shrink-0" />
             )}
-            <span className="truncate">{principle.title}</span>
+            <span className="truncate">{plainText(principle.title)}</span>
           </button>
         );
       })}
@@ -442,9 +443,10 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                 className="mb-6 h-28 rounded-2xl border border-card-border sm:h-36"
               />
               <div className="flex flex-wrap items-center gap-3 mb-4">
-                <h1 className="text-3xl sm:text-4xl font-bold [text-wrap:balance]" data-testid="text-topic-title">{topic.title}</h1>
+                <h1 className="font-display text-3xl sm:text-5xl [text-wrap:balance]" data-testid="text-topic-title">{topic.title}</h1>
                 {isLevel(topic.level) && topic.level !== 'adult' && (
-                  <Badge variant="outline" className="border-primary/40 text-primary" data-testid="badge-level">
+                  <Badge variant="outline" className="gap-1.5 border-border text-foreground" data-testid="badge-level">
+                    <span aria-hidden className={`h-2 w-2 rounded-full ${LEVEL_POINT[topic.level as Level]}`} />
                     For {LEVEL_LABELS[topic.level as Level]}
                   </Badge>
                 )}
@@ -617,7 +619,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                                   <Lightbulb className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                                   <div>
                                     <p className="text-sm font-medium mb-1">Real-World Analogy</p>
-                                    <p className="text-sm text-muted-foreground"><InlineText text={principle.analogy} /></p>
+                                    <p className="font-serif italic text-base leading-relaxed text-foreground/85"><InlineText text={principle.analogy} /></p>
                                   </div>
                                 </div>
                               </div>
@@ -876,7 +878,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
       </div>
 
       {Array.isArray(topic.practicalSteps) && topic.practicalSteps.length > 0 && (
-        <section className="border-t border-border bg-primary/5">
+        <section className="border-t border-border bg-muted/40">
           <div className="container mx-auto px-4 py-10">
             <div className="max-w-3xl">
               <div className="flex items-center gap-2 mb-4">

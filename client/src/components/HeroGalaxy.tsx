@@ -80,8 +80,8 @@ export default function HeroGalaxy() {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let w = 0, h = 0, dpr = 1;
     let dark = document.documentElement.classList.contains("dark");
-    // Core glow + dust follow the theme primary, so a rebrand recolors the galaxy.
-    const readBrandHue = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--primary")) || 250;
+    // Core glow + dust follow the brand gold (the Point), in both themes.
+    const readBrandHue = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--gold")) || 42;
     let brandHue = readBrandHue();
     let visible = true, frame = 0, last = performance.now();
     let yaw = 0.6, spin = 0; // spin: extra angular speed while thinking

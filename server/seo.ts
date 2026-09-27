@@ -77,7 +77,7 @@ export function buildTopicMeta(topic: Topic, baseUrl: string, principles: Princi
     "@id": `${baseUrl}/#organization`,
     name: SITE_NAME,
     url: baseUrl,
-    logo: { "@type": "ImageObject", url: `${baseUrl}/android-chrome-512x512.png`, width: 512, height: 512 },
+    logo: { "@type": "ImageObject", url: `${baseUrl}/logo-512.png`, width: 512, height: 512 },
   };
   const level = isLevel(topic.level) ? topic.level : "adult";
   const sources = topicSources(topic);

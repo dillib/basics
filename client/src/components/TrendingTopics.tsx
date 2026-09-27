@@ -47,9 +47,9 @@ export default function TrendingTopics({ onTopicClick }: TrendingTopicsProps) {
           transition={{ duration: 0.6 }}
           className="mb-10"
         >
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 mb-4">
-            <Flame className="h-4 w-4 text-orange-500" />
-            <span className="text-sm font-medium text-orange-600 dark:text-orange-400">Trending today</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gold/15 border border-gold/40 mb-4">
+            <Flame className="h-4 w-4 text-brand-accent-text" />
+            <span className="text-sm font-medium text-brand-accent-text">Trending today</span>
           </div>
           <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight" data-testid="text-trending-title">
             What the world is searching for, explained
@@ -79,7 +79,7 @@ export default function TrendingTopics({ onTopicClick }: TrendingTopicsProps) {
                 <div className="p-6">
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <CategoryBadge category={topic.category} />
-                  <Badge variant="outline" className="text-xs gap-1 border-orange-500/30 text-orange-600 dark:text-orange-400">
+                  <Badge variant="outline" className="text-xs gap-1 border-gold/50 text-brand-accent-text">
                     <Flame className="h-3 w-3" />
                     Trending
                   </Badge>

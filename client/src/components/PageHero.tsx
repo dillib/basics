@@ -44,7 +44,7 @@ export default function PageHero({
             </span>
           )}
           <h1
-            className={`font-semibold tracking-tight [text-wrap:balance] ${compact ? "text-3xl sm:text-4xl" : "text-4xl sm:text-5xl lg:text-6xl"}`}
+            className={`font-display [text-wrap:balance] ${compact ? "text-3xl sm:text-4xl" : "text-4xl sm:text-5xl lg:text-6xl"}`}
             data-testid={titleTestId}
           >
             {title}

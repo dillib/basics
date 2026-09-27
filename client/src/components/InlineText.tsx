@@ -6,6 +6,11 @@ import { Fragment } from "react";
 // never HTML, so model output can't inject markup.
 const EMPHASIS = /(\*\*[^*\n]+?\*\*|\*[^*\s](?:[^*\n]*?[^*\s])?\*)/g;
 
+/** The same text with the emphasis marks removed (for truncated or plain spots). */
+export function plainText(text: string | null | undefined): string {
+  return (text ?? "").replace(/\*\*([^*\n]+?)\*\*/g, "$1").replace(/\*([^*\s](?:[^*\n]*?[^*\s])?)\*/g, "$1");
+}
+
 export default function InlineText({ text }: { text: string | null | undefined }) {
   if (!text) return null;
   return (

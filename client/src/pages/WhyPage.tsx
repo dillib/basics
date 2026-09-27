@@ -23,8 +23,6 @@ import PageHero from "@/components/PageHero";
 import { ConceptVisualView } from "@/components/visuals/ConceptVisual";
 import { parseVisualSpec } from "@shared/visuals";
 
-// Icon tile hues for the "different" cards, from the category palette.
-const FEATURE_HUES = [216, 36, 142, 290, 174, 8];
 
 // The method itself, drawn with the same scene renderer lessons use.
 const METHOD_SCENE = parseVisualSpec({
@@ -115,7 +113,7 @@ export default function WhyPage() {
       <PageHero
         eyebrow="The Method"
         titleTestId="text-why-title"
-        title={<>AI gives you answers.<br /><span className="text-brand-gradient">BasicsTutor gives you understanding.</span></>}
+        title={<>AI gives you answers.<br /><span className="text-brand-emphasis">BasicsTutor gives you understanding.</span></>}
         subtitle="AI chatbots are amazing for quick answers. But if you want to truly understand a subject—to build knowledge that lasts—you need more than a conversation. You need a learning experience."
       >
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -176,14 +174,11 @@ export default function WhyPage() {
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {solutionPoints.map((point, i) => (
+              {solutionPoints.map((point) => (
                 <Card key={point.title} className="card-hover">
                   <CardContent className="p-8">
-                    {/* Distinct field hues (same system as topic covers) instead of six identical teal tiles. */}
-                    <div
-                      className="h-12 w-12 rounded-xl flex items-center justify-center mb-6"
-                      style={{ background: `hsl(${FEATURE_HUES[i % FEATURE_HUES.length]} 70% 50% / 0.12)`, color: `hsl(${FEATURE_HUES[i % FEATURE_HUES.length]} 65% 46%)` }}
-                    >
+                    {/* Ink tile, gold icon: the mark's own pairing. */}
+                    <div className="h-12 w-12 rounded-xl flex items-center justify-center mb-6 bg-ink text-gold ring-1 ring-inset ring-white/10">
                       <point.icon className="h-6 w-6" />
                     </div>
                     <h3 className="text-xl font-semibold mb-3">{point.title}</h3>

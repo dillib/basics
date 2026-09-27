@@ -130,7 +130,7 @@ export default function LessonFeedback({ topicId, contentVersion }: { topicId: s
                     disabled={sending}
                     aria-pressed={vote === -1}
                     onClick={() => choose(-1)}
-                    className={cn("gap-2", vote === -1 && "border-brand-accent text-brand-accent")}
+                    className={cn("gap-2", vote === -1 && "border-brand-accent text-brand-accent-text")}
                     data-testid="button-feedback-down"
                   >
                     <ThumbsDown className="h-4 w-4" /> No

@@ -52,9 +52,12 @@ function wrapTitle(title: string, maxChars: number, maxLines: number): string[] 
 }
 
 export async function renderTopicOgImage(topic: Topic): Promise<Buffer> {
-  const lines = wrapTitle(topic.title, 22, 3);
+  const lines = wrapTitle(topic.title, 24, 3);
   // Bigger font when the title is short, smaller when it wraps to 3 lines.
-  const fontSize = lines.length === 1 ? 84 : lines.length === 2 ? 72 : 60;
+  // Keep the title clear of the large mark on the right (~760px of room):
+  // shrink by the longest line (~0.52em per character in a grotesque sans).
+  const longest = Math.max(...lines.map((l) => l.length));
+  const fontSize = Math.min(lines.length === 1 ? 78 : lines.length === 2 ? 68 : 58, Math.floor(760 / (longest * 0.52)));
   const lineHeight = Math.round(fontSize * 1.18);
   const titleBlockHeight = lines.length * lineHeight;
   const titleStartY = 300 - titleBlockHeight / 2 + fontSize; // vertically centered-ish
@@ -68,47 +71,29 @@ export async function renderTopicOgImage(topic: Topic): Promise<Buffer> {
     .map((b) => escapeXml(String(b)).toUpperCase())
     .join("  ·  ");
 
+  // Brand identity: Ink ground, Paper type, one gold Point. The B mark uses
+  // the exact geometry from client/src/components/Logo.tsx. Jost is named
+  // first; the server falls back to its installed sans (DejaVu) if absent.
+  const sans = "Jost, DejaVu Sans, Arial, sans-serif";
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-  <defs>
-    <radialGradient id="glowA" cx="12%" cy="8%" r="85%">
-      <stop offset="0%" stop-color="#0f766e" stop-opacity="0.6"/>
-      <stop offset="45%" stop-color="#0f766e" stop-opacity="0.14"/>
-      <stop offset="100%" stop-color="#0f766e" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="glowB" cx="92%" cy="98%" r="70%">
-      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.26"/>
-      <stop offset="60%" stop-color="#f59e0b" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#14b8a6"/>
-      <stop offset="100%" stop-color="#f59e0b"/>
-    </linearGradient>
-  </defs>
+  <rect width="1200" height="630" fill="#0F1E33"/>
 
-  <rect width="1200" height="630" fill="#0b0d12"/>
-  <rect width="1200" height="630" fill="url(#glowA)"/>
-  <rect width="1200" height="630" fill="url(#glowB)"/>
-  <rect x="0" y="0" width="1200" height="8" fill="url(#accent)"/>
+  <!-- The mark, large and quiet on the right: the Point is the only colour. -->
+  <g transform="translate(868 95) scale(1.50322) translate(15.451 15.451)"><g fill="none" stroke="#F6F2EA" stroke-width="30.902" opacity="0.1"><path d="M0 0H50A50 50 0 0 1 50 100H0Z"/><path d="M0 100H80.902A80.902 80.902 0 0 1 80.902 261.803H0Z"/></g><circle cx="50" cy="50" r="14.59" fill="#C8A24A"/></g>
 
-  <!-- Brand mark + wordmark -->
-  <!-- Capstone mark (client/src/components/Logo.tsx), 64-unit grid scaled to 44px. -->
-  <g transform="translate(80 66) scale(0.6875)">
-    <rect width="64" height="64" rx="16" fill="#15847c"/>
-    <rect x="13" y="43" width="38" height="8" rx="3" fill="#ffffff"/>
-    <rect x="18.5" y="33" width="27" height="8" rx="3" fill="#ffffff" fill-opacity="0.9"/>
-    <rect x="24" y="23" width="16" height="8" rx="3" fill="#ffffff" fill-opacity="0.8"/>
-    <circle cx="32" cy="14.5" r="4.6" fill="#f5a524"/>
-  </g>
-  <text x="138" y="100" font-family="Inter, Arial, Helvetica, DejaVu Sans, sans-serif" font-size="30" font-weight="700" fill="#f8fafc">Basics<tspan fill="#2dd4bf" font-weight="600">Tutor</tspan></text>
+  <!-- Lockup: mark height 52, wordmark 52/φ ≈ 32, gap 52/φ² ≈ 20. -->
+  <g transform="translate(80 62) scale(0.17765) translate(15.451 15.451)" opacity="1"><g fill="none" stroke="#F6F2EA" stroke-width="30.902"><path d="M0 0H50A50 50 0 0 1 50 100H0Z"/><path d="M0 100H80.902A80.902 80.902 0 0 1 80.902 261.803H0Z"/></g><circle cx="50" cy="50" r="14.59" fill="#C8A24A"/></g>
+  <text x="134" y="99" font-family="${sans}" font-size="32" letter-spacing="-0.6" fill="#F6F2EA"><tspan font-weight="600">Basics</tspan><tspan font-weight="400">Tutor</tspan></text>
 
   <!-- Category / difficulty -->
-  ${metaBits ? `<text x="80" y="185" font-family="sans-serif" font-size="24" font-weight="600" letter-spacing="1" fill="#5eead4">${metaBits}</text>` : ""}
+  ${metaBits ? `<text x="80" y="190" font-family="${sans}" font-size="22" font-weight="500" letter-spacing="4" fill="#C9CED6">${metaBits}</text>` : ""}
 
   <!-- Title -->
-  <text x="80" y="${titleStartY}" font-family="sans-serif" font-size="${fontSize}" font-weight="800" fill="#f8fafc">${titleTspans}</text>
+  <text x="80" y="${titleStartY}" font-family="${sans}" font-size="${fontSize}" font-weight="500" letter-spacing="-1" fill="#F6F2EA">${titleTspans}</text>
 
-  <!-- Tagline -->
-  <text x="80" y="565" font-family="sans-serif" font-size="28" font-weight="500" fill="#94a3b8">Explained from first principles</text>
+  <!-- Gold rule + tagline -->
+  <rect x="80" y="523" width="96" height="3" fill="#C8A24A"/>
+  <text x="80" y="570" font-family="${sans}" font-size="28" font-weight="400" fill="#C9CED6">Explained from first principles</text>
 </svg>`;
 
   const sharp = (await import("sharp")).default;

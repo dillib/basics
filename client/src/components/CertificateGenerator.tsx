@@ -22,7 +22,7 @@ export function generateCertificatePDF(user: User | undefined, topic: Topic, pro
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
 
-  const primaryColor = [21, 132, 124]; // brand teal, hsl(176 72% 30%)
+  const primaryColor = [15, 30, 51]; // brand Ink, #0F1E33
   const textColor = [30, 30, 30];
   const mutedColor = [100, 100, 100];
 

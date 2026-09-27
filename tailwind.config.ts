@@ -27,6 +27,18 @@ export default {
           border: "hsl(var(--popover-border) / <alpha-value>)",
         },
         "brand-accent": "hsl(var(--brand-accent) / <alpha-value>)",
+        // Readable gold for text (deeper on Paper, true gold on Ink).
+        "brand-accent-text": "hsl(var(--brand-accent-text) / <alpha-value>)",
+        // Fixed identity colours (same in both themes): the Point, Ink, Paper.
+        gold: "hsl(var(--gold) / <alpha-value>)",
+        ink: "hsl(var(--ink) / <alpha-value>)",
+        paper: "hsl(var(--paper) / <alpha-value>)",
+        // All-ages system: Kids coral, Teens sky, Adults gold.
+        level: {
+          kid: "hsl(var(--level-kid) / <alpha-value>)",
+          teen: "hsl(var(--level-teen) / <alpha-value>)",
+          adult: "hsl(var(--level-adult) / <alpha-value>)",
+        },
         primary: {
           DEFAULT: "hsl(var(--primary) / <alpha-value>)",
           foreground: "hsl(var(--primary-foreground) / <alpha-value>)",

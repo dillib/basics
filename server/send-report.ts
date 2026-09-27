@@ -85,16 +85,16 @@ async function main() {
 
       <table style="width:100%;border-collapse:collapse;margin:20px 0;">
         <tr>
-          <td style="padding:16px;background:#f5f3ff;border-radius:8px 0 0 8px;text-align:center;">
-            <div style="font-size:28px;font-weight:700;color:#6d28d9;">${newUsers}</div>
+          <td style="padding:16px;background:#F6F2EA;border-radius:8px 0 0 8px;text-align:center;">
+            <div style="font-size:28px;font-weight:700;color:#0F1E33;">${newUsers}</div>
             <div style="font-size:13px;color:#666;">New Users (${windowLabel})</div>
           </td>
-          <td style="padding:16px;background:#f5f3ff;text-align:center;">
-            <div style="font-size:28px;font-weight:700;color:#6d28d9;">${newTopics}</div>
+          <td style="padding:16px;background:#F6F2EA;text-align:center;">
+            <div style="font-size:28px;font-weight:700;color:#0F1E33;">${newTopics}</div>
             <div style="font-size:13px;color:#666;">New Topics (${windowLabel})</div>
           </td>
-          <td style="padding:16px;background:#f5f3ff;border-radius:0 8px 8px 0;text-align:center;">
-            <div style="font-size:28px;font-weight:700;color:#6d28d9;">${waitlistTotal}</div>
+          <td style="padding:16px;background:#F6F2EA;border-radius:0 8px 8px 0;text-align:center;">
+            <div style="font-size:28px;font-weight:700;color:#0F1E33;">${waitlistTotal}</div>
             <div style="font-size:13px;color:#666;">Waitlist (total)</div>
           </td>
         </tr>
