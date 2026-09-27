@@ -954,8 +954,8 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
         <>
           {!isTutorChatOpen && (
             <Button
-              size="lg"
-              className="fixed bottom-4 right-4 h-14 w-14 rounded-full shadow-lg z-40"
+              size="icon"
+              className="fixed bottom-4 right-4 h-14 w-14 rounded-full shadow-lg z-40 [&_svg]:size-6"
               onClick={() => {
                 setCurrentPrincipleForChat(null);
                 setIsTutorChatOpen(true);

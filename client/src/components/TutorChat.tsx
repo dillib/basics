@@ -273,8 +273,8 @@ export default function TutorChat({
 export function TutorChatButton({ onClick }: { onClick: () => void }) {
   return (
     <Button
-      size="lg"
-      className="fixed bottom-4 right-4 h-14 w-14 rounded-full shadow-lg z-40"
+      size="icon"
+      className="fixed bottom-4 right-4 h-14 w-14 rounded-full shadow-lg z-40 [&_svg]:size-6"
       onClick={onClick}
       data-testid="button-open-tutor-chat"
     >
