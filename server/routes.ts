@@ -21,7 +21,9 @@ import {
   ReviewGradeSchema,
   ProgressUpdateSchema,
   TopicFeedbackSchema,
+  TopicViewSchema,
 } from "./validation";
+import { classifyVisit } from "./traffic";
 import { createHash } from "crypto";
 import { restoreTopicVersion } from "./topic-content";
 import { selectHealCandidates } from "./self-heal";
@@ -29,7 +31,7 @@ import { applySm2, nextMasteryScore, MASTERED_THRESHOLD } from "./spaced-repetit
 import { verifyUnsubscribe } from "./email-unsubscribe";
 import { buildTopicSlug } from "@shared/levels";
 import { config } from "./config";
-import { aiLimiter, quickSearchLimiter, formLimiter, tutorLimiter, feedbackLimiter } from "./security";
+import { aiLimiter, quickSearchLimiter, formLimiter, tutorLimiter, feedbackLimiter, viewLimiter } from "./security";
 import { publicBaseUrl, buildSitemap } from "./seo";
 import { computeMonthlyMasteryStats, currentMonthRange } from "./mastery";
 import { canAccessVisuals, getOrCreateScene } from "./visuals";
@@ -337,14 +339,25 @@ export async function registerRoutes(
   app.get('/api/topics/:slug', async (req, res) => {
     const topic = await storage.getTopicBySlug(req.params.slug);
     if (!topic) return res.status(404).json({ message: "Topic not found" });
-    // Count a read (the traffic signal for trending + self-heal priority).
-    // Fire-and-forget; skip bots and prefetches.
-    const ua = req.get('user-agent') || '';
-    const purpose = req.get('purpose') || req.get('sec-purpose') || '';
-    if (ua && !BOT_UA.test(ua) && !/prefetch/i.test(purpose)) {
-      storage.recordTopicView(topic.id).catch((err) => console.error('[Views] record failed:', err?.message));
-    }
     res.json(topic);
+  });
+
+  // Lesson read + where it came from (search / AI / social / classroom...).
+  // Sent by the lesson page once it renders (client/src/lib/attribution.ts),
+  // so crawlers and prefetches that never run the page don't count. Feeds
+  // Admin > Traffic, the daily report, and self-heal priority.
+  app.post('/api/topics/:topicId/view', viewLimiter, validate(TopicViewSchema), async (req: Request, res) => {
+    try {
+      const ua = req.get('user-agent') || '';
+      if (!ua || BOT_UA.test(ua)) return res.status(204).end();
+      const topic = await storage.getTopic(req.params.topicId);
+      if (!topic || !topic.isPublic) return res.status(204).end();
+      const ownHosts = [req.get('host') || '', new URL(publicBaseUrl(req)).host];
+      await storage.recordTopicView(topic.id, classifyVisit(req.body, ownHosts));
+      res.status(204).end();
+    } catch (error) {
+      return handleError(error, res, 'Topic View');
+    }
   });
 
   // -- READER FEEDBACK (thumbs up/down; feeds server/self-heal-topics.ts) --
@@ -1130,6 +1143,16 @@ export async function registerRoutes(
       res.json({ success: true });
   });
   
+  // Where lesson reads come from (Admin > Traffic).
+  app.get('/api/admin/traffic', isAuthenticated, isAdmin, async (req: Request, res) => {
+    try {
+      const days = Math.min(90, Math.max(1, parseInt(String(req.query.days || "7"), 10) || 7));
+      res.json(await storage.getTrafficSummary(days));
+    } catch (error) {
+      return handleError(error, res, 'Admin Traffic');
+    }
+  });
+
   // Reader feedback overview + self-heal history (Admin > Feedback).
   app.get('/api/admin/feedback', isAuthenticated, isAdmin, async (_req: Request, res) => {
     try {

@@ -35,7 +35,31 @@ export interface PageMeta {
   jsonLd?: Record<string, unknown>;
 }
 
-export function buildTopicMeta(topic: Topic, baseUrl: string): PageMeta {
+/** Sources saved by the research step (validationData.sources), if any. */
+function topicSources(topic: Topic): { title: string; url: string; date?: string }[] {
+  const raw = (topic.validationData as { sources?: unknown } | null)?.sources;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((s): s is { title: string; url: string; date?: string } =>
+    !!s && typeof s.url === "string" && /^https?:\/\//i.test(s.url) && typeof s.title === "string").slice(0, 8);
+}
+
+function practicalSteps(topic: Topic): string[] {
+  return Array.isArray(topic.practicalSteps) ? (topic.practicalSteps as unknown[]).filter((s): s is string => typeof s === "string") : [];
+}
+
+/** Lesson text may carry **bold** / *italic* (see client InlineText). Strip for plain-text fields. */
+function plain(value: string): string {
+  return value.replace(/\*\*([^*\n]+?)\*\*/g, "$1").replace(/\*([^*\s](?:[^*\n]*?[^*\s])?)\*/g, "$1");
+}
+
+/** Escape, then render **bold** / *italic* as real tags (for the crawler snapshot). */
+function richText(value: string): string {
+  return escapeHtml(value)
+    .replace(/\*\*([^*\n]+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*([^*\s](?:[^*\n]*?[^*\s])?)\*/g, "<em>$1</em>");
+}
+
+export function buildTopicMeta(topic: Topic, baseUrl: string, principles: Principle[] = []): PageMeta {
   const url = `${baseUrl}/topic/${topic.slug}`;
   // Kid/Teen/Adult variants of the same title are separate indexable URLs --
   // without the level in the tag, they'd carry near-identical titles, which
@@ -43,29 +67,68 @@ export function buildTopicMeta(topic: Topic, baseUrl: string): PageMeta {
   const levelSuffix =
     isLevel(topic.level) && topic.level !== "adult" ? ` for ${LEVEL_LABELS[topic.level]}` : "";
   const title = `${topic.title}${levelSuffix} — explained from first principles | ${SITE_NAME}`;
-  const description =
+  const description = plain(
     topic.description ||
-    `Learn ${topic.title} from first principles: clear explanations, real-world analogies, and a quiz to test your understanding.`;
+    `Learn ${topic.title} from first principles: clear explanations, real-world analogies, and a quiz to test your understanding.`,
+  );
+  const image = `${baseUrl}/og/${topic.slug}`;
+  const org = {
+    "@type": "Organization",
+    "@id": `${baseUrl}/#organization`,
+    name: SITE_NAME,
+    url: baseUrl,
+    logo: { "@type": "ImageObject", url: `${baseUrl}/android-chrome-512x512.png`, width: 512, height: 512 },
+  };
+  const level = isLevel(topic.level) ? topic.level : "adult";
+  const sources = topicSources(topic);
+
+  // One graph per page: the lesson (Article + LearningResource, so it's
+  // eligible for article features AND described as learning material), the
+  // breadcrumb trail shown in results, and the publisher. dateModified moves
+  // when the content is rewritten (self-heal / regenerate), which tells
+  // search engines the page was refreshed.
+  const lesson: Record<string, unknown> = {
+    "@type": ["Article", "LearningResource"],
+    "@id": `${url}#lesson`,
+    headline: topic.title.slice(0, 110),
+    name: topic.title,
+    description,
+    url,
+    mainEntityOfPage: url,
+    image: [image],
+    inLanguage: "en",
+    isAccessibleForFree: true,
+    learningResourceType: "Concept explainer",
+    educationalLevel: LEVEL_LABELS[level],
+    audience: { "@type": "EducationalAudience", educationalRole: "student", audienceType: LEVEL_LABELS[level] },
+    ...(topic.category ? { about: topic.category, articleSection: topic.category } : {}),
+    ...(topic.estimatedMinutes ? { timeRequired: `PT${topic.estimatedMinutes}M` } : {}),
+    ...(topic.createdAt ? { datePublished: new Date(topic.createdAt).toISOString() } : {}),
+    ...(topic.updatedAt || topic.createdAt ? { dateModified: new Date((topic.updatedAt || topic.createdAt)!).toISOString() } : {}),
+    ...(principles.length ? { teaches: principles.map((p) => plain(p.title)) } : {}),
+    ...(sources.length
+      ? { citation: sources.map((s) => ({ "@type": "CreativeWork", name: s.title, url: s.url, ...(s.date ? { datePublished: s.date } : {}) })) }
+      : {}),
+    author: { "@id": org["@id"] },
+    publisher: { "@id": org["@id"] },
+  };
+  const breadcrumbs = {
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: `${baseUrl}/` },
+      { "@type": "ListItem", position: 2, name: "Topic Library", item: `${baseUrl}/topics` },
+      { "@type": "ListItem", position: 3, name: topic.title, item: url },
+    ],
+  };
 
   return {
     title,
     description,
     url,
     // Per-topic 1200x630 share card (server/og-image.ts via /og/:slug).
-    image: `${baseUrl}/og/${topic.slug}`,
+    image,
     type: "article",
-    jsonLd: {
-      "@context": "https://schema.org",
-      "@type": "LearningResource",
-      name: topic.title,
-      description,
-      url,
-      learningResourceType: "Concept explainer",
-      ...(topic.difficulty ? { educationalLevel: topic.difficulty } : {}),
-      ...(topic.category ? { about: topic.category } : {}),
-      isAccessibleForFree: true,
-      provider: { "@type": "Organization", name: SITE_NAME, url: baseUrl },
-    },
+    jsonLd: { "@context": "https://schema.org", "@graph": [lesson, breadcrumbs, org] },
   };
 }
 
@@ -133,20 +196,38 @@ export function renderContentSnapshot(topic: Topic, principles: Principle[]): st
   const sections = principles
     .map((p) => {
       const analogy = p.analogy
-        ? `\n      <p class="text-base italic text-muted-foreground mb-4">${escapeHtml(p.analogy)}</p>`
+        ? `\n      <p class="text-base italic text-muted-foreground mb-4">${richText(p.analogy)}</p>`
         : "";
       const takeaways =
         p.keyTakeaways && p.keyTakeaways.length > 0
           ? `\n      <ul class="list-disc pl-5 space-y-1 text-sm text-muted-foreground">${p.keyTakeaways
-              .map((t) => `<li>${escapeHtml(t)}</li>`)
+              .map((t) => `<li>${richText(t)}</li>`)
               .join("")}</ul>`
           : "";
       return `    <section class="mb-10 pb-10 border-b border-border">
-      <h2 class="text-2xl font-semibold mb-3">${escapeHtml(p.title)}</h2>
-      <p class="text-base leading-relaxed text-foreground/90 mb-4">${escapeHtml(p.explanation)}</p>${analogy}${takeaways}
+      <h2 class="text-2xl font-semibold mb-3">${richText(p.title)}</h2>
+      <p class="text-base leading-relaxed text-foreground/90 mb-4">${richText(p.explanation)}</p>${analogy}${takeaways}
     </section>`;
     })
     .join("\n");
+
+  // Same extra sections the page shows, so crawlers index them too.
+  const steps = practicalSteps(topic);
+  const stepsHtml = steps.length
+    ? `\n    <section class="mb-10">
+      <h2 class="text-xl font-semibold mb-3">Put it into practice</h2>
+      <ul class="list-disc pl-5 space-y-2">${steps.map((s) => `<li>${richText(s)}</li>`).join("")}</ul>
+    </section>`
+    : "";
+  const sources = topicSources(topic);
+  const sourcesHtml = sources.length
+    ? `\n    <section class="mb-10">
+      <h2 class="text-xl font-semibold mb-3">Sources</h2>
+      <ol class="list-decimal pl-5 space-y-1 text-sm">${sources
+        .map((s) => `<li><a href="${escapeHtml(s.url)}" rel="noopener nofollow">${escapeHtml(s.title)}</a>${s.date ? ` · ${escapeHtml(s.date)}` : ""}</li>`)
+        .join("")}</ol>
+    </section>`
+    : "";
 
   return `<main class="container mx-auto px-6 py-12">
     <header class="mb-8">
@@ -154,7 +235,7 @@ export function renderContentSnapshot(topic: Topic, principles: Principle[]): st
       ${topic.description ? `<p class="text-lg text-muted-foreground leading-relaxed mb-3">${escapeHtml(topic.description)}</p>` : ""}
       <div class="flex flex-wrap items-center gap-3">${badges}</div>
     </header>
-${sections}
+${sections}${stepsHtml}${sourcesHtml}
   </main>`;
 }
 

@@ -60,7 +60,8 @@ export async function applyTopicContent(
     confidenceScore: opts.confidenceScore,
     validationData: opts.validationData as InsertTopic["validationData"],
     contentVersion: currentVersion + 1,
-  });
+    updatedAt: new Date(),
+  } as Partial<InsertTopic>);
 
   await storage.replaceTopicPrinciples(
     topic.id,
@@ -95,7 +96,7 @@ export async function restoreTopicVersion(versionId: string): Promise<Topic> {
   });
 
   const { topic: saved, principles } = version.snapshot;
-  const updated = await storage.updateTopic(topic.id, { ...saved, contentVersion: currentVersion + 1 } as Partial<InsertTopic>);
+  const updated = await storage.updateTopic(topic.id, { ...saved, contentVersion: currentVersion + 1, updatedAt: new Date() } as Partial<InsertTopic>);
   await storage.replaceTopicPrinciples(
     topic.id,
     principles.map((p) => ({ ...p, topicId: topic.id }) as InsertPrinciple),

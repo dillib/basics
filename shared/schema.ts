@@ -340,6 +340,23 @@ export const topicDailyViews = pgTable("topic_daily_views", {
   uniqueIndex("topic_daily_views_pk").on(table.topicId, table.day),
 ]);
 
+// Where lesson reads come from (search, AI assistants, social, classroom...),
+// per lesson per day. refHost is the referring site's domain only -- never a
+// full URL or anything about the reader. See server/traffic.ts.
+export const TRAFFIC_SOURCES = ["search", "ai", "social", "classroom", "email", "referral", "direct", "internal"] as const;
+export type TrafficSource = (typeof TRAFFIC_SOURCES)[number];
+
+export const topicDailySources = pgTable("topic_daily_sources", {
+  topicId: varchar("topic_id", { length: 255 }).references(() => topics.id, { onDelete: "cascade" }).notNull(),
+  day: text("day").notNull(), // YYYY-MM-DD (UTC)
+  source: varchar("source", { length: 20 }).notNull(),
+  refHost: varchar("ref_host", { length: 100 }).notNull().default(""),
+  views: integer("views").notNull().default(0),
+}, (table) => [
+  uniqueIndex("topic_daily_sources_pk").on(table.topicId, table.day, table.source, table.refHost),
+  index("topic_daily_sources_day_idx").on(table.day),
+]);
+
 // Snapshot of a lesson taken just before its content is replaced, so any
 // self-heal or regeneration can be rolled back in one click.
 export interface TopicSnapshot {

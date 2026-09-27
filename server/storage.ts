@@ -2,7 +2,8 @@ import {
   users, topics, principles, quizzes, questions, progress, topicPurchases,
   quizAttempts, principleMastery, reviewSchedule, tutorSessions, tutorMessages,
   supportRequests, supportMessages, generationJobs, waitlistSignups,
-  topicFeedback, topicDailyViews, topicVersions,
+  topicFeedback, topicDailyViews, topicVersions, topicDailySources, TRAFFIC_SOURCES,
+  type TrafficSource,
   type TopicFeedback, type TopicVersion, type TopicSnapshot, type FeedbackReason,
   type GenerationJob, type InsertGenerationJob,
   type WaitlistSignup, type InsertWaitlistSignup,
@@ -52,7 +53,8 @@ export interface IStorage {
   replaceTopicPrinciples(topicId: string, next: InsertPrinciple[]): Promise<void>;
 
   // Reader feedback, views, and content versions (self-heal)
-  recordTopicView(topicId: string): Promise<void>;
+  recordTopicView(topicId: string, visit?: { source: TrafficSource; refHost: string }): Promise<void>;
+  getTrafficSummary(days: number): Promise<TrafficSummary>;
   upsertTopicFeedback(entry: NewTopicFeedback): Promise<TopicFeedback>;
   getFeedbackStats(opts?: { topicIds?: string[] }): Promise<TopicFeedbackStats[]>;
   getFeedbackComments(topicId: string, contentVersion: number, limit?: number): Promise<Pick<TopicFeedback, "vote" | "reasons" | "comment" | "createdAt">[]>;
@@ -160,6 +162,15 @@ export interface NewTopicFeedback {
   vote: 1 | -1;
   reasons: FeedbackReason[] | null;
   comment: string | null;
+}
+
+export interface TrafficSummary {
+  days: number;
+  since: string;
+  total: number;
+  bySource: Record<TrafficSource, number>;
+  topSites: { host: string; source: TrafficSource; views: number }[];
+  topLessons: { topicId: string; title: string; slug: string; total: number; bySource: Record<TrafficSource, number> }[];
 }
 
 export interface TopicFeedbackStats {
@@ -371,13 +382,61 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async recordTopicView(topicId: string): Promise<void> {
+  async recordTopicView(topicId: string, visit?: { source: TrafficSource; refHost: string }): Promise<void> {
     const day = new Date().toISOString().slice(0, 10);
     await db.insert(topicDailyViews).values({ topicId, day, views: 1 })
       .onConflictDoUpdate({
         target: [topicDailyViews.topicId, topicDailyViews.day],
         set: { views: sql`${topicDailyViews.views} + 1` },
       });
+    if (visit) {
+      await db.insert(topicDailySources).values({ topicId, day, source: visit.source, refHost: visit.refHost, views: 1 })
+        .onConflictDoUpdate({
+          target: [topicDailySources.topicId, topicDailySources.day, topicDailySources.source, topicDailySources.refHost],
+          set: { views: sql`${topicDailySources.views} + 1` },
+        });
+    }
+  }
+
+  /** Lesson reads by source over the last `days` days (UTC, including today). */
+  async getTrafficSummary(days: number): Promise<TrafficSummary> {
+    const since = new Date(Date.now() - (days - 1) * 86_400_000).toISOString().slice(0, 10);
+    const bySourceRows = await db.select({ source: topicDailySources.source, views: sql<number>`SUM(${topicDailySources.views})::int` })
+      .from(topicDailySources).where(gte(topicDailySources.day, since)).groupBy(topicDailySources.source);
+    const bySource = Object.fromEntries(TRAFFIC_SOURCES.map((s) => [s, 0])) as Record<TrafficSource, number>;
+    for (const r of bySourceRows) if (r.source in bySource) bySource[r.source as TrafficSource] = r.views;
+
+    const topSites = await db.select({
+        host: topicDailySources.refHost, source: topicDailySources.source,
+        views: sql<number>`SUM(${topicDailySources.views})::int`,
+      })
+      .from(topicDailySources)
+      .where(and(gte(topicDailySources.day, since), ne(topicDailySources.refHost, "")))
+      .groupBy(topicDailySources.refHost, topicDailySources.source)
+      .orderBy(desc(sql`SUM(${topicDailySources.views})`))
+      .limit(15);
+
+    const perSource = TRAFFIC_SOURCES.map((s) => sql`, COALESCE(SUM(v.views) FILTER (WHERE v.source = ${s}), 0)::int AS ${sql.identifier(s)}`);
+    const lessons = await db.execute(sql`
+      SELECT t.id, t.title, t.slug, SUM(v.views)::int AS total ${sql.join(perSource, sql``)}
+      FROM topic_daily_sources v JOIN topics t ON t.id = v.topic_id
+      WHERE v.day >= ${since}
+      GROUP BY t.id
+      ORDER BY total DESC
+      LIMIT 20
+    `);
+
+    return {
+      days,
+      since,
+      total: Object.values(bySource).reduce((a, b) => a + b, 0),
+      bySource,
+      topSites: topSites as TrafficSummary["topSites"],
+      topLessons: (lessons.rows as any[]).map((r) => ({
+        topicId: r.id, title: r.title, slug: r.slug, total: r.total,
+        bySource: Object.fromEntries(TRAFFIC_SOURCES.map((s) => [s, r[s] ?? 0])) as Record<TrafficSource, number>,
+      })),
+    };
   }
 
   async upsertTopicFeedback(entry: NewTopicFeedback): Promise<TopicFeedback> {

@@ -83,6 +83,17 @@ async function migrate() {
         created_at TIMESTAMP DEFAULT NOW()
       );
       CREATE INDEX IF NOT EXISTS topic_versions_topic_idx ON topic_versions(topic_id, created_at);
+
+      -- Traffic sources per lesson per day (server/traffic.ts)
+      CREATE TABLE IF NOT EXISTS topic_daily_sources (
+        topic_id VARCHAR(255) NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+        day TEXT NOT NULL,
+        source VARCHAR(20) NOT NULL,
+        ref_host VARCHAR(100) NOT NULL DEFAULT '',
+        views INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS topic_daily_sources_pk ON topic_daily_sources(topic_id, day, source, ref_host);
+      CREATE INDEX IF NOT EXISTS topic_daily_sources_day_idx ON topic_daily_sources(day);
     `);
   }
 

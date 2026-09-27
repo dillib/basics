@@ -26,8 +26,8 @@ export function serveStatic(app: Express) {
         const slug = decodeURIComponent(match[1]);
         const topic = await storage.getTopicBySlug(slug);
         if (topic) {
-          const meta = buildTopicMeta(topic, publicBaseUrl(req));
           const principles = await storage.getPrinciplesByTopic(topic.id);
+          const meta = buildTopicMeta(topic, publicBaseUrl(req), principles);
           const withMeta = injectMeta(indexHtml, meta);
           const withContent = injectContent(withMeta, renderContentSnapshot(topic, principles));
           return res.status(200).set("Content-Type", "text/html").send(withContent);

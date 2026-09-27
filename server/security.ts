@@ -115,6 +115,14 @@ export const feedbackLimiter = rateLimit({
   ...sharedOptions,
 });
 
+/** Lesson-view beacons: one per lesson opened, so generous, but bounds scripted inflation. */
+export const viewLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 300,
+  message: { message: "Too many requests." },
+  ...sharedOptions,
+});
+
 /** Limiter for public write endpoints like waitlist / support submissions. */
 export const formLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour

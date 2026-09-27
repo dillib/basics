@@ -20,6 +20,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import AdminFeedback from "@/components/admin/AdminFeedback";
+import AdminTraffic from "@/components/admin/AdminTraffic";
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import type { User, Topic, TopicPurchase, SupportRequest, SupportMessage } from "@shared/schema";
 
@@ -1293,7 +1294,7 @@ export default function AdminPage() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6 max-w-3xl">
+        <TabsList className="grid w-full grid-cols-7 max-w-4xl">
           <TabsTrigger value="overview" data-testid="tab-overview">
             Overview
           </TabsTrigger>
@@ -1311,6 +1312,9 @@ export default function AdminPage() {
           </TabsTrigger>
           <TabsTrigger value="feedback" data-testid="tab-feedback">
             Feedback
+          </TabsTrigger>
+          <TabsTrigger value="traffic" data-testid="tab-traffic">
+            Traffic
           </TabsTrigger>
         </TabsList>
 
@@ -1336,6 +1340,10 @@ export default function AdminPage() {
 
         <TabsContent value="feedback" id="feedback">
           <AdminFeedback />
+        </TabsContent>
+
+        <TabsContent value="traffic" id="traffic">
+          <AdminTraffic />
         </TabsContent>
       </Tabs>
     </div>

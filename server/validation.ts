@@ -62,6 +62,14 @@ export const TopicFeedbackSchema = z.object({
   visitorId: z.string().regex(/^[a-zA-Z0-9-]{8,64}$/).optional(),
 });
 
+// What the browser saw on the landing page; classified server-side (server/traffic.ts).
+export const TopicViewSchema = z.object({
+  referrer: z.string().max(2000).optional(),
+  utmSource: z.string().max(200).optional(),
+  utmMedium: z.string().max(200).optional(),
+  internal: z.boolean().optional(),
+});
+
 export const WaitlistSchema = z.object({
   email: z.string().email('Please enter a valid email address').max(320),
   source: z.string().max(50).optional(),

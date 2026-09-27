@@ -10,6 +10,8 @@
  */
 import { storage } from "./storage";
 import { sendEmail } from "./email";
+import type { TrafficSummary } from "./storage";
+import type { TrafficSource } from "@shared/schema";
 import { pool } from "./db";
 
 type Period = "daily" | "weekly" | "monthly";
@@ -22,6 +24,25 @@ const PERIOD_CONFIG: Record<Period, { days: number; label: string; windowLabel: 
 
 function escapeHtml(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+const SOURCE_LABELS: Record<TrafficSource, string> = {
+  search: "Search", ai: "AI assistants", social: "Social", classroom: "Classroom",
+  email: "Email", referral: "Other sites", direct: "Direct", internal: "From another lesson",
+};
+
+/** Lesson reads by source -- the distribution scoreboard. */
+function trafficHtml(t: TrafficSummary): string {
+  if (!t.total) return `<p style="color:#888;margin:8px 0;">No lesson reads recorded in this period yet.</p>`;
+  const rows = (Object.keys(SOURCE_LABELS) as TrafficSource[])
+    .filter((s) => t.bySource[s] > 0)
+    .sort((a, b) => t.bySource[b] - t.bySource[a])
+    .map((s) => `<tr><td style="padding:3px 12px 3px 0;">${SOURCE_LABELS[s]}</td><td style="padding:3px 0;text-align:right;font-weight:600;">${t.bySource[s]}</td></tr>`)
+    .join("");
+  const sites = t.topSites.slice(0, 5).map((s) => `${escapeHtml(s.host)} (${s.views})`).join(", ");
+  return `<p style="margin:8px 0;">${t.total} lesson reads</p>
+      <table style="border-collapse:collapse;font-size:14px;">${rows}</table>
+      ${sites ? `<p style="color:#666;font-size:13px;margin:8px 0;">Top referring sites: ${sites}</p>` : ""}`;
 }
 
 async function main() {
@@ -47,6 +68,7 @@ async function main() {
   ]);
 
   const recentTopics = await storage.getAllTopics(50, 0, since);
+  const traffic = await storage.getTrafficSummary(days);
 
   const topicListHtml = recentTopics.length
     ? `<ul style="padding-left:20px;margin:8px 0;">${recentTopics
@@ -77,6 +99,9 @@ async function main() {
           </td>
         </tr>
       </table>
+
+      <h3 style="margin-bottom:4px;">Where readers came from</h3>
+      ${trafficHtml(traffic)}
 
       <h3 style="margin-bottom:4px;">Topics generated in this period</h3>
       ${topicListHtml}

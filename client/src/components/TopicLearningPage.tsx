@@ -45,6 +45,7 @@ import TopicCover from "./TopicCover";
 import QualityBadge from "./QualityBadge";
 import InlineText from "./InlineText";
 import LessonFeedback from "./LessonFeedback";
+import { reportLessonView } from "@/lib/attribution";
 import { ContentPaywall } from "./ContentPaywall";
 
 interface TopicLearningPageProps {
@@ -143,6 +144,11 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [slug]);
+
+  // Count the read + where it came from (Admin > Traffic).
+  useEffect(() => {
+    if (topic?.id && topic.isPublic) reportLessonView(topic.id);
+  }, [topic?.id, topic?.isPublic]);
 
   // Initialize completed principles from saved progress
   useEffect(() => {
