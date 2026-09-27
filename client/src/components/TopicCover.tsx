@@ -1,10 +1,14 @@
 import { useMemo, type CSSProperties, type ReactNode } from "react";
 import { makeRng, seedFromString } from "@shared/particle-sim";
 import { categoryTheme, type CoverMotif } from "@/lib/categoryTheme";
+import { topicMotif, type AnyMotif } from "@/lib/topicMotif";
+import { TOPIC_MOTIFS } from "./coverMotifs";
 
 /**
- * Generative cover art for a topic: a motif suited to its field (orbits for
- * physics, circuit traces for technology, branching growth for biology...),
+ * Generative cover art for a topic: a motif showing what the topic is about
+ * when one fits (an arch for bridges, a helix for DNA -- lib/topicMotif.ts,
+ * drawn in ./coverMotifs), else one suited to its field (orbits for physics,
+ * circuit traces for technology, branching growth for biology...),
  * seeded from the slug -- unique per topic, identical on every visit. Pure
  * SVG: no requests, no AI, crisp at any size.
  *
@@ -175,7 +179,7 @@ function constellation(rng: Rng): ReactNode {
   );
 }
 
-const MOTIFS: Record<CoverMotif, (rng: Rng) => ReactNode> = { orbits, circuit, branches, growth, plot, constellation };
+const MOTIFS: Record<AnyMotif, (rng: Rng) => ReactNode> = { orbits, circuit, branches, growth, plot, constellation, ...TOPIC_MOTIFS } satisfies Record<CoverMotif, unknown>;
 
 export default function TopicCover({
   slug,
@@ -187,7 +191,8 @@ export default function TopicCover({
   className?: string;
 }) {
   const theme = categoryTheme(category);
-  const art = useMemo(() => MOTIFS[theme.motif](makeRng(seedFromString(slug))), [slug, theme.motif]);
+  const motif = topicMotif(slug) ?? theme.motif;
+  const art = useMemo(() => MOTIFS[motif](makeRng(seedFromString(slug))), [slug, motif]);
   return (
     <div
       aria-hidden
