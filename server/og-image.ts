@@ -52,12 +52,13 @@ function wrapTitle(title: string, maxChars: number, maxLines: number): string[] 
 }
 
 export async function renderTopicOgImage(topic: Topic): Promise<Buffer> {
-  const lines = wrapTitle(topic.title, 24, 3);
+  const lines = wrapTitle(topic.title, 22, 3);
   // Bigger font when the title is short, smaller when it wraps to 3 lines.
   // Keep the title clear of the large mark on the right (~760px of room):
-  // shrink by the longest line (~0.52em per character in a grotesque sans).
+  // shrink by the longest line (~0.6em per character: the server renders in
+  // DejaVu Sans, which is wider than Jost).
   const longest = Math.max(...lines.map((l) => l.length));
-  const fontSize = Math.min(lines.length === 1 ? 78 : lines.length === 2 ? 68 : 58, Math.floor(760 / (longest * 0.52)));
+  const fontSize = Math.min(lines.length === 1 ? 78 : lines.length === 2 ? 68 : 58, Math.floor(740 / (longest * 0.6)));
   const lineHeight = Math.round(fontSize * 1.18);
   const titleBlockHeight = lines.length * lineHeight;
   const titleStartY = 300 - titleBlockHeight / 2 + fontSize; // vertically centered-ish
