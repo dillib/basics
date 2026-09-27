@@ -255,69 +255,6 @@ export default function WhyPage() {
         </div>
       </section>
 
-      <section className="py-20 sm:py-32">
-        <div className="container mx-auto px-6">
-          <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight mb-4">
-                The Learning Experience
-              </h2>
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                Here's what happens when you learn a topic on BasicsTutor.
-              </p>
-            </div>
-
-            <div className="space-y-6">
-              {[
-                {
-                  step: "1",
-                  title: "Enter Any Topic",
-                  description: "Type what you want to learn—from 'quantum computing' to 'how bread rises'. Our AI gets to work.",
-                  icon: Zap,
-                },
-                {
-                  step: "2",
-                  title: "Receive Structured Principles",
-                  description: "Get 4-6 fundamental principles, ordered from basic to advanced. Each builds on the last.",
-                  icon: Layers,
-                },
-                {
-                  step: "3",
-                  title: "Learn with Analogies",
-                  description: "Every principle includes real-world examples that make abstract concepts click.",
-                  icon: Lightbulb,
-                },
-                {
-                  step: "4",
-                  title: "Test Your Understanding",
-                  description: "Take a quiz to verify you truly understood. Get explanations for every answer.",
-                  icon: Award,
-                },
-                {
-                  step: "5",
-                  title: "Track & Review",
-                  description: "See your progress on the dashboard. Review topics with spaced repetition to make knowledge stick.",
-                  icon: TrendingUp,
-                },
-              ].map((item) => (
-                <div key={item.step} className="flex gap-6 items-start">
-                  <div className="flex-shrink-0 h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg">
-                    {item.step}
-                  </div>
-                  <div className="flex-1 pt-2">
-                    <h3 className="text-xl font-semibold mb-2 flex items-center gap-3">
-                      <item.icon className="h-5 w-5 text-primary" />
-                      {item.title}
-                    </h3>
-                    <p className="text-muted-foreground leading-relaxed">{item.description}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Replaces an invented "What Learners Say" section: the method shown,
           not testimonials we can't attribute to real people. */}
       <section className="py-20 bg-card border-y border-border" aria-labelledby="method-title">

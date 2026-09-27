@@ -35,16 +35,29 @@ export default function LegalLayout({
       h.classList.add("scroll-mt-24");
       return { id: h.id, label: h.textContent || "" };
     }));
-    // A heading becomes "active" once it passes the top ~20% of the viewport.
-    const io = new IntersectionObserver(
-      (entries) => {
-        const visible = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-        if (visible[0]) setActive(visible[0].target.id);
-      },
-      { rootMargin: "-72px 0px -75% 0px" },
-    );
-    headings.forEach((h) => io.observe(h));
-    return () => io.disconnect();
+    // Active = the last heading scrolled past the top third of the viewport.
+    // (An IntersectionObserver "band" misses sections whose heading has
+    // already scrolled off while you're mid-section, leaving no highlight.)
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const line = window.innerHeight * 0.33;
+      let current: string | null = headings[0]?.id ?? null;
+      for (const h of headings) {
+        if (h.getBoundingClientRect().top <= line) current = h.id;
+        else break;
+      }
+      setActive(current);
+    };
+    const onScroll = () => { if (!frame) frame = requestAnimationFrame(update); };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
   }, []);
 
   const links = (onPick?: () => void) => (
