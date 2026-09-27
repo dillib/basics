@@ -1,3 +1,4 @@
+import { cleanLessonTitle } from "@shared/lessonTitle";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Flame, Clock } from "lucide-react";
@@ -85,7 +86,7 @@ export default function TrendingTopics({ onTopicClick }: TrendingTopicsProps) {
                   </Badge>
                 </div>
                 <h3 className="text-lg font-semibold mb-2 group-hover:text-primary transition-colors line-clamp-2">
-                  {topic.title}
+                  {cleanLessonTitle(topic.title)}
                 </h3>
                 <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
                   {topic.description}

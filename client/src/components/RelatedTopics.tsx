@@ -1,3 +1,4 @@
+import { cleanLessonTitle } from "@shared/lessonTitle";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -70,7 +71,7 @@ export default function RelatedTopics({ slug }: { slug: string }) {
                     ) : null}
                   </div>
                   <h3 className="font-semibold leading-snug group-hover:text-primary transition-colors">
-                    {t.title}
+                    {cleanLessonTitle(t.title)}
                   </h3>
                   {t.description && (
                     <p className="text-sm text-muted-foreground mt-2 line-clamp-2">

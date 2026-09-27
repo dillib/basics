@@ -45,6 +45,10 @@ import ConceptVisual from "./visuals/ConceptVisual";
 import TopicCover from "./TopicCover";
 import QualityBadge from "./QualityBadge";
 import InlineText, { plainText } from "./InlineText";
+import { cleanLessonTitle, lessonTitleTag, lessonByline } from "@shared/lessonTitle";
+import { SnapshotOr, consumeSnapshot } from "@/lib/ssrSnapshot";
+import FoundableContent from "./FoundableContent";
+import ShortAnswer from "./ShortAnswer";
 import LessonFeedback from "./LessonFeedback";
 import { reportLessonView } from "@/lib/attribution";
 import { ContentPaywall } from "./ContentPaywall";
@@ -71,7 +75,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
   const [progressInitialized, setProgressInitialized] = useState(false);
   const [isTutorChatOpen, setIsTutorChatOpen] = useState(false);
   const [currentPrincipleForChat, setCurrentPrincipleForChat] = useState<Principle | null>(null);
-  const [simpleMode, setSimpleMode] = useState(true);
+  const [simpleMode, setSimpleMode] = useState(false);
   const [isTocOpen, setIsTocOpen] = useState(false);
   const { isAuthenticated, user } = useAuth();
   const { toast } = useToast();
@@ -105,7 +109,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
   // Check if topic is a sample topic (free for everyone) - use property from topic response
   const isSampleTopic = (topic as any)?.isSample === true;
 
-  useDocumentTitle(topic ? `${topic.title} — BasicsTutor` : undefined);
+  useDocumentTitle(topic ? lessonTitleTag(`${topic.title}${isLevel(topic.level) && topic.level !== "adult" ? ` for ${LEVEL_LABELS[topic.level as Level]}` : ""}`) : undefined);
 
   const purchaseTopicMutation = useMutation({
     mutationFn: async () => {
@@ -145,6 +149,17 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [slug]);
+
+  // Open the first principle so the lesson starts reading, not as a list.
+  const firstPrincipleId = principles[0]?.id;
+  useEffect(() => {
+    if (firstPrincipleId) setExpandedPrinciples((prev) => (prev.size ? prev : new Set([firstPrincipleId])));
+  }, [firstPrincipleId]);
+
+  // The lesson is on screen: stop standing in with the server snapshot.
+  useEffect(() => {
+    if (topic && !principlesLoading) consumeSnapshot();
+  }, [topic, principlesLoading]);
 
   // Count the read + where it came from (Admin > Traffic).
   useEffect(() => {
@@ -211,6 +226,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
 
   if (topicLoading || principlesLoading) {
     return (
+      <SnapshotOr fallback={
       <div className="min-h-screen bg-background">
         <div className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border">
           <div className="container mx-auto px-4">
@@ -261,6 +277,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
           </div>
         </div>
       </div>
+      } />
     );
   }
 
@@ -308,7 +325,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
   const handleShare = async () => {
     const url = window.location.href;
     const shareData = {
-      title: topic ? `${topic.title} — BasicsTutor` : "BasicsTutor",
+      title: topic ? `${cleanLessonTitle(topic.title)} — BasicsTutor` : "BasicsTutor",
       text: topic?.description || "Understand anything, explained from first principles.",
       url,
     };
@@ -390,7 +407,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
             <div className="flex items-center gap-2 min-w-0">
               <Badge variant="secondary" className="shrink-0">{topic.category}</Badge>
               <Separator orientation="vertical" className="h-4" />
-              <span className="text-sm font-medium truncate">{topic.title}</span>
+              <span className="text-sm font-medium truncate">{cleanLessonTitle(topic.title)}</span>
             </div>
             <div className="flex items-center gap-4">
               <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
@@ -443,7 +460,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                 className="mb-6 h-28 rounded-2xl border border-card-border sm:h-36"
               />
               <div className="flex flex-wrap items-center gap-3 mb-4">
-                <h1 className="font-display text-3xl sm:text-5xl [text-wrap:balance]" data-testid="text-topic-title">{topic.title}</h1>
+                <h1 className="font-display text-3xl sm:text-5xl [text-wrap:balance]" data-testid="text-topic-title">{cleanLessonTitle(topic.title)}</h1>
                 {isLevel(topic.level) && topic.level !== 'adult' && (
                   <Badge variant="outline" className="gap-1.5 border-border text-foreground" data-testid="badge-level">
                     <span aria-hidden className={`h-2 w-2 rounded-full ${LEVEL_POINT[topic.level as Level]}`} />
@@ -467,7 +484,11 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                   </Button>
                 )}
               </div>
-              <p className="text-lg text-muted-foreground mb-4">{topic.description}</p>
+              <ShortAnswer answer={(topic as { shortAnswer?: string | null }).shortAnswer} principles={accessiblePrinciples} />
+              <p className="text-lg text-muted-foreground mb-2"><InlineText text={topic.description} /></p>
+              <p className="text-sm text-muted-foreground mb-4" data-testid="text-lesson-byline">
+                {lessonByline(topic)} · <a href="/about#how-lessons-are-made" className="underline-offset-4 hover:text-foreground hover:underline">How we make lessons</a>
+              </p>
               <div className="flex flex-wrap items-center gap-4">
                 <Badge>{topic.difficulty}</Badge>
                 <QualityBadge topic={topic} />
@@ -601,13 +622,17 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                         </div>
                       </CardHeader>
                       
-                      {isExpanded && !isLocked && (
+                      {!isLocked && (
+                        <FoundableContent open={isExpanded} onFound={() => togglePrinciple(principle.id)}>
                         <CardContent className="pt-0 space-y-6">
                           <div className="pl-12">
-                            {/* Visual first: see the mechanism, then read why. */}
-                            <div className="mb-5">
-                              <ConceptVisual principleId={principle.id} />
-                            </div>
+                            {/* Visual first: see the mechanism, then read why.
+                                Only when open: each visual can be an AI call. */}
+                            {isExpanded && (
+                              <div className="mb-5">
+                                <ConceptVisual principleId={principle.id} />
+                              </div>
+                            )}
 
                             <p className="text-muted-foreground leading-relaxed mb-4 whitespace-pre-line">
                               <InlineText text={principle.explanation} />
@@ -654,6 +679,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                             </div>
                           )}
                         </CardContent>
+                        </FoundableContent>
                       )}
 
                       {isLocked && isExpanded && (

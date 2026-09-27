@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -23,14 +23,16 @@ const AccountPage = lazy(() => import("@/pages/AccountPage"));
 const AdminPage = lazy(() => import("@/pages/AdminPage"));
 const SupportPage = lazy(() => import("@/pages/SupportPage"));
 const WhyPage = lazy(() => import("@/pages/WhyPage"));
+const AboutPage = lazy(() => import("@/pages/AboutPage"));
 import NotFound from "@/pages/not-found";
+import { SnapshotOr, consumeSnapshot } from "@/lib/ssrSnapshot";
 
 // Home stays in the main bundle (the most common landing page); every other
 // page loads its own chunk on first visit, so a first-time visitor no longer
 // downloads the dashboard, admin, charts and PDF tools up front.
 function Router() {
   return (
-    <Suspense fallback={<div className="min-h-[60vh]" aria-busy="true" />}>
+    <Suspense fallback={<SnapshotOr fallback={<div className="min-h-[60vh]" aria-busy="true" />} />}>
     <Switch>
       <Route path="/" component={HomePage} />
       <Route path="/topics" component={TopicsPage} />
@@ -47,6 +49,7 @@ function Router() {
       <Route path="/admin" component={AdminPage} />
       <Route path="/support" component={SupportPage} />
       <Route path="/why" component={WhyPage} />
+      <Route path="/about" component={AboutPage} />
       <Route component={NotFound} />
     </Switch>
     </Suspense>
@@ -61,6 +64,12 @@ function AppContent() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location]);
+
+  // The server snapshot only stands in for the page the visitor landed on.
+  const [landing] = useState(location);
+  useEffect(() => {
+    if (location !== landing) consumeSnapshot();
+  }, [location, landing]);
 
   // Handle redirect after login
   useEffect(() => {

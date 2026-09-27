@@ -52,6 +52,18 @@ async function migrate() {
 
       -- Reader feedback + self-heal (server/self-heal-topics.ts)
       ALTER TABLE topics ADD COLUMN IF NOT EXISTS content_version INTEGER DEFAULT 1;
+      ALTER TABLE topics ADD COLUMN IF NOT EXISTS short_answer TEXT;
+
+      -- Reading time from the actual lesson length (~200 words/min plus a
+      -- few minutes for the quiz), replacing the model's guesses (a
+      -- 1,200-word lesson claimed 45 min). Cheap; recomputed every boot.
+      UPDATE topics t SET estimated_minutes = w.minutes
+      FROM (
+        SELECT topic_id,
+               GREATEST(5, ROUND(SUM(array_length(regexp_split_to_array(trim(explanation || ' ' || COALESCE(analogy, '')), '\\s+'), 1)) / 200.0) + 3)::int AS minutes
+        FROM principles GROUP BY topic_id
+      ) w
+      WHERE w.topic_id = t.id AND t.estimated_minutes IS DISTINCT FROM w.minutes;
       CREATE TABLE IF NOT EXISTS topic_feedback (
         id VARCHAR(255) PRIMARY KEY DEFAULT gen_random_uuid(),
         topic_id VARCHAR(255) NOT NULL REFERENCES topics(id) ON DELETE CASCADE,

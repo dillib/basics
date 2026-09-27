@@ -1,3 +1,4 @@
+import { notifyIndexNow } from "./indexnow";
 import { storage } from "./storage";
 import { generateTopicContent, validateTopicContent } from "./ai";
 import { buildTopicSlug, isLevel } from "@shared/levels";
@@ -81,6 +82,7 @@ export async function processGenerationJob(jobId: string): Promise<void> {
       difficulty: content.difficulty,
       level,
       practicalSteps: content.practicalSteps,
+      shortAnswer: content.shortAnswer ?? null,
       estimatedMinutes: content.estimatedMinutes,
       isPublic: true,
       mindMapData: content.mindMap,
@@ -116,6 +118,8 @@ export async function processGenerationJob(jobId: string): Promise<void> {
       topicSlug: newTopic.slug,
     });
     console.log(`[Generation] Job ${jobId} completed -> topic ${newTopic.id}`);
+    // New public lesson: let search engines know now (plus the library it's listed in).
+    notifyIndexNow([`/topic/${newTopic.slug}`, "/topics"]);
   } catch (error) {
     console.error(`[Generation] Job ${jobId} failed:`, error);
     await storage

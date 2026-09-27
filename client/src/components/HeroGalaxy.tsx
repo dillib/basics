@@ -27,7 +27,9 @@ interface Star {
 }
 
 const ARMS = 4;
-const DUST = 1400;
+// Fewer dust particles on small screens: every one is drawn each frame, and
+// phones are where the main thread is scarce (Lighthouse TBT).
+const dustCount = () => (typeof window !== "undefined" && window.innerWidth < 640 ? 450 : 1000);
 
 function gauss(rng: () => number): number {
   // Box-Muller, clamped so outliers don't fling points off-screen.
@@ -55,6 +57,7 @@ export default function HeroGalaxy() {
     const dustRng = makeRng(11);
     // Most dust hugs the arms (that's what makes the spiral legible); a
     // thinner halo at wider spread keeps it from looking drawn-on.
+    const DUST = dustCount();
     const dust: Star[] = Array.from({ length: DUST }, (_, i) => ({
       ...place(dustRng, Math.floor(dustRng() * ARMS), i < DUST * 0.8 ? 0.8 : 2),
       hue: (dustRng() - 0.5) * 60, // offset from the brand hue, resolved at draw time
@@ -106,7 +109,7 @@ export default function HeroGalaxy() {
     };
 
     const resize = () => {
-      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      dpr = Math.min(window.devicePixelRatio || 1, 1.5);
       const rect = canvas.getBoundingClientRect();
       w = rect.width; h = rect.height;
       canvas.width = Math.max(1, Math.round(w * dpr));
@@ -222,9 +225,12 @@ export default function HeroGalaxy() {
       ctx.shadowBlur = 0;
     };
 
+    // 30 fps is plenty for a slow drift and halves main-thread work.
+    let lastDraw = 0;
     const loop = (now: number) => {
-      if (visible && !document.hidden) draw(now);
-      else last = now;
+      if (visible && !document.hidden) {
+        if (now - lastDraw >= 32) { lastDraw = now; draw(now); }
+      } else last = now;
       frame = requestAnimationFrame(loop);
     };
 
@@ -237,10 +243,21 @@ export default function HeroGalaxy() {
     mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "style"] });
     window.addEventListener("mousemove", onMouse, { passive: true });
     window.addEventListener("scroll", measureSearch, { passive: true });
-    frame = requestAnimationFrame(loop);
+    // Start once the page has loaded and gone idle: the headline and search
+    // box paint first, the starfield fades in behind them after.
+    let started = false, idleId = 0, timer = 0;
+    const start = () => { if (started) return; started = true; last = performance.now(); canvas.style.opacity = "1"; frame = requestAnimationFrame(loop); };
+    const whenIdle = () => {
+      const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+      if (ric) idleId = ric(start, { timeout: 2500 }); else timer = window.setTimeout(start, 1200);
+    };
+    if (document.readyState === "complete") whenIdle(); else window.addEventListener("load", whenIdle, { once: true });
 
     return () => {
       cancelAnimationFrame(frame);
+      window.removeEventListener("load", whenIdle);
+      if (idleId) (window as unknown as { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback?.(idleId);
+      if (timer) window.clearTimeout(timer);
       ro.disconnect(); io.disconnect(); mo.disconnect(); off();
       window.removeEventListener("mousemove", onMouse);
       window.removeEventListener("scroll", measureSearch);
@@ -252,7 +269,8 @@ export default function HeroGalaxy() {
       ref={canvasRef}
       aria-hidden
       // Dim (not hide) the band behind the headline so text stays crisp.
-      className="absolute inset-0 h-full w-full [mask-image:radial-gradient(ellipse_42%_30%_at_50%_34%,rgba(0,0,0,0.35),black_80%)]"
+      style={{ opacity: 0 }}
+      className="absolute inset-0 h-full w-full transition-opacity duration-1000 [mask-image:radial-gradient(ellipse_42%_30%_at_50%_34%,rgba(0,0,0,0.35),black_80%)]"
     />
   );
 }

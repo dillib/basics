@@ -71,7 +71,7 @@ describe('buildTopicMeta structured data', () => {
 
   it('adds breadcrumbs and a publisher with a logo', () => {
     const crumbs = graph.find((n) => n['@type'] === 'BreadcrumbList');
-    expect(crumbs.itemListElement.map((i: any) => i.name)).toEqual(['Home', 'Topic Library', 'How the Meta Muse Works?']);
+    expect(crumbs.itemListElement.map((i: any) => i.name)).toEqual(['Home', 'Topic Library', 'How the Meta Muse Works']);
     const org = graph.find((n) => n['@type'] === 'Organization');
     expect(org.logo.url).toBe('https://www.basicstutor.com/logo-512.png');
     expect(lesson.publisher).toEqual({ '@id': org['@id'] });

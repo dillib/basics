@@ -10,6 +10,7 @@ const footerLinks = {
     { label: "Dashboard", href: "/dashboard" },
   ],
   support: [
+    { label: "About", href: "/about" },
     { label: "Help Center", href: "/help" },
     { label: "Contact Us", href: "/contact" },
     { label: "Account", href: "/account" },

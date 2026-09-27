@@ -1,4 +1,5 @@
 import { storage } from "./storage";
+import { notifyIndexNow } from "./indexnow";
 import type { TopicContent } from "./ai";
 import type { Topic, TopicSnapshot, InsertTopic, InsertPrinciple } from "@shared/schema";
 
@@ -20,6 +21,7 @@ async function snapshotTopic(topic: Topic): Promise<TopicSnapshot> {
       category: topic.category,
       difficulty: topic.difficulty,
       practicalSteps: topic.practicalSteps,
+      shortAnswer: topic.shortAnswer,
       estimatedMinutes: topic.estimatedMinutes,
       mindMapData: topic.mindMapData,
       confidenceScore: topic.confidenceScore,
@@ -55,6 +57,7 @@ export async function applyTopicContent(
     category: content.category,
     difficulty: content.difficulty,
     practicalSteps: content.practicalSteps,
+    shortAnswer: content.shortAnswer ?? null,
     estimatedMinutes: content.estimatedMinutes,
     mindMapData: content.mindMap,
     confidenceScore: opts.confidenceScore,
@@ -77,6 +80,7 @@ export async function applyTopicContent(
     })),
   );
 
+  notifyIndexNow([`/topic/${topic.slug}`]);
   return { versionId: version.id, contentVersion: currentVersion + 1 };
 }
 
@@ -102,5 +106,6 @@ export async function restoreTopicVersion(versionId: string): Promise<Topic> {
     principles.map((p) => ({ ...p, topicId: topic.id }) as InsertPrinciple),
   );
   await storage.markTopicVersionRestored(version.id);
+  notifyIndexNow([`/topic/${topic.slug}`]);
   return updated ?? topic;
 }

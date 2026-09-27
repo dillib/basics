@@ -1,3 +1,4 @@
+import { cleanLessonTitle } from "@shared/lessonTitle";
 import { useState, useEffect, useMemo } from "react";
 import { useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -223,7 +224,7 @@ export default function TopicsPage() {
                           onClick={() => setGenLevel(lv)}
                           disabled={generateTopicMutation.isPending || !!jobId}
                           className={cn(
-                            "inline-flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
+                            "inline-flex items-center gap-1.5 rounded-md px-3.5 py-2.5 sm:py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
                             genLevel === lv
                               ? "bg-primary text-primary-foreground shadow-sm"
                               : "text-muted-foreground hover:text-foreground"
@@ -248,7 +249,7 @@ export default function TopicsPage() {
                       type="button"
                       onClick={() => setNewTopicTitle(idea)}
                       disabled={generateTopicMutation.isPending || !!jobId}
-                      className="rounded-full border border-border bg-background/60 px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                      className="rounded-full border border-border bg-background/60 px-3 py-2 text-xs sm:py-1 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
                       data-testid={`button-try-${idea.toLowerCase().replace(/\s+/g, "-")}`}
                     >
                       {idea}
@@ -389,7 +390,7 @@ export default function TopicsPage() {
                   </div>
 
                   <h3 className="text-xl font-semibold mb-2 group-hover:text-primary transition-colors">
-                    {topic.title}
+                    {cleanLessonTitle(topic.title)}
                   </h3>
                   <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
                     {topic.description}

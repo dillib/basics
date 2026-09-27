@@ -2,8 +2,15 @@ import type { Request } from "express";
 import type { Topic, Principle } from "@shared/schema";
 import { isLevel, LEVEL_LABELS } from "@shared/levels";
 import { canonicalCategory, CANONICAL_ORDER } from "../client/src/lib/categories";
+import { lessonTitleTag, cleanLessonTitle, lessonByline } from "@shared/lessonTitle";
+import { faqCategories } from "../client/src/data/helpFaqs";
+import { FOUNDER, HOW_LESSONS_ARE_MADE, LIMITS } from "../client/src/data/aboutContent";
+
+export { lessonTitleTag };
 
 const SITE_NAME = "BasicsTutor";
+/** Public founder name (a pen name; never the founder's legal name). */
+export const FOUNDER_NAME = "Pranav Tej";
 const DEFAULT_DESCRIPTION =
   "Understand anything, explained from first principles. Get instant AI-generated breakdowns with quizzes, mind maps, and printable reference sheets.";
 
@@ -62,20 +69,6 @@ function richText(value: string): string {
     .replace(/\*([^*\s](?:[^*\n]*?[^*\s])?)\*/g, "<em>$1</em>");
 }
 
-/**
- * Google shows ~60 characters of a title. Keep the full phrase when it fits,
- * else a shorter suffix, else just the lesson name + brand -- the lesson name
- * (the search query) must never be the part that gets cut off.
- */
-export function lessonTitleTag(name: string): string {
-  const options = [
-    `${name}, Explained from First Principles | ${SITE_NAME}`,
-    `${name}, Explained Simply | ${SITE_NAME}`,
-    `${name} | ${SITE_NAME}`,
-  ];
-  return options.find((t) => t.length <= 60) ?? options[options.length - 1];
-}
-
 /** Snippets over ~155 chars get cut mid-word; end on a word boundary instead. */
 export function clampDescription(text: string, max = 155): string {
   const t = text.replace(/\s+/g, " ").trim();
@@ -97,13 +90,18 @@ export function buildTopicMeta(topic: Topic, baseUrl: string, principles: Princi
     `Learn ${topic.title} from first principles: clear explanations, real-world analogies, and a quiz to test your understanding.`,
   ));
   const image = `${baseUrl}/og/${topic.slug}`;
+  // Same Organization/Person nodes as the site-wide block in index.html, so
+  // one @id never carries two different definitions.
   const org = {
     "@type": "Organization",
     "@id": `${baseUrl}/#organization`,
     name: SITE_NAME,
-    url: baseUrl,
+    url: `${baseUrl}/`,
+    founder: { "@id": `${baseUrl}/#founder` },
     logo: { "@type": "ImageObject", url: `${baseUrl}/logo-512.png`, width: 512, height: 512 },
   };
+  const founder = { "@type": "Person", "@id": `${baseUrl}/#founder`, name: FOUNDER_NAME, jobTitle: "Founder", url: `${baseUrl}/about` };
+  const lessonName = cleanLessonTitle(topic.title);
   const level = isLevel(topic.level) ? topic.level : "adult";
   const sources = topicSources(topic);
 
@@ -115,8 +113,8 @@ export function buildTopicMeta(topic: Topic, baseUrl: string, principles: Princi
   const lesson: Record<string, unknown> = {
     "@type": ["Article", "LearningResource"],
     "@id": `${url}#lesson`,
-    headline: topic.title.slice(0, 110),
-    name: topic.title,
+    headline: lessonName.slice(0, 110),
+    name: lessonName,
     description,
     url,
     mainEntityOfPage: url,
@@ -142,7 +140,7 @@ export function buildTopicMeta(topic: Topic, baseUrl: string, principles: Princi
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "Home", item: `${baseUrl}/` },
       { "@type": "ListItem", position: 2, name: "Topic Library", item: `${baseUrl}/topics` },
-      { "@type": "ListItem", position: 3, name: topic.title, item: url },
+      { "@type": "ListItem", position: 3, name: lessonName, item: url },
     ],
   };
 
@@ -153,7 +151,7 @@ export function buildTopicMeta(topic: Topic, baseUrl: string, principles: Princi
     // Per-topic 1200x630 share card (server/og-image.ts via /og/:slug).
     image,
     type: "article",
-    jsonLd: { "@context": "https://schema.org", "@graph": [lesson, breadcrumbs, org] },
+    jsonLd: { "@context": "https://schema.org", "@graph": [lesson, breadcrumbs, org, founder] },
   };
 }
 
@@ -210,6 +208,14 @@ export function injectMeta(html: string, meta: PageMeta): string {
  * Tailwind CSS (already shipped in the stylesheet <link>) styles it before
  * any JS runs, instead of a flash of unstyled text.
  */
+/** "The short answer" box: the stored answer, else the lesson's principles as a list. */
+function renderShortAnswer(topic: Topic, principles: Principle[]): string {
+  const answer = (topic as { shortAnswer?: string | null }).shortAnswer;
+  if (answer) return `<section class="mb-4"><h2 class="text-lg font-semibold mb-1">The short answer</h2><p>${richText(answer)}</p></section>`;
+  if (!principles.length) return "";
+  return `<section class="mb-4"><h2 class="text-lg font-semibold mb-1">The short answer</h2><p>It comes down to ${principles.length} ideas:</p><ol class="list-decimal pl-5">${principles.map((p) => `<li>${richText(p.title)}</li>`).join("")}</ol></section>`;
+}
+
 /** A lesson linked from a snapshot. */
 export interface LessonLink {
   title: string;
@@ -218,7 +224,7 @@ export interface LessonLink {
   description?: string | null;
 }
 
-const lessonAnchor = (t: LessonLink) => `<a href="/topic/${encodeURIComponent(t.slug)}">${escapeHtml(t.title)}</a>`;
+const lessonAnchor = (t: LessonLink) => `<a href="/topic/${encodeURIComponent(t.slug)}">${escapeHtml(cleanLessonTitle(t.title))}</a>`;
 
 export function renderContentSnapshot(topic: Topic, principles: Principle[], related: LessonLink[] = []): string {
   const badges = [
@@ -281,8 +287,10 @@ export function renderContentSnapshot(topic: Topic, principles: Principle[], rel
   return `<main class="container mx-auto px-6 py-12">
     ${crumbs}
     <header class="mb-8">
-      <h1 class="text-3xl sm:text-4xl font-bold mb-3">${escapeHtml(topic.title)}</h1>
-      ${topic.description ? `<p class="text-lg text-muted-foreground leading-relaxed mb-3">${escapeHtml(topic.description)}</p>` : ""}
+      <h1 class="text-3xl sm:text-4xl font-bold mb-3">${escapeHtml(cleanLessonTitle(topic.title))}</h1>
+      ${renderShortAnswer(topic, principles)}
+      ${topic.description ? `<p class="text-lg text-muted-foreground leading-relaxed mb-3">${escapeHtml(plain(topic.description))}</p>` : ""}
+      <p class="text-sm text-muted-foreground mb-3">${escapeHtml(lessonByline(topic))} · <a href="/about#how-lessons-are-made">How we make lessons</a></p>
       <div class="flex flex-wrap items-center gap-3">${badges}</div>
     </header>
 ${sections}${stepsHtml}${sourcesHtml}${relatedHtml}
@@ -306,6 +314,10 @@ export const PAGE_META: Record<string, { title: string; description: string }> =
   "/why": {
     title: "The Method: Learning from First Principles | BasicsTutor",
     description: "Why BasicsTutor teaches the few truths a subject rests on, then builds back up, and how that differs from asking an AI chatbot.",
+  },
+  "/about": {
+    title: "About BasicsTutor: Who We Are & How Lessons Are Made",
+    description: "BasicsTutor is built by founder Pranav Tej. How every lesson is researched, written with AI, fact-checked and corrected by readers.",
   },
   "/help": { title: "Help & FAQ | BasicsTutor", description: "Answers to common questions about BasicsTutor: lessons, levels, quizzes, reference sheets, accounts and privacy." },
   "/contact": { title: "Contact Us | BasicsTutor", description: "Get in touch with the BasicsTutor team. We read every message." },
@@ -375,6 +387,63 @@ export function renderHomeSnapshot(featured: LessonLink[]): string {
       <ul class="list-disc pl-5 space-y-1">${featured.map((t) => `<li>${lessonAnchor(t)}</li>`).join("")}</ul>
     </section>
   </main>`;
+}
+
+// Crawlable text for the static pages (same copy the app renders).
+
+const page = (h1: string, intro: string, body: string) => `<main class="container mx-auto px-6 py-12">
+    <h1 class="text-3xl sm:text-4xl font-bold mb-3">${escapeHtml(h1)}</h1>
+    <p class="text-lg text-muted-foreground mb-8">${escapeHtml(intro)}</p>
+${body}
+  </main>`;
+
+export function renderAboutSnapshot(): string {
+  const steps = HOW_LESSONS_ARE_MADE.map((s) => `<li><strong>${escapeHtml(s.title)}.</strong> ${escapeHtml(s.body)}</li>`).join("");
+  return page("About BasicsTutor", "One founder, one idea: understanding beats memorizing.", `    <section class="mb-10">
+      <h2 class="text-2xl font-semibold mb-3">The founder</h2>
+      <blockquote>${FOUNDER.note.map((p) => `<p>${escapeHtml(p)}</p>`).join("")}</blockquote>
+      <p>— ${escapeHtml(FOUNDER.name)}, ${escapeHtml(FOUNDER.title)}</p>
+    </section>
+    <section id="how-lessons-are-made" class="mb-10">
+      <h2 class="text-2xl font-semibold mb-3">How lessons are made</h2>
+      <ol class="list-decimal pl-5 space-y-2">${steps}</ol>
+    </section>
+    <section>
+      <h2 class="text-2xl font-semibold mb-3">What to keep in mind</h2>
+      <ul class="list-disc pl-5 space-y-1">${LIMITS.map((l) => `<li>${escapeHtml(l)}</li>`).join("")}</ul>
+      <p><a href="/contact">Contact us</a> · <a href="/topics">Browse the Topic Library</a></p>
+    </section>`);
+}
+
+export function renderHelpSnapshot(): string {
+  const cats = faqCategories.map((c) => `    <section class="mb-8">
+      <h2 class="text-xl font-semibold mb-2">${escapeHtml(c.title)}</h2>
+${c.faqs.map((q) => `      <h3 class="font-semibold">${escapeHtml(q.question)}</h3>
+      <p class="mb-3">${escapeHtml(q.answer)}</p>`).join("\n")}
+    </section>`).join("\n");
+  return page("Help Center", "Answers to common questions about BasicsTutor.", cats + `\n    <p><a href="/contact">Still stuck? Contact us</a></p>`);
+}
+
+export function renderWhySnapshot(): string {
+  return page(
+    "AI gives you answers. BasicsTutor gives you understanding.",
+    "AI chatbots are great for quick answers. To truly understand a subject, you need its fundamentals, built up in order, and a way to check you've got it.",
+    `    <section class="mb-8">
+      <h2 class="text-2xl font-semibold mb-3">The method</h2>
+      <ol class="list-decimal pl-5 space-y-2">
+        <li><strong>Strip it to fundamentals.</strong> Start from what must be true: the handful of facts everything else rests on.</li>
+        <li><strong>Rebuild principle by principle.</strong> Each principle is derived from the ones before it, with a precise analogy.</li>
+        <li><strong>See each idea in motion.</strong> Principles come with live visuals: a simulation, a process, a feedback loop.</li>
+        <li><strong>Test it, then review it.</strong> A quiz checks real understanding; spaced review brings ideas back before you forget.</li>
+      </ol>
+    </section>
+    <p><a href="/topics">Browse the Topic Library</a> · <a href="/about#how-lessons-are-made">How lessons are made</a></p>`,
+  );
+}
+
+export function renderContactSnapshot(): string {
+  return page("Talk to a human", "Questions, feedback, or something not working? Send a note. We reply within 24–48 hours.",
+    `    <p><a href="/help">Help Center</a> · <a href="/support">Support &amp; feedback</a> · <a href="/about">About BasicsTutor</a></p>`);
 }
 
 /** llms.txt: a plain map of the site for AI assistants (llmstxt.org). */

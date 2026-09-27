@@ -65,6 +65,8 @@ export interface TopicContent {
    * etc). Empty for purely conceptual topics. Rendered as "Put it into
    * practice" at the end of the lesson. */
   practicalSteps: string[];
+  /** 40-60 word direct answer to the title's question, shown first. */
+  shortAnswer?: string;
   /** Web research the lesson was written from (null if unavailable). */
   research?: ResearchBrief | null;
 }
@@ -176,7 +178,8 @@ ${researchBlock}${revisionBlock}If "${topicTitle}" contains an obvious spelling 
 Return a JSON object with this structure:
 {
   "title": "The corrected, properly-capitalized topic title (same as input unless it has an obvious typo)",
-  "description": "A compelling 1-2 sentence description of what the learner will understand",
+  "description": "One or two plain sentences saying what the learner will understand. No hype openers like 'Unlock' or 'Uncover'.",
+  "shortAnswer": "40-60 words that directly answer the title's question in plain language, as the first thing a reader (or a search snippet) sees. Lead with the answer itself, not setup; include one concrete fact or example.",
   "category": "The broad category (e.g., Physics, Business, Technology, Philosophy)",
   "difficulty": "beginner" | "intermediate" | "advanced",
   "estimatedMinutes": number (typically 20-60),
@@ -233,6 +236,9 @@ For the mind map:
   // Defensive: model may omit practicalSteps for conceptual topics.
   if (!Array.isArray(content.practicalSteps)) {
     content.practicalSteps = [];
+  }
+  if (typeof content.shortAnswer !== "string" || !content.shortAnswer.trim()) {
+    content.shortAnswer = undefined;
   }
   content.research = research;
   return content;

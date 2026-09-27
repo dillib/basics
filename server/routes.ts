@@ -33,6 +33,7 @@ import { buildTopicSlug } from "@shared/levels";
 import { config } from "./config";
 import { aiLimiter, quickSearchLimiter, formLimiter, tutorLimiter, feedbackLimiter, viewLimiter } from "./security";
 import { publicBaseUrl, buildSitemap, buildLlmsTxt } from "./seo";
+import { INDEXNOW_KEY } from "./indexnow";
 import { computeMonthlyMasteryStats, currentMonthRange } from "./mastery";
 import { canAccessVisuals, getOrCreateScene } from "./visuals";
 import { renderTopicOgImage } from "./og-image";
@@ -259,6 +260,11 @@ export async function registerRoutes(
     );
   });
 
+  // IndexNow key file: search engines fetch it to verify our pings (server/indexnow.ts).
+  app.get(`/${INDEXNOW_KEY}.txt`, (_req, res) => {
+    res.type('text/plain').send(INDEXNOW_KEY);
+  });
+
   // llms.txt (llmstxt.org): a plain-markdown map of every lesson for AI
   // assistants -- the "AI" traffic channel in Admin > Traffic.
   app.get('/llms.txt', async (req, res) => {
@@ -274,7 +280,7 @@ export async function registerRoutes(
   app.get('/sitemap.xml', async (req, res) => {
     try {
       const base = publicBaseUrl(req);
-      const staticPaths = ['', '/topics', '/why', '/help', '/pricing', '/support', '/contact', '/terms', '/privacy'];
+      const staticPaths = ['/', '/topics', '/why', '/about', '/help', '/pricing', '/support', '/contact', '/terms', '/privacy'];
       const entries: { loc: string; lastmod?: Date | null }[] = staticPaths.map((p) => ({
         loc: `${base}${p}`,
       }));

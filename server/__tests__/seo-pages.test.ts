@@ -79,3 +79,36 @@ describe('crawlable snapshots', () => {
     expect(txt).toContain('- [How Tides Work](https://www.basicstutor.com/topic/how-tides-work): Why the sea rises');
   });
 });
+
+import { cleanLessonTitle, lessonByline } from '@shared/lessonTitle';
+import { renderAboutSnapshot, renderHelpSnapshot, renderWhySnapshot } from '../seo';
+
+describe('lesson title + byline', () => {
+  it('drops the stray "?" from "How ... Works?" but keeps real questions', () => {
+    expect(cleanLessonTitle('How the Meta Muse Works?')).toBe('How the Meta Muse Works');
+    expect(cleanLessonTitle('What Is Calculus?')).toBe('What Is Calculus?');
+  });
+  it('only claims what is true about how a lesson was made', () => {
+    const d = new Date('2026-09-27T12:00:00Z');
+    expect(lessonByline({ validationData: null, confidenceScore: null, updatedAt: d })).toBe('By BasicsTutor · Created with AI · Updated Sep 27, 2026');
+    expect(lessonByline({ validationData: { sources: [{ url: 'x' }] }, confidenceScore: 90, updatedAt: d }))
+      .toBe('By BasicsTutor · Created with AI, researched and fact-checked · Updated Sep 27, 2026');
+  });
+});
+
+describe('static page snapshots', () => {
+  it('about names the founder and explains how lessons are made', () => {
+    const html = renderAboutSnapshot();
+    expect(html).toContain('Pranav Tej');
+    expect(html).toContain('id="how-lessons-are-made"');
+    expect(html.match(/<h1/g)?.length).toBe(1);
+  });
+  it('help renders every FAQ question as crawlable text', () => {
+    const html = renderHelpSnapshot();
+    expect(html).toContain('What is BasicsTutor?');
+    expect((html.match(/<h3/g) || []).length).toBeGreaterThan(8);
+  });
+  it('why explains the method', () => {
+    expect(renderWhySnapshot()).toContain('Strip it to fundamentals');
+  });
+});

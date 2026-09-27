@@ -50,6 +50,10 @@ export const topics = pgTable("topics", {
   // "Put it into practice": concrete real-life actions for applicable topics
   // (money/health/habits/etc). Empty/absent for purely conceptual topics.
   practicalSteps: jsonb("practical_steps"),
+  // "The short answer": a 40-60 word direct answer shown under the title
+  // (what search snippets and AI answers quote). Older lessons have none and
+  // fall back to listing their principles.
+  shortAnswer: text("short_answer"),
   estimatedMinutes: integer("estimated_minutes").default(30),
   imageUrl: text("image_url"),
   isPublic: boolean("is_public").default(false),
@@ -360,7 +364,7 @@ export const topicDailySources = pgTable("topic_daily_sources", {
 // Snapshot of a lesson taken just before its content is replaced, so any
 // self-heal or regeneration can be rolled back in one click.
 export interface TopicSnapshot {
-  topic: Pick<Topic, "description" | "category" | "difficulty" | "practicalSteps" | "estimatedMinutes" | "mindMapData" | "confidenceScore" | "validationData">;
+  topic: Pick<Topic, "description" | "category" | "difficulty" | "practicalSteps" | "estimatedMinutes" | "mindMapData" | "confidenceScore" | "validationData"> & { shortAnswer?: string | null };
   principles: Pick<Principle, "orderIndex" | "title" | "explanation" | "analogy" | "visualType" | "visualData" | "keyTakeaways">[];
 }
 export const topicVersions = pgTable("topic_versions", {
