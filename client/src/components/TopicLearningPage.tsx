@@ -43,6 +43,7 @@ import CertificateGenerator from "./CertificateGenerator";
 import ConceptVisual from "./visuals/ConceptVisual";
 import TopicCover from "./TopicCover";
 import QualityBadge from "./QualityBadge";
+import InlineText from "./InlineText";
 import { ContentPaywall } from "./ContentPaywall";
 
 interface TopicLearningPageProps {
@@ -600,7 +601,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                             </div>
 
                             <p className="text-muted-foreground leading-relaxed mb-4 whitespace-pre-line">
-                              {principle.explanation}
+                              <InlineText text={principle.explanation} />
                             </p>
 
                             {principle.analogy && (
@@ -609,7 +610,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                                   <Lightbulb className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                                   <div>
                                     <p className="text-sm font-medium mb-1">Real-World Analogy</p>
-                                    <p className="text-sm text-muted-foreground">{principle.analogy}</p>
+                                    <p className="text-sm text-muted-foreground"><InlineText text={principle.analogy} /></p>
                                   </div>
                                 </div>
                               </div>
@@ -620,7 +621,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                                 <p className="text-sm font-medium">Key Takeaways</p>
                                 <ul className="list-disc list-inside space-y-1">
                                   {principle.keyTakeaways.map((takeaway, i) => (
-                                    <li key={i} className="text-sm text-muted-foreground">{takeaway}</li>
+                                    <li key={i} className="text-sm text-muted-foreground"><InlineText text={takeaway} /></li>
                                   ))}
                                 </ul>
                               </div>
@@ -879,7 +880,7 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
                 {(topic.practicalSteps as string[]).map((step, i) => (
                   <li key={i} className="flex items-start gap-3">
                     <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-                    <span className="text-foreground/90 leading-relaxed">{step}</span>
+                    <span className="text-foreground/90 leading-relaxed"><InlineText text={step} /></span>
                   </li>
                 ))}
               </ul>
