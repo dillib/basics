@@ -163,6 +163,7 @@ export function injectMeta(html: string, meta: PageMeta): string {
     `\n    <meta property="og:type" content="${meta.type || "website"}" />` +
     `\n    <meta property="og:url" content="${escapeHtml(meta.url)}" />` +
     (image ? `\n    <meta property="og:image" content="${image}" />` : "") +
+    (image ? `\n    <meta property="og:image:width" content="1200" />\n    <meta property="og:image:height" content="630" />` : "") +
     `\n    <meta name="twitter:card" content="${cardType}" />` +
     `\n    <meta name="twitter:title" content="${escapeHtml(meta.title)}" />` +
     `\n    <meta name="twitter:description" content="${escapeHtml(meta.description)}" />` +
