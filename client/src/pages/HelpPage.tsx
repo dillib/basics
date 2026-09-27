@@ -6,6 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Search, BookOpen, CreditCard, GraduationCap, Settings, MessageSquare, Sparkles, HelpCircle } from "lucide-react";
 import { Link } from "wouter";
 import Footer from "@/components/Footer";
+import PageHero from "@/components/PageHero";
+
+// Category tile hues, from the same palette as topic covers.
+const HELP_HUES = [174, 216, 36, 290];
 
 interface FAQItem {
   question: string;
@@ -81,11 +85,11 @@ const faqCategories: FAQCategory[] = [
     faqs: [
       {
         question: "What plans are available?",
-        answer: "We offer three plans: Free (1 topic), Pay-per-topic ($1.99 per topic with lifetime access), and Pro ($9.99/month for unlimited topics). See our Pricing page for full details.",
+        answer: "Right now, during early access, everything on BasicsTutor is free: every topic, quiz, and animated visual. Paid plans are planned for later: Pay-per-topic ($1.99 per topic with lifetime access) and Pro ($99/year for unlimited access). See our Pricing page for details.",
       },
       {
-        question: "How does the free plan work?",
-        answer: "With the free plan, you can fully learn one complete topic including all principles and the quiz. It's a great way to try BasicsTutor before committing to a paid plan.",
+        question: "Is BasicsTutor really free?",
+        answer: "Yes. During early access you can learn any topic in full, including all principles, animated visuals, and the quiz, at no cost. If you join the waitlist on the homepage, we'll let you know before any paid plans launch.",
       },
       {
         question: "What does Pay-per-topic include?",
@@ -153,19 +157,13 @@ export default function HelpPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-12">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mb-6">
-              <HelpCircle className="h-8 w-8 text-primary" />
-            </div>
-            <h1 className="text-3xl sm:text-4xl font-bold mb-4" data-testid="text-help-title">
-              Help Center
-            </h1>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-              Find answers to common questions or contact our support team for help.
-            </p>
-
+      <PageHero
+        compact
+        eyebrow="Help Center"
+        title="How can we help?"
+        subtitle="Answers to common questions, or reach the team directly."
+        titleTestId="text-help-title"
+      >
             <div className="relative max-w-xl mx-auto">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
@@ -173,7 +171,7 @@ export default function HelpPage() {
                 placeholder="Search for help..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-12 pl-12 text-base"
+                className="h-14 rounded-xl border-2 border-foreground/10 bg-background pl-12 text-base shadow-glow focus-visible:border-primary/50 focus-visible:ring-offset-0"
                 data-testid="input-help-search"
               />
             </div>
@@ -182,22 +180,26 @@ export default function HelpPage() {
                 Found {totalResults} result{totalResults !== 1 ? "s" : ""} for "{searchQuery}"
               </p>
             )}
-          </div>
-
+      </PageHero>
+      <div className="container mx-auto px-4 py-12">
+        <div className="max-w-4xl mx-auto">
           {!searchQuery && (
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
               {faqCategories.map((category) => (
                 <Card 
                   key={category.id}
-                  className={`border-card-border cursor-pointer hover-elevate transition-all ${
+                  className={`border-card-border cursor-pointer card-hover transition-all ${
                     selectedCategory === category.id ? "ring-2 ring-primary" : ""
                   }`}
                   onClick={() => handleCategoryClick(category.id)}
                   data-testid={`card-category-${category.id}`}
                 >
                   <CardContent className="p-6 text-center">
-                    <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-4">
-                      <category.icon className="h-6 w-6 text-primary" />
+                    <div
+                      className="inline-flex h-12 w-12 items-center justify-center rounded-xl mb-4"
+                      style={{ background: `hsl(${HELP_HUES[faqCategories.indexOf(category) % HELP_HUES.length]} 70% 50% / 0.12)`, color: `hsl(${HELP_HUES[faqCategories.indexOf(category) % HELP_HUES.length]} 65% 46%)` }}
+                    >
+                      <category.icon className="h-6 w-6" />
                     </div>
                     <h3 className="font-medium mb-1">{category.title}</h3>
                     <p className="text-sm text-muted-foreground">{category.faqs.length} articles</p>

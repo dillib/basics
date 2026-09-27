@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Mail, MessageSquare, HelpCircle, AlertCircle, Send, CheckCircle2 } from "lucide-react";
 import Footer from "@/components/Footer";
+import PageHero from "@/components/PageHero";
 
 const contactSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -111,16 +112,9 @@ export default function ContactPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <PageHero compact eyebrow="Contact" title="Talk to a human" subtitle="Questions, feedback, or something not working? Send a note. We reply within 24–48 hours." titleTestId="text-contact-title" />
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <h1 className="text-3xl sm:text-4xl font-bold mb-4" data-testid="text-contact-title">
-              Contact Us
-            </h1>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Have a question, feedback, or need help? We're here for you. Fill out the form below and we'll get back to you as soon as possible.
-            </p>
-          </div>
 
           <div className="grid md:grid-cols-3 gap-8">
             <div className="md:col-span-2">

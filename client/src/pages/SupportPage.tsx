@@ -16,6 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { MessageSquare, Bug, Lightbulb, HelpCircle, Send, CheckCircle2, Clock, AlertCircle, Loader2 } from "lucide-react";
 import Footer from "@/components/Footer";
+import PageHero from "@/components/PageHero";
 import type { SupportRequest } from "@shared/schema";
 
 const supportSchema = z.object({
@@ -135,16 +136,9 @@ export default function SupportPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      <PageHero compact eyebrow="Support" title="Support & feedback" subtitle="Report a problem, request a topic, or suggest an idea. Every request gets read." titleTestId="text-support-title" />
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <h1 className="text-3xl sm:text-4xl font-bold mb-4" data-testid="text-support-title">
-              Support & Feedback
-            </h1>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Need help? Have a suggestion? We'd love to hear from you. Submit a request and we'll get back to you as soon as possible.
-            </p>
-          </div>
 
           <Tabs defaultValue="submit" className="space-y-6">
             <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">

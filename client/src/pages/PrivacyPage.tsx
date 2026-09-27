@@ -1,4 +1,4 @@
-import { Card, CardContent } from "@/components/ui/card";
+import LegalLayout from "@/components/LegalLayout";
 import { Separator } from "@/components/ui/separator";
 import Footer from "@/components/Footer";
 
@@ -7,17 +7,7 @@ export default function PrivacyPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-12">
-        <div className="max-w-3xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl sm:text-4xl font-bold mb-4" data-testid="text-privacy-title">
-              Privacy Policy
-            </h1>
-            <p className="text-muted-foreground">Last updated: {lastUpdated}</p>
-          </div>
-
-          <Card className="border-card-border">
-            <CardContent className="p-8 prose prose-neutral dark:prose-invert max-w-none">
+      <LegalLayout title="Privacy Policy" lastUpdated={lastUpdated} titleTestId="text-privacy-title">
               <section className="mb-8">
                 <h2 className="text-xl font-semibold mb-4">1. Introduction</h2>
                 <p className="text-muted-foreground mb-4">
@@ -202,10 +192,7 @@ export default function PrivacyPage() {
                   <li>Contact form: <a href="/contact" className="text-primary hover:underline">Contact Page</a></li>
                 </ul>
               </section>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      </LegalLayout>
       <Footer />
     </div>
   );

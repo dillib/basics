@@ -1,6 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import { 
   Brain, 
@@ -20,6 +19,31 @@ import {
   Award
 } from "lucide-react";
 import Footer from "@/components/Footer";
+import PageHero from "@/components/PageHero";
+import { ConceptVisualView } from "@/components/visuals/ConceptVisual";
+import { parseVisualSpec } from "@shared/visuals";
+
+// Icon tile hues for the "different" cards, from the category palette.
+const FEATURE_HUES = [216, 36, 142, 290, 174, 8];
+
+// The method itself, drawn with the same scene renderer lessons use.
+const METHOD_SCENE = parseVisualSpec({
+  kind: "layers",
+  caption: "Every lesson is built the same way: foundation first, each layer resting on the one below.",
+  layers: [
+    { label: "Strip it to fundamentals", detail: "What must be true for this to work?" },
+    { label: "Rebuild principle by principle", detail: "Each idea derived, not just stated" },
+    { label: "See each idea in motion", detail: "A live visual for every principle" },
+    { label: "Test it, then review it", detail: "Quizzes and spaced review make it stick" },
+  ],
+})!;
+
+const METHOD_STEPS = [
+  { title: "Strip it to fundamentals", body: "We start from what must be true — the handful of facts everything else rests on." },
+  { title: "Rebuild principle by principle", body: "Each principle is derived from the ones before it, with a precise analogy that maps part-to-part." },
+  { title: "See each idea in motion", body: "Every principle gets a live visual: a simulation, a process, a feedback loop." },
+  { title: "Test it, then review it", body: "A quiz checks real understanding, and spaced review brings ideas back before you forget." },
+];
 
 const problemPoints = [
   {
@@ -85,38 +109,15 @@ const comparisonData = [
   { feature: "Any topic generation", basicstutor: true, chatbots: true },
 ];
 
-const testimonialQuotes = [
-  {
-    quote: "I finally understand quantum physics. Not because I memorized facts, but because BasicsTutor showed me the underlying principles.",
-    author: "Physics Student",
-  },
-  {
-    quote: "AI chatbots gave me information. BasicsTutor gave me understanding. There's a huge difference.",
-    author: "Self-Learner",
-  },
-  {
-    quote: "The quizzes and progress tracking keep me accountable. I'm actually retaining what I learn now.",
-    author: "Career Changer",
-  },
-];
-
 export default function WhyPage() {
   return (
     <div className="min-h-screen bg-background">
-      <section className="py-20 sm:py-32">
-        <div className="container mx-auto px-6">
-          <div className="max-w-4xl mx-auto text-center">
-            <Badge variant="secondary" className="mb-6">
-              Why BasicsTutor?
-            </Badge>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight mb-6" data-testid="text-why-title">
-              AI gives you answers.<br />
-              <span className="text-primary">BasicsTutor gives you understanding.</span>
-            </h1>
-            <p className="text-lg sm:text-xl text-muted-foreground leading-relaxed max-w-3xl mx-auto mb-10">
-              AI chatbots are amazing for quick answers. But if you want to truly understand a subject—to build 
-              knowledge that lasts—you need more than a conversation. You need a learning experience.
-            </p>
+      <PageHero
+        eyebrow="The Method"
+        titleTestId="text-why-title"
+        title={<>AI gives you answers.<br /><span className="text-brand-gradient">BasicsTutor gives you understanding.</span></>}
+        subtitle="AI chatbots are amazing for quick answers. But if you want to truly understand a subject—to build knowledge that lasts—you need more than a conversation. You need a learning experience."
+      >
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/topics">
                 <Button size="lg" className="rounded-full px-8" data-testid="button-try-free">
@@ -129,9 +130,7 @@ export default function WhyPage() {
                 </Button>
               </Link>
             </div>
-          </div>
-        </div>
-      </section>
+      </PageHero>
 
       <section className="py-20 bg-card border-y border-border">
         <div className="container mx-auto px-6">
@@ -147,7 +146,9 @@ export default function WhyPage() {
 
             <div className="grid md:grid-cols-3 gap-8">
               {problemPoints.map((point) => (
-                <Card key={point.title} className="border-destructive/20 bg-destructive/5">
+                // Neutral card; only the icon carries the "problem" red. A fully
+                // pink card read as off-brand, not as a warning.
+                <Card key={point.title} className="border-card-border bg-background">
                   <CardContent className="p-8">
                     <div className="h-12 w-12 rounded-xl bg-destructive/10 flex items-center justify-center mb-6">
                       <point.icon className="h-6 w-6 text-destructive" />
@@ -175,11 +176,15 @@ export default function WhyPage() {
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {solutionPoints.map((point) => (
-                <Card key={point.title} className="hover-elevate">
+              {solutionPoints.map((point, i) => (
+                <Card key={point.title} className="card-hover">
                   <CardContent className="p-8">
-                    <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center mb-6">
-                      <point.icon className="h-6 w-6 text-primary" />
+                    {/* Distinct field hues (same system as topic covers) instead of six identical teal tiles. */}
+                    <div
+                      className="h-12 w-12 rounded-xl flex items-center justify-center mb-6"
+                      style={{ background: `hsl(${FEATURE_HUES[i % FEATURE_HUES.length]} 70% 50% / 0.12)`, color: `hsl(${FEATURE_HUES[i % FEATURE_HUES.length]} 65% 46%)` }}
+                    >
+                      <point.icon className="h-6 w-6" />
                     </div>
                     <h3 className="text-xl font-semibold mb-3">{point.title}</h3>
                     <p className="text-muted-foreground leading-relaxed">{point.description}</p>
@@ -313,25 +318,31 @@ export default function WhyPage() {
         </div>
       </section>
 
-      <section className="py-20 bg-card border-y border-border">
+      {/* Replaces an invented "What Learners Say" section: the method shown,
+          not testimonials we can't attribute to real people. */}
+      <section className="py-20 bg-card border-y border-border" aria-labelledby="method-title">
         <div className="container mx-auto px-6">
-          <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight mb-4">
-                What Learners Say
+          <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2">
+            <div>
+              <p className="mb-3 text-xs font-medium uppercase tracking-wider text-primary">The method, in motion</p>
+              <h2 id="method-title" className="text-3xl sm:text-4xl font-semibold tracking-tight [text-wrap:balance]">
+                Every lesson is built from the ground up
               </h2>
+              <ol className="mt-8 space-y-6">
+                {METHOD_STEPS.map((step, i) => (
+                  <li key={step.title} className="flex gap-4">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold tabular-nums text-primary-foreground">
+                      {i + 1}
+                    </span>
+                    <div>
+                      <p className="font-semibold">{step.title}</p>
+                      <p className="mt-1 text-muted-foreground leading-relaxed">{step.body}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
             </div>
-
-            <div className="grid md:grid-cols-3 gap-8">
-              {testimonialQuotes.map((item, index) => (
-                <Card key={index} className="hover-elevate">
-                  <CardContent className="p-8">
-                    <p className="text-lg leading-relaxed mb-6 italic">"{item.quote}"</p>
-                    <p className="text-sm text-muted-foreground font-medium">— {item.author}</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <ConceptVisualView spec={METHOD_SCENE} />
           </div>
         </div>
       </section>
