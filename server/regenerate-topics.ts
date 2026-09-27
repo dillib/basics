@@ -20,7 +20,11 @@
  *   # then the whole library:
  *   DATABASE_URL="..." GOOGLE_API_KEY="..." npm run regenerate:topics
  *
+ *   # just specific topics (by slug, public or not), with a fresh confidence score:
+ *   REGEN_SLUGS="how-the-meta-muse-works" REGEN_VALIDATE=true npm run regenerate:topics
+ *
  * Env knobs:
+ *   REGEN_SLUGS        comma-separated slugs to regenerate instead of the library
  *   REGEN_CONCURRENCY  parallel generations (default 3)
  *   REGEN_VALIDATE     "true" to run the validation/confidence pass (default off)
  */
@@ -28,9 +32,11 @@ import { storage } from "./storage";
 import { generateTopicContent, validateTopicContent } from "./ai";
 import { pool } from "./db";
 import type { Topic } from "@shared/schema";
+import type { Level } from "@shared/levels";
 
 const CONCURRENCY = Math.max(1, parseInt(process.env.REGEN_CONCURRENCY || "3", 10));
 const RUN_VALIDATION = process.env.REGEN_VALIDATE === "true";
+const SLUGS = (process.env.REGEN_SLUGS || "").split(",").map((s) => s.trim()).filter(Boolean);
 
 interface Result {
   title: string;
@@ -39,9 +45,9 @@ interface Result {
 }
 
 async function regenerateOne(topic: Topic): Promise<Result> {
-  // Keep the original title/slug — never change indexed URLs. Regenerate at
-  // Adults level to match the existing (pre-level) library.
-  const content = await generateTopicContent(topic.title, "adult");
+  // Keep the original title/slug/level — never change indexed URLs.
+  const level = ((topic.level as Level | null) || "adult") as Level;
+  const content = await generateTopicContent(topic.title, level);
 
   // Preserve the current confidence/validation unless we re-run validation.
   let confidenceScore: number | null = topic.confidenceScore ?? null;
@@ -55,12 +61,21 @@ async function regenerateOne(topic: Topic): Promise<Result> {
       // Non-fatal — a topic without a fresh score still ships.
     }
   }
+  // Web-research sources (shown on the lesson page) live in validationData;
+  // keep them even when the validation pass is skipped.
+  if (content.research?.sources.length && !validationResult?.sources?.length) {
+    validationResult = { ...(validationResult ?? {}), sources: content.research.sources };
+  } else if (!content.research && validationResult?.sources) {
+    // Research didn't run this time: drop sources that described old content.
+    const { sources: _stale, ...rest } = validationResult;
+    validationResult = rest;
+  }
 
   await storage.updateTopic(topic.id, {
     description: content.description,
     category: content.category,
     difficulty: content.difficulty,
-    level: "adult",
+    level,
     practicalSteps: content.practicalSteps,
     estimatedMinutes: content.estimatedMinutes,
     mindMapData: content.mindMap,
@@ -109,14 +124,24 @@ async function mapWithConcurrency<T, R>(
 
 async function main() {
   const limitArg = parseInt(process.argv[2] || "", 10);
-  const all = await storage.getPublicTopics(); // newest first
-  const ordered = [...all].reverse(); // oldest first — deterministic ordering
+  let all: Topic[];
+  if (SLUGS.length) {
+    all = [];
+    for (const slug of SLUGS) {
+      const topic = await storage.getTopicBySlug(slug);
+      if (topic) all.push(topic);
+      else console.warn(`[Regen] No topic with slug "${slug}" — skipped.`);
+    }
+  } else {
+    all = [...(await storage.getPublicTopics())].reverse(); // oldest first — deterministic
+  }
   const topics =
-    Number.isFinite(limitArg) && limitArg > 0 ? ordered.slice(0, limitArg) : ordered;
+    Number.isFinite(limitArg) && limitArg > 0 ? all.slice(0, limitArg) : all;
 
   console.log(
-    `[Regen] Regenerating ${topics.length} of ${all.length} public topics ` +
-    `(concurrency=${CONCURRENCY}, validation=${RUN_VALIDATION ? "on" : "off"})...\n`,
+    `[Regen] Regenerating ${topics.length} of ${all.length} ${SLUGS.length ? "selected" : "public"} topics ` +
+    `(concurrency=${CONCURRENCY}, validation=${RUN_VALIDATION ? "on" : "off"}, ` +
+    `research=${process.env.PERPLEXITY_API_KEY ? "on" : "OFF, PERPLEXITY_API_KEY not set"})...\n`,
   );
 
   let done = 0;
