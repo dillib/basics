@@ -79,33 +79,23 @@ const faqCategories: FAQCategory[] = [
   },
   {
     id: "billing-pricing",
-    title: "Billing & Pricing",
+    title: "Pricing",
     icon: CreditCard,
-    description: "Questions about plans and payments",
+    description: "Is it free, and will it stay free?",
+    // Pricing isn't decided yet: these answers intentionally quote no plans
+    // or prices. Keep in step with section 3 of the Terms of Service.
     faqs: [
       {
-        question: "What plans are available?",
-        answer: "Right now, during early access, everything on BasicsTutor is free: every topic, quiz, and animated visual. Paid plans are planned for later: Pay-per-topic ($1.99 per topic with lifetime access) and Pro ($99/year for unlimited access). See our Pricing page for details.",
-      },
-      {
         question: "Is BasicsTutor really free?",
-        answer: "Yes. During early access you can learn any topic in full, including all principles, animated visuals, and the quiz, at no cost. If you join the waitlist on the homepage, we'll let you know before any paid plans launch.",
+        answer: "Yes. Right now everything on BasicsTutor is free: every topic, quiz, and animated visual. There's nothing to buy and no payment details to enter.",
       },
       {
-        question: "What does Pay-per-topic include?",
-        answer: "When you purchase a topic for $1.99, you get lifetime access to that topic. This includes all principles, quizzes, and any future updates to that topic's content.",
+        question: "Will it always be free?",
+        answer: "We may add optional paid features in the future. If we do, we'll announce them in advance, and you'll never be charged unless you explicitly choose to buy something. Join the waitlist on the homepage to hear first.",
       },
       {
-        question: "Can I cancel my Pro subscription?",
-        answer: "Yes, you can cancel your Pro subscription at any time. You'll continue to have access until the end of your billing period. Topics you've already accessed will remain in your history.",
-      },
-      {
-        question: "What payment methods do you accept?",
-        answer: "We accept all major credit cards (Visa, Mastercard, American Express) through our secure payment processor, Stripe. All transactions are encrypted and secure.",
-      },
-      {
-        question: "Do you offer refunds?",
-        answer: "For individual topic purchases, we offer refunds within 24 hours if you haven't started learning the topic. For Pro subscriptions, contact us within 7 days of your first charge for a full refund.",
+        question: "Do I need a credit card to sign up?",
+        answer: "No. Creating an account and learning are free, and we don't ask for payment details.",
       },
     ],
   },

@@ -1,162 +1,169 @@
-import LegalLayout from "@/components/LegalLayout";
 import { Separator } from "@/components/ui/separator";
 import Footer from "@/components/Footer";
+import LegalLayout from "@/components/LegalLayout";
 
+// Written in plain language on purpose. Pricing is intentionally not
+// described: everything is free while paid plans are undecided -- see
+// section 3, which commits to notice + explicit agreement before any charge.
 export default function TermsPage() {
-  const lastUpdated = "December 1, 2024";
+  const lastUpdated = "September 27, 2026";
 
   return (
     <div className="min-h-screen bg-background">
       <LegalLayout title="Terms of Service" lastUpdated={lastUpdated} titleTestId="text-terms-title">
-              <section className="mb-8">
-                <h2 className="text-xl font-semibold mb-4">1. Acceptance of Terms</h2>
-                <p className="text-muted-foreground mb-4">
-                  By accessing and using BasicsTutor ("the Service"), you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, please do not use the Service.
-                </p>
-                <p className="text-muted-foreground">
-                  BasicsTutor reserves the right to update these Terms at any time. We will notify you of any changes by posting the new Terms on this page and updating the "Last updated" date.
-                </p>
-              </section>
+        <div className="mb-10 rounded-xl border border-primary/20 bg-primary/5 p-5">
+          <p className="mb-2 font-semibold text-foreground">The short version</p>
+          <ul className="list-disc space-y-1.5 pl-5 text-muted-foreground">
+            <li>BasicsTutor is free to use right now.</li>
+            <li>Lessons are AI-generated for learning. They can contain mistakes and are not professional advice.</li>
+            <li>Use it respectfully and lawfully, and don&apos;t try to break or copy the service.</li>
+            <li>We won&apos;t charge you for anything without telling you first and getting your explicit agreement.</li>
+          </ul>
+          <p className="mt-3 text-sm text-muted-foreground">This summary is for convenience. The full terms below are what apply.</p>
+        </div>
 
-              <Separator className="my-8" />
+        <section>
+          <h2 className="mb-4">1. Agreeing to these terms</h2>
+          <p className="text-muted-foreground mb-4">
+            These Terms of Service (&ldquo;Terms&rdquo;) are an agreement between you and BasicsTutor (&ldquo;BasicsTutor,&rdquo; &ldquo;we,&rdquo; &ldquo;us&rdquo;) covering your use of basicstutor.com and its related services (the &ldquo;Service&rdquo;).
+          </p>
+          <p className="text-muted-foreground">
+            By using the Service, you agree to these Terms and to our <a href="/privacy" className="text-primary hover:underline">Privacy Policy</a>. If you don&apos;t agree, please don&apos;t use the Service.
+          </p>
+        </section>
 
-              <section className="mb-8">
-                <h2 className="text-xl font-semibold mb-4">2. Description of Service</h2>
-                <p className="text-muted-foreground mb-4">
-                  BasicsTutor is an AI-powered educational platform that provides:
-                </p>
-                <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                  <li>AI-generated learning content based on first principles methodology</li>
-                  <li>Interactive quizzes to test understanding</li>
-                  <li>Progress tracking and learning analytics</li>
-                  <li>Personalized learning paths</li>
-                </ul>
-              </section>
+        <Separator className="my-8" />
 
-              <Separator className="my-8" />
+        <section>
+          <h2 className="mb-4">2. Who can use BasicsTutor</h2>
+          <ul className="list-disc pl-6 text-muted-foreground space-y-2">
+            <li>You must be at least 13 years old to create an account.</li>
+            <li>If you are under 18, you may use the Service only with the permission of a parent or guardian.</li>
+            <li>Children under 13 must not create an account. Our Kids-level lessons are designed to be used together with a parent, guardian, or teacher.</li>
+          </ul>
+        </section>
 
-              <section className="mb-8">
-                <h2 className="text-xl font-semibold mb-4">3. User Accounts</h2>
-                <p className="text-muted-foreground mb-4">
-                  To access certain features of the Service, you must create an account. You agree to:
-                </p>
-                <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                  <li>Provide accurate and complete information when creating your account</li>
-                  <li>Maintain the security of your account credentials</li>
-                  <li>Notify us immediately of any unauthorized use of your account</li>
-                  <li>Accept responsibility for all activities that occur under your account</li>
-                </ul>
-              </section>
+        <Separator className="my-8" />
 
-              <Separator className="my-8" />
+        <section>
+          <h2 className="mb-4">3. The Service is free</h2>
+          <p className="text-muted-foreground mb-4">
+            BasicsTutor is currently free to use, and we do not ask for payment details.
+          </p>
+          <p className="text-muted-foreground mb-4">
+            We may introduce optional paid features in the future. If we do, we will announce them in advance and describe the price and terms clearly. You will never be charged unless you explicitly choose to buy something and agree to its terms at that time.
+          </p>
+          <p className="text-muted-foreground">
+            We may add, change, limit, or discontinue features of the Service at any time, including usage limits that keep the Service fair and available for everyone.
+          </p>
+        </section>
 
-              <section className="mb-8">
-                <h2 className="text-xl font-semibold mb-4">4. Subscription and Payments</h2>
-                <p className="text-muted-foreground mb-4">
-                  BasicsTutor offers the following payment options:
-                </p>
-                <ul className="list-disc pl-6 text-muted-foreground space-y-2 mb-4">
-                  <li><strong>Free Plan:</strong> Access to one complete topic at no cost</li>
-                  <li><strong>Pay-per-topic:</strong> One-time payment of $1.99 per topic with lifetime access</li>
-                  <li><strong>Pro Subscription:</strong> Monthly subscription at $9.99/month for unlimited access</li>
-                </ul>
-                <p className="text-muted-foreground mb-4">
-                  For subscriptions, billing occurs on a monthly basis. You may cancel your subscription at any time, and you will continue to have access until the end of your current billing period.
-                </p>
-                <p className="text-muted-foreground">
-                  All payments are processed securely through Stripe. We do not store your payment card details on our servers.
-                </p>
-              </section>
+        <Separator className="my-8" />
 
-              <Separator className="my-8" />
+        <section>
+          <h2 className="mb-4">4. AI-generated content</h2>
+          <p className="text-muted-foreground mb-4">
+            Lessons, explanations, visuals, quizzes, and tutor responses on BasicsTutor are generated with the help of artificial intelligence. We work to make them accurate and useful, but they can contain errors, omissions, or outdated information.
+          </p>
+          <ul className="list-disc pl-6 text-muted-foreground space-y-2">
+            <li>The Service is for general education only.</li>
+            <li>Nothing on BasicsTutor is professional advice, including medical, legal, financial, tax, or safety advice.</li>
+            <li>Check important information with a qualified professional or a reliable primary source before relying on it.</li>
+            <li>You are responsible for how you use what you learn here.</li>
+          </ul>
+        </section>
 
-              <section className="mb-8">
-                <h2 className="text-xl font-semibold mb-4">5. Refund Policy</h2>
-                <p className="text-muted-foreground mb-4">
-                  We want you to be satisfied with your purchase:
-                </p>
-                <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                  <li>Individual topic purchases may be refunded within 24 hours if you have not started learning the topic</li>
-                  <li>Pro subscriptions may be refunded within 7 days of your first charge</li>
-                  <li>To request a refund, contact us at support@basicstutor.com</li>
-                </ul>
-              </section>
+        <Separator className="my-8" />
 
-              <Separator className="my-8" />
+        <section>
+          <h2 className="mb-4">5. Your account</h2>
+          <ul className="list-disc pl-6 text-muted-foreground space-y-2">
+            <li>Provide accurate information and keep your account secure.</li>
+            <li>You are responsible for activity that happens under your account.</li>
+            <li>Tell us promptly at support@basicstutor.com if you believe your account has been used without your permission.</li>
+            <li>You can stop using the Service or ask us to delete your account at any time.</li>
+          </ul>
+        </section>
 
-              <section className="mb-8">
-                <h2 className="text-xl font-semibold mb-4">6. Intellectual Property</h2>
-                <p className="text-muted-foreground mb-4">
-                  The Service and its original content (excluding user-generated content), features, and functionality are owned by BasicsTutor and are protected by international copyright, trademark, and other intellectual property laws.
-                </p>
-                <p className="text-muted-foreground">
-                  AI-generated content on the platform is provided for educational purposes. You may use this content for personal learning but may not redistribute, sell, or commercially exploit it without our written permission.
-                </p>
-              </section>
+        <Separator className="my-8" />
 
-              <Separator className="my-8" />
+        <section>
+          <h2 className="mb-4">6. Acceptable use</h2>
+          <p className="text-muted-foreground mb-4">When using BasicsTutor, you agree not to:</p>
+          <ul className="list-disc pl-6 text-muted-foreground space-y-2">
+            <li>Break the law or use the Service to harm, harass, or deceive others.</li>
+            <li>Request or generate content that is illegal, hateful, sexually explicit, or dangerous.</li>
+            <li>Try to access accounts, systems, or data you aren&apos;t authorized to access, or interfere with the Service.</li>
+            <li>Scrape, copy, or bulk-download content, or access the Service by automated means, without our written permission.</li>
+            <li>Resell, republish, or commercially exploit the Service or its content.</li>
+            <li>Circumvent usage limits or other protections.</li>
+          </ul>
+        </section>
 
-              <section className="mb-8">
-                <h2 className="text-xl font-semibold mb-4">7. Acceptable Use</h2>
-                <p className="text-muted-foreground mb-4">
-                  You agree not to use the Service to:
-                </p>
-                <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                  <li>Generate content that is illegal, harmful, or offensive</li>
-                  <li>Attempt to gain unauthorized access to the Service or its systems</li>
-                  <li>Use automated means to access the Service without our permission</li>
-                  <li>Interfere with or disrupt the Service or servers</li>
-                  <li>Violate any applicable laws or regulations</li>
-                </ul>
-              </section>
+        <Separator className="my-8" />
 
-              <Separator className="my-8" />
+        <section>
+          <h2 className="mb-4">7. Content and ownership</h2>
+          <p className="text-muted-foreground mb-4">
+            The Service, including its design, software, and lesson content, belongs to BasicsTutor and is protected by law. We give you a personal, non-transferable permission to use the Service and its content for learning and teaching. You may print or share reference sheets and certificates for personal or classroom use.
+          </p>
+          <p className="text-muted-foreground">
+            You keep ownership of what you submit, such as topic requests, questions, and messages. You give us permission to use that material to operate, maintain, and improve the Service.
+          </p>
+        </section>
 
-              <section className="mb-8">
-                <h2 className="text-xl font-semibold mb-4">8. Disclaimer of Warranties</h2>
-                <p className="text-muted-foreground mb-4">
-                  The Service is provided "as is" and "as available" without warranties of any kind. We do not guarantee that:
-                </p>
-                <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                  <li>The Service will be uninterrupted or error-free</li>
-                  <li>AI-generated content will be completely accurate or comprehensive</li>
-                  <li>The Service will meet your specific learning requirements</li>
-                </ul>
-                <p className="text-muted-foreground mt-4">
-                  BasicsTutor is an educational tool and should not be considered a substitute for professional advice, education, or training in any field.
-                </p>
-              </section>
+        <Separator className="my-8" />
 
-              <Separator className="my-8" />
+        <section>
+          <h2 className="mb-4">8. Disclaimers</h2>
+          <p className="text-muted-foreground">
+            The Service is provided &ldquo;as is&rdquo; and &ldquo;as available.&rdquo; To the fullest extent allowed by law, we make no warranties of any kind, whether express or implied, including that the Service will be accurate, complete, uninterrupted, secure, or error-free, or fit for a particular purpose.
+          </p>
+        </section>
 
-              <section className="mb-8">
-                <h2 className="text-xl font-semibold mb-4">9. Limitation of Liability</h2>
-                <p className="text-muted-foreground">
-                  To the maximum extent permitted by law, BasicsTutor shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of or inability to use the Service.
-                </p>
-              </section>
+        <Separator className="my-8" />
 
-              <Separator className="my-8" />
+        <section>
+          <h2 className="mb-4">9. Limitation of liability</h2>
+          <p className="text-muted-foreground mb-4">
+            To the fullest extent allowed by law, BasicsTutor will not be liable for any indirect, incidental, special, consequential, or punitive damages, or for any loss of data, profits, or opportunities, arising from your use of, or inability to use, the Service or its content.
+          </p>
+          <p className="text-muted-foreground mb-4">
+            To the fullest extent allowed by law, our total liability for any claim relating to the Service is limited to the greater of the amount you paid us in the 12 months before the claim or US $50.
+          </p>
+          <p className="text-muted-foreground">
+            You agree to cover any claims, losses, and costs, including reasonable legal fees, that arise from your misuse of the Service or your breach of these Terms.
+          </p>
+        </section>
 
-              <section className="mb-8">
-                <h2 className="text-xl font-semibold mb-4">10. Termination</h2>
-                <p className="text-muted-foreground">
-                  We may terminate or suspend your account and access to the Service immediately, without prior notice, for any reason, including breach of these Terms. Upon termination, your right to use the Service will cease immediately.
-                </p>
-              </section>
+        <Separator className="my-8" />
 
-              <Separator className="my-8" />
+        <section>
+          <h2 className="mb-4">10. Suspension and termination</h2>
+          <p className="text-muted-foreground">
+            We may suspend or end your access to the Service if you break these Terms, if your use creates risk or legal exposure for us or others, or if we discontinue the Service. You may stop using the Service at any time.
+          </p>
+        </section>
 
-              <section>
-                <h2 className="text-xl font-semibold mb-4">11. Contact Us</h2>
-                <p className="text-muted-foreground mb-4">
-                  If you have any questions about these Terms, please contact us:
-                </p>
-                <ul className="list-disc pl-6 text-muted-foreground space-y-2">
-                  <li>Email: support@basicstutor.com</li>
-                  <li>Contact form: <a href="/contact" className="text-primary hover:underline">Contact Page</a></li>
-                </ul>
-              </section>
+        <Separator className="my-8" />
+
+        <section>
+          <h2 className="mb-4">11. Changes to these terms</h2>
+          <p className="text-muted-foreground">
+            We may update these Terms from time to time. When we do, we will post the new version here and update the date at the top. For significant changes, we will give additional notice, such as a notice on the site. If you keep using the Service after changes take effect, you accept the updated Terms.
+          </p>
+        </section>
+
+        <Separator className="my-8" />
+
+        <section>
+          <h2 className="mb-4">12. Contact us</h2>
+          <p className="text-muted-foreground mb-4">Questions about these Terms? Reach us at:</p>
+          <ul className="list-disc pl-6 text-muted-foreground space-y-2">
+            <li>Email: support@basicstutor.com</li>
+            <li>Contact form: <a href="/contact" className="text-primary hover:underline">Contact page</a></li>
+          </ul>
+        </section>
       </LegalLayout>
       <Footer />
     </div>

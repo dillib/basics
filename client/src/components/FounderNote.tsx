@@ -1,9 +1,8 @@
 import { motion } from "framer-motion";
-import { LogoMark } from "./Logo";
 
-// Personalize this — put your real name here to sign the note. Leave it blank
-// and it signs "The BasicsTutor Founder" (honest, just less personal).
-const FOUNDER_NAME = "";
+// Personalize this — put your real name here to sign the note with a
+// monogram signature. Blank signs off simply as "— Founder, BasicsTutor".
+const FOUNDER_NAME: string = "";
 const FOUNDER_TITLE = "Founder, BasicsTutor";
 
 export default function FounderNote() {
@@ -43,15 +42,29 @@ export default function FounderNote() {
             </p>
           </div>
 
-          <figcaption className="mt-10 flex items-center justify-center gap-3">
-            <LogoMark className="h-11 w-11 shrink-0" />
-            <div className="text-left">
-              <p className="font-semibold text-foreground">
-                {FOUNDER_NAME || "The BasicsTutor Founder"}
-              </p>
-              <p className="text-sm text-muted-foreground">{FOUNDER_TITLE}</p>
-            </div>
-          </figcaption>
+          {FOUNDER_NAME ? (
+            // Personal signature: initials monogram + name + title.
+            <figcaption className="mt-10 flex items-center justify-center gap-3">
+              <span
+                aria-hidden
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary"
+              >
+                {FOUNDER_NAME.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
+              </span>
+              <div className="text-left">
+                <p className="font-semibold text-foreground">{FOUNDER_NAME}</p>
+                <p className="text-sm text-muted-foreground">{FOUNDER_TITLE}</p>
+              </div>
+            </figcaption>
+          ) : (
+            // No name yet: a single sign-off line. (Stacking "The BasicsTutor
+            // Founder" over "Founder, BasicsTutor" said "founder" twice, and a
+            // company logo as the avatar read as corporate, not personal.)
+            <figcaption className="mt-10 flex flex-col items-center gap-3">
+              <span aria-hidden className="h-px w-12 bg-gradient-to-r from-primary to-brand-accent" />
+              <p className="text-sm font-medium tracking-wide text-muted-foreground">— {FOUNDER_TITLE}</p>
+            </figcaption>
+          )}
         </motion.figure>
       </div>
     </section>
