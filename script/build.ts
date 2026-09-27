@@ -7,6 +7,8 @@ import { rm, readFile } from "fs/promises";
 const allowlist = [
   "@google/generative-ai",
   "@neondatabase/serverless",
+  // ESM-only package: must be bundled, since the CJS server can't require() it
+  "@perplexity-ai/perplexity_ai",
   "axios",
   "connect-pg-simple",
   "cors",
