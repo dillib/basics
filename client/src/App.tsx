@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -9,24 +9,28 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useAuth } from "@/hooks/useAuth";
 import Header from "@/components/Header";
 import HomePage from "@/pages/HomePage";
-import TopicsPage from "@/pages/TopicsPage";
-import TopicPage from "@/pages/TopicPage";
-import DashboardPage from "@/pages/DashboardPage";
-import PricingPage from "@/pages/PricingPage";
-import CheckoutSuccessPage from "@/pages/CheckoutSuccessPage";
-import CheckoutCancelPage from "@/pages/CheckoutCancelPage";
-import ContactPage from "@/pages/ContactPage";
-import HelpPage from "@/pages/HelpPage";
-import TermsPage from "@/pages/TermsPage";
-import PrivacyPage from "@/pages/PrivacyPage";
-import AccountPage from "@/pages/AccountPage";
-import AdminPage from "@/pages/AdminPage";
-import SupportPage from "@/pages/SupportPage";
-import WhyPage from "@/pages/WhyPage";
+const TopicsPage = lazy(() => import("@/pages/TopicsPage"));
+const TopicPage = lazy(() => import("@/pages/TopicPage"));
+const DashboardPage = lazy(() => import("@/pages/DashboardPage"));
+const PricingPage = lazy(() => import("@/pages/PricingPage"));
+const CheckoutSuccessPage = lazy(() => import("@/pages/CheckoutSuccessPage"));
+const CheckoutCancelPage = lazy(() => import("@/pages/CheckoutCancelPage"));
+const ContactPage = lazy(() => import("@/pages/ContactPage"));
+const HelpPage = lazy(() => import("@/pages/HelpPage"));
+const TermsPage = lazy(() => import("@/pages/TermsPage"));
+const PrivacyPage = lazy(() => import("@/pages/PrivacyPage"));
+const AccountPage = lazy(() => import("@/pages/AccountPage"));
+const AdminPage = lazy(() => import("@/pages/AdminPage"));
+const SupportPage = lazy(() => import("@/pages/SupportPage"));
+const WhyPage = lazy(() => import("@/pages/WhyPage"));
 import NotFound from "@/pages/not-found";
 
+// Home stays in the main bundle (the most common landing page); every other
+// page loads its own chunk on first visit, so a first-time visitor no longer
+// downloads the dashboard, admin, charts and PDF tools up front.
 function Router() {
   return (
+    <Suspense fallback={<div className="min-h-[60vh]" aria-busy="true" />}>
     <Switch>
       <Route path="/" component={HomePage} />
       <Route path="/topics" component={TopicsPage} />
@@ -45,6 +49,7 @@ function Router() {
       <Route path="/why" component={WhyPage} />
       <Route component={NotFound} />
     </Switch>
+    </Suspense>
   );
 }
 

@@ -32,7 +32,7 @@ import { verifyUnsubscribe } from "./email-unsubscribe";
 import { buildTopicSlug } from "@shared/levels";
 import { config } from "./config";
 import { aiLimiter, quickSearchLimiter, formLimiter, tutorLimiter, feedbackLimiter, viewLimiter } from "./security";
-import { publicBaseUrl, buildSitemap } from "./seo";
+import { publicBaseUrl, buildSitemap, buildLlmsTxt } from "./seo";
 import { computeMonthlyMasteryStats, currentMonthRange } from "./mastery";
 import { canAccessVisuals, getOrCreateScene } from "./visuals";
 import { renderTopicOgImage } from "./og-image";
@@ -259,10 +259,22 @@ export async function registerRoutes(
     );
   });
 
+  // llms.txt (llmstxt.org): a plain-markdown map of every lesson for AI
+  // assistants -- the "AI" traffic channel in Admin > Traffic.
+  app.get('/llms.txt', async (req, res) => {
+    try {
+      const topics = await storage.getPublicTopics();
+      res.type('text/plain; charset=utf-8').send(buildLlmsTxt(publicBaseUrl(req), topics));
+    } catch (error) {
+      console.error('[llms.txt] Error:', error);
+      res.status(500).send('Failed to build llms.txt');
+    }
+  });
+
   app.get('/sitemap.xml', async (req, res) => {
     try {
       const base = publicBaseUrl(req);
-      const staticPaths = ['', '/pricing', '/why', '/help', '/contact', '/terms', '/privacy'];
+      const staticPaths = ['', '/topics', '/why', '/help', '/pricing', '/support', '/contact', '/terms', '/privacy'];
       const entries: { loc: string; lastmod?: Date | null }[] = staticPaths.map((p) => ({
         loc: `${base}${p}`,
       }));

@@ -2,7 +2,26 @@ import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
 import { storage } from "./storage";
-import { buildTopicMeta, injectMeta, injectContent, renderContentSnapshot, publicBaseUrl } from "./seo";
+import {
+  buildTopicMeta, buildPageMeta, injectMeta, injectContent, renderContentSnapshot,
+  renderLibrarySnapshot, renderHomeSnapshot, publicBaseUrl, isKnownPath, NOINDEX_PATHS,
+  type LessonLink,
+} from "./seo";
+
+// The library/home snapshots list every public lesson; cache the list briefly
+// so crawls don't hit the database on every page view.
+let lessonCache: { at: number; lessons: LessonLink[]; featured: LessonLink[] } | null = null;
+async function publicLessons() {
+  if (lessonCache && Date.now() - lessonCache.at < 5 * 60_000) return lessonCache;
+  const [all, trending] = await Promise.all([storage.getPublicTopics(), storage.getTrendingTopics()]);
+  const link = (t: { title: string; slug: string; category: string | null; description: string | null }): LessonLink =>
+    ({ title: t.title, slug: t.slug, category: t.category, description: t.description });
+  const lessons = all.map(link);
+  const seen = new Set(trending.map((t) => t.slug));
+  const featured = [...trending.map(link), ...lessons.filter((t) => !seen.has(t.slug))].slice(0, 24);
+  lessonCache = { at: Date.now(), lessons, featured };
+  return lessonCache;
+}
 
 export function serveStatic(app: Express) {
   const distPath = path.resolve(__dirname, "public");
@@ -17,32 +36,55 @@ export function serveStatic(app: Express) {
   app.use(express.static(distPath, { index: false }));
 
   const indexHtml = fs.readFileSync(path.resolve(distPath, "index.html"), "utf-8");
+  const html = (res: express.Response, status: number, body: string) =>
+    res.status(status).set("Content-Type", "text/html").send(body);
 
-  // SPA fallback with server-side metadata injection for topic pages.
+  // SPA fallback with server-side metadata (and a crawlable content snapshot)
+  // for every public page -- so each has its own title/description/canonical
+  // and real links, even for crawlers that don't run JavaScript.
   app.use("*", async (req, res) => {
-    const match = req.originalUrl.split("?")[0].match(/^\/topic\/([^/]+)$/);
-    if (match) {
-      try {
+    const pathname = req.originalUrl.split("?")[0].replace(/\/+$/, "") || "/";
+    const base = publicBaseUrl(req);
+    try {
+      const match = pathname.match(/^\/topic\/([^/]+)$/);
+      if (match) {
         const slug = decodeURIComponent(match[1]);
         const topic = await storage.getTopicBySlug(slug);
         if (topic) {
-          const principles = await storage.getPrinciplesByTopic(topic.id);
-          const meta = buildTopicMeta(topic, publicBaseUrl(req), principles);
-          const withMeta = injectMeta(indexHtml, meta);
-          const withContent = injectContent(withMeta, renderContentSnapshot(topic, principles));
-          return res.status(200).set("Content-Type", "text/html").send(withContent);
+          const [principles, related] = await Promise.all([
+            storage.getPrinciplesByTopic(topic.id),
+            storage.getRelatedTopics(topic.id, topic.category, 6),
+          ]);
+          const meta = buildTopicMeta(topic, base, principles);
+          return html(res, 200, injectContent(injectMeta(indexHtml, meta), renderContentSnapshot(topic, principles, related)));
         }
         // /topic/:slug shape but no such topic -- a real 404, not a 200 with
         // an empty shell. Serving 200 here is what Search Console flags as a
         // soft 404: it looks fine to the server, empty to everyone else.
-        return res.status(404).set("Content-Type", "text/html").send(indexHtml);
-      } catch (err) {
-        // A lookup failure isn't the same as "doesn't exist" -- fall back to
-        // the plain SPA shell rather than wrongly 404-ing a real page.
-        console.error("[SEO] Meta injection failed:", err);
-        return res.status(200).set("Content-Type", "text/html").send(indexHtml);
+        return html(res, 404, injectMeta(indexHtml, { title: "Lesson not found | BasicsTutor", description: "This lesson doesn't exist.", url: `${base}${pathname}`, robots: "noindex" }));
       }
+
+      const pageMeta = buildPageMeta(pathname, base);
+      if (pageMeta) {
+        let body = injectMeta(indexHtml, pageMeta);
+        if (pathname === "/topics") body = injectContent(body, renderLibrarySnapshot((await publicLessons()).lessons));
+        if (pathname === "/") body = injectContent(body, renderHomeSnapshot((await publicLessons()).featured));
+        return html(res, 200, body);
+      }
+
+      if (NOINDEX_PATHS.includes(pathname)) {
+        return html(res, 200, injectMeta(indexHtml, { title: "BasicsTutor", description: "", url: `${base}${pathname}`, robots: "noindex" }));
+      }
+
+      if (!isKnownPath(pathname)) {
+        // Unknown URL: the app shows its Not Found page; tell crawlers too.
+        return html(res, 404, injectMeta(indexHtml, { title: "Page not found | BasicsTutor", description: "This page doesn't exist.", url: `${base}${pathname}`, robots: "noindex" }));
+      }
+    } catch (err) {
+      // A lookup failure isn't the same as "doesn't exist" -- fall back to
+      // the plain SPA shell rather than wrongly 404-ing a real page.
+      console.error("[SEO] Meta injection failed:", err);
     }
-    res.status(200).set("Content-Type", "text/html").send(indexHtml);
+    html(res, 200, indexHtml);
   });
 }
