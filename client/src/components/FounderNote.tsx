@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 
 // Personalize this — put your real name here to sign the note with a
 // monogram signature. Blank signs off simply as "— Founder, BasicsTutor".
-const FOUNDER_NAME: string = "";
+const FOUNDER_NAME: string = "Pranav Tej";
 const FOUNDER_TITLE = "Founder, BasicsTutor";
 
 export default function FounderNote() {
