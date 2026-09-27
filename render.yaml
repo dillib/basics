@@ -64,6 +64,14 @@ services:
       - key: ANTHROPIC_API_KEY
         sync: false
 
+      # Optional: when set, every new lesson is researched on the web first
+      # via the Perplexity Agent API (server/research.ts) so facts are current
+      # and sourced. ~1-3 cents per lesson. Unset = ungrounded, as before.
+      - key: PERPLEXITY_API_KEY
+        sync: false
+      - key: RESEARCH_PRESET
+        value: "low"
+
       # Abuse / cost protection (optional - defaults are sensible)
       - key: AI_RATE_LIMIT_PER_HOUR
         value: "20"

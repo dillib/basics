@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { Principle } from "@shared/schema";
 import { type Level, LEVEL_LABELS } from "@shared/levels";
+import { researchTopic, formatResearchForPrompt, type ResearchBrief, type ResearchSource } from "./research";
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || process.env.AI_INTEGRATIONS_GEMINI_API_KEY || "");
 
@@ -64,6 +65,8 @@ interface TopicContent {
    * etc). Empty for purely conceptual topics. Rendered as "Put it into
    * practice" at the end of the lesson. */
   practicalSteps: string[];
+  /** Web research the lesson was written from (null if unavailable). */
+  research?: ResearchBrief | null;
 }
 
 interface ValidationResult {
@@ -76,6 +79,8 @@ interface ValidationResult {
     suggestions: string[];
   }[];
   overallFeedback: string;
+  /** Sources from the research step, shown on the lesson page. */
+  sources?: ResearchSource[];
 }
 
 // Basic input sanitization to prevent obvious injection attempts
@@ -111,6 +116,16 @@ export async function generateTopicContent(topicTitle: string, level: Level = "a
      throw new Error("Invalid input detected.");
   }
 
+  // Research first (web-grounded, see server/research.ts); null = write from
+  // memory as before.
+  const research = await researchTopic(topicTitle);
+  const researchBlock = research
+    ? `${formatResearchForPrompt(research)}
+
+Build the lesson from this research. Every factual claim must agree with it; derive the principles from its fundamentals. If it says the subject was NOT identified, do not invent a specific product or entity: say in the description that the exact name could not be verified, and teach only what is well established.
+`
+    : "";
+
   const model = genAI.getGenerativeModel({
     model: "gemini-2.5-flash",
     safetySettings,
@@ -141,7 +156,7 @@ Across the whole topic, include at least one genuinely counterintuitive insight 
 
 Also generate a mind map that visualizes the topic structure and relationships between concepts.
 
-If "${topicTitle}" contains an obvious spelling mistake of a well-known term (e.g. "Quantim Computing"), correct it in the "title" field below. Do NOT change the subject, rephrase it, or "improve" a title that's already spelled correctly, even if unusual or niche -- only fix clear typos.
+${researchBlock}If "${topicTitle}" contains an obvious spelling mistake of a well-known term (e.g. "Quantim Computing"), correct it in the "title" field below. Do NOT change the subject, rephrase it, or "improve" a title that's already spelled correctly, even if unusual or niche -- only fix clear typos.
 
 Return a JSON object with this structure:
 {
@@ -204,6 +219,7 @@ For the mind map:
   if (!Array.isArray(content.practicalSteps)) {
     content.practicalSteps = [];
   }
+  content.research = research;
   return content;
 }
 
@@ -233,7 +249,7 @@ Category: ${content.category}
 Description: ${content.description}
 
 ${principlesSummary}
-
+${content.research ? `\n${formatResearchForPrompt(content.research)}\n\nCheck the content against this research, not only your own memory: lower confidence and add a concern for any claim that contradicts it, and flag the lesson if it describes something other than the subject the research identified.\n` : ""}
 For each principle, evaluate:
 1. Factual accuracy (are the claims true and verifiable?)
 2. Completeness (does it cover the key aspects?)
@@ -264,7 +280,11 @@ Be rigorous but fair. Flag any potential inaccuracies or misleading statements. 
   // Remove markdown code blocks if present
   text = text.replace(/^```json\s*/, '').replace(/\s*```$/, '');
 
-  return JSON.parse(text || '{"overallConfidence": 0, "principleValidations": [], "overallFeedback": "Validation failed"}') as ValidationResult;
+  const validation = JSON.parse(text || '{"overallConfidence": 0, "principleValidations": [], "overallFeedback": "Validation failed"}') as ValidationResult;
+  // Every caller already stores the validation result as topics.validation_data,
+  // so research sources ride along here with no caller changes.
+  if (content.research?.sources.length) validation.sources = content.research.sources;
+  return validation;
 }
 
 interface GeneratedQuestion {

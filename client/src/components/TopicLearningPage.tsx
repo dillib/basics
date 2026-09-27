@@ -888,6 +888,48 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
         </section>
       )}
 
+      {(() => {
+        // Research sources (server/research.ts) ride along in validationData.
+        // They come from the web, so only http(s) URLs are rendered as links.
+        const raw = (topic as any).validationData?.sources;
+        const sources: { title: string; url: string; date?: string }[] = Array.isArray(raw)
+          ? raw.filter((s: any) => typeof s?.url === "string" && /^https?:\/\//i.test(s.url)).slice(0, 8)
+          : [];
+        if (!sources.length) return null;
+        return (
+          <section className="border-t border-border" aria-labelledby="sources-title">
+            <div className="container mx-auto px-4 py-10">
+              <div className="max-w-3xl">
+                <h2 id="sources-title" className="text-xl font-semibold mb-1">Sources</h2>
+                <p className="text-sm text-muted-foreground mb-4">This lesson was researched on the web before it was written.</p>
+                <ol className="space-y-2.5">
+                  {sources.map((s, i) => {
+                    let host = s.url;
+                    try { host = new URL(s.url).hostname.replace(/^www\./, ""); } catch { /* keep url */ }
+                    return (
+                      <li key={s.url} className="flex gap-3 text-sm">
+                        <span className="w-5 shrink-0 text-right tabular-nums text-muted-foreground">{i + 1}.</span>
+                        <span className="min-w-0">
+                          <a
+                            href={s.url}
+                            target="_blank"
+                            rel="noopener noreferrer nofollow"
+                            className="font-medium text-foreground hover:text-primary hover:underline break-words"
+                          >
+                            {s.title}
+                          </a>
+                          <span className="text-muted-foreground"> · {host}{s.date ? ` · ${s.date}` : ""}</span>
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            </div>
+          </section>
+        );
+      })()}
+
       {slug && <RelatedTopics slug={slug} />}
 
       {/* Mobile table of contents — the desktop sidebar above is hidden below
