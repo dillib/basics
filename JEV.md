@@ -95,6 +95,23 @@ so a search costs about $0.0001. Past 254 lessons, `matchCriteria` keeps
 word-overlap lessons first; the next step is a two-pass search (choose the
 field, then the lesson).
 
+## Model routing (server/llm.ts)
+
+Jev decides; it never writes. Short structured writing jobs go through
+`generateJSON(task, …)`, which tries each provider in the task's route and
+falls back on error, timeout or an answer that fails validation:
+
+| Task | Route | Why |
+|---|---|---|
+| `clarify` (follow-up options) | Mercury → Gemini Flash | Diffusion model, answers in well under a second |
+| `quick_preview` (search preview) | Mercury → Gemini Flash | Same |
+| Lesson writing, fact-check, quiz, tutor | Gemini Flash (server/ai.ts) | Quality-tested; unchanged |
+| Web research | Perplexity (server/research.ts) | Sourced facts |
+| Concept animations | Claude, else Gemini (server/visuals.ts) | Paused past the daily budget |
+
+Every call records tokens and estimated cost in `ai_spend_daily`; Admin >
+Traffic shows spend by task and model against `AI_DAILY_BUDGET_USD`.
+
 ## Next phases (designed, not built)
 
 Same tiers, one fan-out call per moment.

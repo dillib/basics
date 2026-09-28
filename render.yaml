@@ -78,6 +78,18 @@ services:
       - key: TYPESAFE_API_KEY
         sync: false
 
+      # Optional: Inception Mercury, the fast model for short structured jobs
+      # (search follow-up options, the instant search preview) via
+      # server/llm.ts. Unset = Gemini does them, as before.
+      - key: INCEPTION_API_KEY
+        sync: false
+
+      # Daily AI budget (USD). Past it, only optional extras (concept
+      # animations) pause; search, lessons and the tutor keep working.
+      # Spend by task shows in Admin > Traffic.
+      - key: AI_DAILY_BUDGET_USD
+        value: "5"
+
       # Abuse / cost protection (optional - defaults are sensible)
       - key: AI_RATE_LIMIT_PER_HOUR
         value: "20"

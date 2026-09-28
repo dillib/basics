@@ -1,10 +1,6 @@
-import { GoogleGenAI } from "@google/genai";
 import memoize from "memoizee";
 import { normalizeSearchTitle } from "./search-utils";
-
-const ai = new GoogleGenAI({
-  apiKey: process.env.GOOGLE_API_KEY || process.env.AI_INTEGRATIONS_GEMINI_API_KEY || "",
-});
+import { generateJSON } from "./llm";
 
 interface QuickTopicResult {
   title: string;
@@ -18,12 +14,9 @@ interface QuickTopicResult {
 /**
  * Quick generation for instant search previews.
  *
- * Uses the current @google/genai SDK (the old @google/generative-ai one is
- * deprecated) so we can turn thinking OFF: gemini-2.5-flash thinks by
- * default, which added multiple seconds of latency for a structured-JSON
- * task that doesn't benefit from it. Measured before this change: ~4.6-5.3s
- * per quick-search. responseMimeType makes the model return clean JSON
- * instead of prose we regex-extract from.
+ * Routed through server/llm.ts: Mercury (fast diffusion model, strict JSON
+ * schema) first, Gemini Flash with thinking off as the fallback. (History:
+ * Gemini with thinking on took ~4.6-5.3s per preview.)
  */
 async function generateQuickTopicUncached(topicTitle: string): Promise<QuickTopicResult> {
   const prompt = `You are BasicsTutor, an educational AI that explains topics using first principles.
@@ -67,32 +60,34 @@ Example for "Marketing":
   ]
 }`;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt,
-    config: {
-      temperature: 0.7,
-      maxOutputTokens: 1024,
-      responseMimeType: "application/json",
-      // No thinking for a structured preview -- this is the latency fix.
-      thinkingConfig: { thinkingBudget: 0 },
+  const result = await generateJSON("quick_preview", {
+    system: "You are BasicsTutor, an educational AI for all ages (including children) that explains topics using first principles. Plain words, no slang, no hype words like unlock or delve.",
+    prompt,
+    schema: {
+      name: "quick_topic",
+      schema: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          description: { type: "string" },
+          category: { type: "string" },
+          difficulty: { type: "string", enum: ["beginner", "intermediate", "advanced"] },
+          estimatedMinutes: { type: "integer" },
+          keyPoints: { type: "array", items: { type: "string" } },
+        },
+        required: ["title", "description", "category", "difficulty", "estimatedMinutes", "keyPoints"],
+        additionalProperties: false,
+      },
     },
+    maxTokens: 1024,
+    temperature: 0.7,
+    timeoutMs: 8000,
+  }, (v) => {
+    const p = v as Partial<QuickTopicResult>;
+    return p && typeof p.title === "string" && typeof p.description === "string" && Array.isArray(p.keyPoints) && p.keyPoints.length ? (p as QuickTopicResult) : null;
   });
-
-  const text = response.text ?? "";
-
-  let parsed: QuickTopicResult;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    // JSON mode should make this unreachable, but keep the old extraction as
-    // a safety net rather than failing the search outright.
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("Failed to parse quick topic response");
-    }
-    parsed = JSON.parse(jsonMatch[0]);
-  }
+  if (!result) throw new Error("Failed to generate quick topic preview");
+  const parsed: QuickTopicResult = result.data;
 
   // Validate the response is about the right topic. Check against both the
   // raw input and whatever (possibly typo-corrected) title the model

@@ -26,6 +26,7 @@ import {
 } from "./validation";
 import { decideIntake, semanticSuggestions, findExistingLesson } from "./intake";
 import { checkRequest } from "./safety";
+import { spendSummary } from "./ai-spend";
 import { moderationOf, isBlocked } from "./moderation";
 import { classifyVisit } from "./traffic";
 import { createHash } from "crypto";
@@ -1244,8 +1245,8 @@ export async function registerRoutes(
   app.get('/api/admin/traffic', isAuthenticated, isAdmin, async (req: Request, res) => {
     try {
       const days = Math.min(90, Math.max(1, parseInt(String(req.query.days || "7"), 10) || 7));
-      const [traffic, intake] = await Promise.all([storage.getTrafficSummary(days), storage.getIntakeSummary(days)]);
-      res.json({ ...traffic, intake });
+      const [traffic, intake, spend] = await Promise.all([storage.getTrafficSummary(days), storage.getIntakeSummary(days), spendSummary(days)]);
+      res.json({ ...traffic, intake, spend });
     } catch (error) {
       return handleError(error, res, 'Admin Traffic');
     }

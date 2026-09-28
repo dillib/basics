@@ -70,6 +70,19 @@ async function migrate() {
         AND EXISTS (SELECT 1 FROM topics k WHERE k.slug = m.keep AND k.is_public = true);
       ALTER TABLE generation_jobs ADD COLUMN IF NOT EXISTS framing TEXT;
 
+      -- AI spend ledger (server/ai-spend.ts): per day, task, provider, model.
+      CREATE TABLE IF NOT EXISTS ai_spend_daily (
+        day TEXT NOT NULL,
+        task VARCHAR(40) NOT NULL,
+        provider VARCHAR(20) NOT NULL,
+        model VARCHAR(60) NOT NULL,
+        calls INTEGER NOT NULL DEFAULT 0,
+        input_tokens BIGINT NOT NULL DEFAULT 0,
+        output_tokens BIGINT NOT NULL DEFAULT 0,
+        cost_micros BIGINT NOT NULL DEFAULT 0
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS ai_spend_daily_pk ON ai_spend_daily(day, task, provider, model);
+
       -- Search intake outcomes per day (server/intake.ts): the Jev before/after
       -- number -- how often a search ends on an existing lesson vs. new vs. clarified.
       CREATE TABLE IF NOT EXISTS search_intake_daily (

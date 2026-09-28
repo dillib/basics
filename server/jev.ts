@@ -1,3 +1,4 @@
+import { recordSpend } from "./ai-spend";
 import { TypeSafeClient, AuthenticationError, RateLimitError, APIError, APITimeoutError, type Questions, type SystemOneResult, type EntryType } from "@typesafe-ai/sdk";
 
 /**
@@ -65,6 +66,8 @@ export async function ask<const Q extends Questions>(
   try {
     const result = await getClient().systemOne({ state, questions, model: JEV_MODEL }, { timeout: opts.timeoutMs ?? 2500 });
     console.log(`[Jev] ${label}: ${Date.now() - started}ms, ${result.usage.input_tokens} input tokens`);
+    // $0.042 per 1M input tokens; output is free.
+    recordSpend(`jev_${label}`, "typesafe", JEV_MODEL, result.usage.input_tokens, 0, (result.usage.input_tokens * 0.042) / 1_000_000);
     if (key) {
       if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value as string);
       cache.set(key, { at: Date.now(), value: result });

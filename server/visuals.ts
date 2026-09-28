@@ -1,4 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { recordSpend, overBudget } from "./ai-spend";
+import { costOf } from "./llm";
 import { GoogleGenAI } from "@google/genai";
 import type { Principle } from "@shared/schema";
 import { parseVisualSpec, readStoredVisual, readVisualBrief, type StoredVisual, type VisualSpec } from "@shared/visuals";
@@ -136,6 +138,7 @@ async function generateWithClaude(client: Anthropic, message: string, principleI
     (u.cache_read_input_tokens ?? 0) * PRICE.cacheRead +
     (u.cache_creation_input_tokens ?? 0) * PRICE.cacheWrite +
     (u.output_tokens ?? 0) * PRICE.output;
+  recordSpend("visual_scene", "anthropic", CLAUDE_MODEL, (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0), u.output_tokens ?? 0, cost);
   console.log(
     `[Visuals] ${CLAUDE_MODEL} principle=${principleId} in=${u.input_tokens} cacheRead=${u.cache_read_input_tokens ?? 0} ` +
       `cacheWrite=${u.cache_creation_input_tokens ?? 0} out=${u.output_tokens} stop=${response.stop_reason} ~$${cost.toFixed(4)}`,
@@ -165,6 +168,8 @@ async function generateWithGemini(principle: Principle, ctx: SceneContext): Prom
         thinkingConfig: { thinkingBudget: 0 },
       },
     });
+    const gu = response.usageMetadata;
+    recordSpend("visual_scene", "gemini", "gemini-2.5-flash", gu?.promptTokenCount ?? 0, gu?.candidatesTokenCount ?? 0, costOf("gemini-2.5-flash", gu?.promptTokenCount ?? 0, gu?.candidatesTokenCount ?? 0));
     try {
       const spec = parseVisualSpec(JSON.parse(response.text ?? ""));
       if (spec) return spec;
@@ -253,6 +258,14 @@ export async function getOrCreateScene(principleId: string): Promise<VisualSpec 
 
   const pending = inFlight.get(principleId);
   if (pending) return pending;
+
+  // Animations are the optional extra: past today's AI budget, serve what we
+  // have (or nothing) instead of generating. Lessons, search and the tutor
+  // are never budget-limited. See server/ai-spend.ts.
+  if (await overBudget()) {
+    console.warn(`[Visuals] Daily AI budget reached; not generating a scene for ${principleId}.`);
+    return fallback;
+  }
 
   const job = (async () => {
     try {

@@ -1,5 +1,6 @@
 import Perplexity from "@perplexity-ai/perplexity_ai";
 import { z } from "zod";
+import { recordSpend } from "./ai-spend";
 
 /**
  * Web-grounded research step that runs before a lesson is written, via the
@@ -115,7 +116,9 @@ export async function researchTopic(topicTitle: string): Promise<ResearchBrief |
       max_output_tokens: 2500,
     });
 
-    const cost = (response as { usage?: { cost?: { total_cost?: number } } }).usage?.cost?.total_cost;
+    const usage = (response as { usage?: { input_tokens?: number; output_tokens?: number; cost?: { total_cost?: number } } }).usage;
+    const cost = usage?.cost?.total_cost;
+    recordSpend("research", "perplexity", PRESET, usage?.input_tokens ?? 0, usage?.output_tokens ?? 0, typeof cost === "number" ? cost : 0);
     console.log(`[Research] "${topicTitle}" status=${response.status} cost=$${typeof cost === "number" ? cost.toFixed(4) : "?"}`);
 
     const brief = parseBrief(response.output_text);

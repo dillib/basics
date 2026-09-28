@@ -20,7 +20,17 @@ interface TrafficSummary {
   topLessons: { topicId: string; title: string; slug: string; total: number; bySource: Record<Source, number> }[];
   /** Search intake outcomes (server/intake.ts, Jev). */
   intake?: Record<string, number>;
+  /** AI spend ledger (server/ai-spend.ts). */
+  spend?: { rows: { task: string; provider: string; model: string; calls: number; inputTokens: number; outputTokens: number; costUsd: number }[]; totalUsd: number; todayUsd: number; budgetUsd: number };
 }
+
+const TASK_LABELS: Record<string, string> = {
+  lesson_write: "Writing lessons", fact_check: "Fact-checking", research: "Web research", quick_preview: "Search previews",
+  clarify: "Follow-up questions", tutor: "AI tutor", quiz: "Quizzes", visual_scene: "Concept animations",
+  heal_triage: "Self-heal review", trending_filter: "Trending picks", jev_intake: "Search decisions (Jev)", jev_verify: "Match checks (Jev)",
+  jev_suggest: "Typing suggestions (Jev)", jev_dedupe: "Duplicate guard (Jev)", jev_safety: "Safety checks (Jev)", jev_review: "Lesson reviews (Jev)",
+};
+const usd = (n: number) => (n >= 1 ? `$${n.toFixed(2)}` : n >= 0.01 ? `$${n.toFixed(3)}` : n > 0 ? "<$0.01" : "$0");
 
 const INTAKE_LABELS: [string, string][] = [
   ["open_lesson", "Sent straight to an existing lesson"],
@@ -95,6 +105,39 @@ export default function AdminTraffic() {
                 );
               })}
             </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>AI spend</CardTitle>
+              <CardDescription>
+                {data.spend ? <>Estimated from each call's token usage: <strong>{usd(data.spend.totalUsd)}</strong> this period, <strong>{usd(data.spend.todayUsd)}</strong> today of a {usd(data.spend.budgetUsd)} daily budget (past it, only optional concept animations pause).</> : "No AI calls recorded yet."}
+              </CardDescription>
+            </CardHeader>
+            {!!data.spend?.rows.length && (
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>What</TableHead>
+                      <TableHead>Model</TableHead>
+                      <TableHead className="text-right">Calls</TableHead>
+                      <TableHead className="text-right">Cost</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {data.spend.rows.map((r) => (
+                      <TableRow key={`${r.task}-${r.provider}-${r.model}`}>
+                        <TableCell>{TASK_LABELS[r.task] ?? r.task}</TableCell>
+                        <TableCell className="text-muted-foreground">{r.provider} · {r.model}</TableCell>
+                        <TableCell className="text-right tabular-nums">{r.calls.toLocaleString()}</TableCell>
+                        <TableCell className="text-right tabular-nums">{usd(r.costUsd)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            )}
           </Card>
 
           <Card>

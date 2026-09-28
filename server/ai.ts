@@ -2,6 +2,15 @@ import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, type SafetySettin
 import type { Principle } from "@shared/schema";
 import { type Level, LEVEL_LABELS } from "@shared/levels";
 import { researchTopic, formatResearchForPrompt, type ResearchBrief, type ResearchSource } from "./research";
+import { recordSpend } from "./ai-spend";
+import { generateJSON, costOf } from "./llm";
+
+/** Record a Gemini call's tokens and cost in the spend ledger (server/ai-spend.ts). */
+function track(task: string, result: { response: { usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number } } }) {
+  const u = result.response.usageMetadata;
+  const input = u?.promptTokenCount ?? 0, output = u?.candidatesTokenCount ?? 0;
+  recordSpend(task, "gemini", "gemini-2.5-flash", input, output, costOf("gemini-2.5-flash", input, output));
+}
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || process.env.AI_INTEGRATIONS_GEMINI_API_KEY || "");
 
@@ -249,6 +258,7 @@ For the mind map:
 - Create edges showing relationships: topic->principles, principles->concepts, and cross-links between related principles`;
 
   const result = await model.generateContent(prompt);
+  track("lesson_write", result);
   const response = await result.response;
   let text = response.text();
   
@@ -323,6 +333,7 @@ Return a JSON object with:
 Be rigorous but fair. Flag any potential inaccuracies or misleading statements. A confidence score of 80+ means the content is reliable for educational purposes.`;
 
   const result = await model.generateContent(prompt);
+  track("fact_check", result);
   const response = await result.response;
   let text = response.text();
   
@@ -384,6 +395,7 @@ Return a JSON array of questions with this structure:
 ]`;
 
   const result = await model.generateContent(prompt);
+  track("quiz", result);
   const response = await result.response;
   let text = response.text();
   
@@ -443,6 +455,7 @@ Return a JSON object with this structure:
 }`;
 
   const result = await model.generateContent(prompt);
+  track("trending_filter", result);
   const response = await result.response;
   let text = response.text();
 
@@ -462,28 +475,37 @@ Return a JSON object with this structure:
 export async function suggestClarifications(query: string, kind: string): Promise<{ question: string; options: string[] } | null> {
   if (!validateInput(query)) return null;
   const guide: Record<string, string> = {
-    ambiguous_name: "The words name several different things. Offer the distinct meanings people most likely mean.",
-    too_broad: "It's a whole field. Offer the most commonly wanted, specific lessons within it.",
+    ambiguous_name: "The words name several different things. Offer the distinct meanings people most likely mean, including the most common everyday meaning if the word also has one (for example a technical term that is also an animal or a place).",
+    too_broad: "It's a whole field. Offer the most commonly wanted, specific lessons within it. If the word also has a common everyday meaning outside the field, make one option about that.",
     unclear_goal: "The subject is clear but the goal isn't. Offer different specific angles on it.",
     underlying_concept: "It's a specific problem, not a subject. Offer the underlying concepts someone would need to understand to solve it themselves.",
   };
-  try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", safetySettings });
-    const prompt = `Someone typed "${query}" into a site that teaches any topic from first principles. ${guide[kind] ?? guide.too_broad}
+  const result = await generateJSON("clarify", {
+    system: "You help a learning site for all ages (including children) ask one short follow-up question. Plain words, no slang, nothing unsuitable for children.",
+    prompt: `Someone typed "${query}". ${guide[kind] ?? guide.too_broad}
 
-Return JSON: { "question": "one short, friendly question (max 10 words) asking which they mean", "options": ["3 or 4 lesson titles, each a specific teachable subject in plain words, max 7 words, e.g. 'How the Planet Mercury Formed'"] }`;
-    const result = await model.generateContent(prompt);
-    const text = (await result.response).text().replace(/^```json\s*/, "").replace(/\s*```$/, "");
-    const parsed = JSON.parse(text);
-    const options = Array.isArray(parsed?.options)
-      ? parsed.options.filter((o: unknown): o is string => typeof o === "string" && o.trim().length > 2).map((o: string) => o.trim().slice(0, 80)).slice(0, 4)
+Write one short, friendly question (max 10 words) asking which they mean, and 3 or 4 options. Each option is a lesson title: a specific teachable subject in plain words, max 7 words, e.g. "How the Planet Mercury Formed".`,
+    schema: {
+      name: "clarification",
+      schema: {
+        type: "object",
+        properties: { question: { type: "string" }, options: { type: "array", items: { type: "string" } } },
+        required: ["question", "options"],
+        additionalProperties: false,
+      },
+    },
+    maxTokens: 300,
+    temperature: 0.4,
+  }, (v) => {
+    const p = v as { question?: unknown; options?: unknown };
+    const options = Array.isArray(p?.options)
+      ? p.options.filter((o): o is string => typeof o === "string" && o.trim().length > 2).map((o) => o.trim().slice(0, 80)).slice(0, 4)
       : [];
-    const question = typeof parsed?.question === "string" && parsed.question.trim() ? parsed.question.trim().slice(0, 100) : "Which one do you mean?";
-    return options.length >= 2 ? { question, options } : null;
-  } catch (err) {
-    console.warn("[Intake] clarification suggestions failed:", (err as Error)?.message);
-    return null;
-  }
+    if (options.length < 2) return null;
+    const question = typeof p?.question === "string" && p.question.trim() ? p.question.trim().slice(0, 100) : "Which one do you mean?";
+    return { question, options };
+  });
+  return result?.data ?? null;
 }
 
 export interface FeedbackTriageInput {
@@ -546,6 +568,7 @@ When unsure, choose "ignore".
 Return JSON: { "decision": "regenerate" | "ignore", "reason": "1-2 sentences for the site owner", "fixNotes": "if regenerate: the specific problems the rewrite must fix, as short bullet lines; else empty" }`;
 
   const result = await model.generateContent(prompt);
+  track("heal_triage", result);
   const text = (await result.response).text().replace(/^```json\s*/, "").replace(/\s*```$/, "");
   return parseTriage(text);
 }
@@ -631,6 +654,7 @@ Stay on this topic. If a question is a reasonable tangent, answer briefly and ti
   });
 
   const result = await chat.sendMessage(userMessage);
+  track("tutor", result);
   const response = await result.response;
   return response.text();
 }

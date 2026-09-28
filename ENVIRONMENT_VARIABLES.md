@@ -42,6 +42,17 @@ PERPLEXITY_API_KEY=your_perplexity_api_key
 TYPESAFE_API_KEY=your_typesafe_api_key
 # JEV_DISABLED=true   # kill switch without removing the key
 
+## Fast model for short JSON jobs (Inception Mercury) -- optional
+# Key from: https://platform.inceptionlabs.ai  (see server/llm.ts). Writes the
+# search follow-up options and the instant preview; Gemini is the fallback.
+INCEPTION_API_KEY=your_inception_api_key
+# INCEPTION_MODEL=mercury-2.5
+# MERCURY_DISABLED=true   # kill switch without removing the key
+
+## AI spend (server/ai-spend.ts)
+# Daily budget in USD; past it only concept animations pause. Default 5.
+# AI_DAILY_BUDGET_USD=5
+
 ## Node Environment
 NODE_ENV=production
 PORT=5000

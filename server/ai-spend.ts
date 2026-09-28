@@ -1,0 +1,69 @@
+import { sql } from "drizzle-orm";
+
+// Loaded lazily: scripts and tests that never touch the database (or have
+// none configured) can import modules that record spend.
+const getDb = async () => (await import("./db")).db;
+
+/**
+ * AI spend ledger: tokens and estimated cost per day, task and provider, so
+ * Admin -> Traffic shows where the money goes, plus a daily budget that
+ * pauses OPTIONAL extras (concept animations) when reached. Core features
+ * (search, lessons, tutor) are never cut off by the budget.
+ *
+ * Fire-and-forget: recording never slows or fails the call it measures.
+ */
+
+export function recordSpend(task: string, provider: string, model: string, inputTokens: number, outputTokens: number, costUsd: number): void {
+  if (!process.env.DATABASE_URL) return;
+  const day = new Date().toISOString().slice(0, 10);
+  const micros = Math.round(costUsd * 1_000_000);
+  getDb().then((db) => db.execute(sql`
+    INSERT INTO ai_spend_daily (day, task, provider, model, calls, input_tokens, output_tokens, cost_micros)
+    VALUES (${day}, ${task.slice(0, 40)}, ${provider.slice(0, 20)}, ${model.slice(0, 60)}, 1, ${inputTokens}, ${outputTokens}, ${micros})
+    ON CONFLICT (day, task, provider, model) DO UPDATE SET
+      calls = ai_spend_daily.calls + 1,
+      input_tokens = ai_spend_daily.input_tokens + EXCLUDED.input_tokens,
+      output_tokens = ai_spend_daily.output_tokens + EXCLUDED.output_tokens,
+      cost_micros = ai_spend_daily.cost_micros + EXCLUDED.cost_micros
+  `)).then(() => { if (spentCache) spentCache.usd += costUsd; }).catch((err) => console.warn("[Spend] record failed:", err?.message));
+}
+
+/** Daily budget (USD) for optional AI extras. Default $5. */
+export const DAILY_BUDGET_USD = Number(process.env.AI_DAILY_BUDGET_USD) > 0 ? Number(process.env.AI_DAILY_BUDGET_USD) : 5;
+
+let spentCache: { day: string; at: number; usd: number } | null = null;
+
+export async function spentTodayUsd(): Promise<number> {
+  const day = new Date().toISOString().slice(0, 10);
+  if (spentCache && spentCache.day === day && Date.now() - spentCache.at < 60_000) return spentCache.usd;
+  const db = await getDb();
+  const r = await db.execute(sql`SELECT COALESCE(SUM(cost_micros), 0)::bigint AS m FROM ai_spend_daily WHERE day = ${day}`);
+  const usd = Number((r.rows[0] as { m: string | number }).m) / 1_000_000;
+  spentCache = { day, at: Date.now(), usd };
+  return usd;
+}
+
+/** True once today's spend reaches the budget: skip optional extras. */
+export async function overBudget(): Promise<boolean> {
+  try {
+    return (await spentTodayUsd()) >= DAILY_BUDGET_USD;
+  } catch {
+    return false; // never block on a ledger hiccup
+  }
+}
+
+export interface SpendRow { task: string; provider: string; model: string; calls: number; inputTokens: number; outputTokens: number; costUsd: number }
+
+export async function spendSummary(days: number): Promise<{ since: string; rows: SpendRow[]; totalUsd: number; todayUsd: number; budgetUsd: number }> {
+  const since = new Date(Date.now() - (days - 1) * 86_400_000).toISOString().slice(0, 10);
+  const db = await getDb();
+  const r = await db.execute(sql`
+    SELECT task, provider, model, SUM(calls)::int AS calls, SUM(input_tokens)::bigint AS inp, SUM(output_tokens)::bigint AS outp, SUM(cost_micros)::bigint AS m
+    FROM ai_spend_daily WHERE day >= ${since}
+    GROUP BY task, provider, model ORDER BY SUM(cost_micros) DESC`);
+  const rows = (r.rows as any[]).map((x) => ({
+    task: x.task, provider: x.provider, model: x.model, calls: x.calls,
+    inputTokens: Number(x.inp), outputTokens: Number(x.outp), costUsd: Number(x.m) / 1_000_000,
+  }));
+  return { since, rows, totalUsd: rows.reduce((a, b) => a + b.costUsd, 0), todayUsd: await spentTodayUsd(), budgetUsd: DAILY_BUDGET_USD };
+}
