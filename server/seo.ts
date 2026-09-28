@@ -380,7 +380,11 @@ ${groups}
 
 /** Crawlable home page: what BasicsTutor is, plus links into the library. */
 export function renderHomeSnapshot(featured: LessonLink[]): string {
-  return `<main class="container mx-auto px-6 py-12">
+  // Visually hidden: the real home page (hero) looks nothing like this list, so
+  // showing it for the moment before the app loads read as a broken page.
+  // Crawlers and screen readers still get it.
+  return `<main class="sr-only">
+  <div class="container mx-auto px-6 py-12">
     <h1 class="text-4xl font-bold mb-4">Understand anything, explained from first principles</h1>
     <p class="text-lg text-muted-foreground mb-8">Type any topic and BasicsTutor breaks it down to the few truths it rests on, then rebuilds it step by step until it clicks, with quizzes and printable reference sheets. Free while it's early.</p>
     <nav class="mb-8"><a href="/topics">Browse the Topic Library</a> · <a href="/why">The Method</a> · <a href="/help">Help</a></nav>
@@ -388,6 +392,7 @@ export function renderHomeSnapshot(featured: LessonLink[]): string {
       <h2 class="text-xl font-semibold mb-3">Popular lessons</h2>
       <ul class="list-disc pl-5 space-y-1">${featured.map((t) => `<li>${lessonAnchor(t)}</li>`).join("")}</ul>
     </section>
+  </div>
   </main>`;
 }
 

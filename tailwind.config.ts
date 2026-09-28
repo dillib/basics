@@ -2,7 +2,8 @@ import type { Config } from "tailwindcss";
 
 export default {
   darkMode: ["class"],
-  content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}"],
+  // server/seo.ts: the pre-rendered page snapshots use Tailwind classes too.
+  content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}", "./server/seo.ts"],
   theme: {
     extend: {
       borderRadius: {
