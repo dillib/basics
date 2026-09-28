@@ -25,6 +25,7 @@ import { storage } from "./storage";
 import { generateTopicContent, validateTopicContent, triageTopicFeedback, type FeedbackTriage } from "./ai";
 import { researchTopic } from "./research";
 import { overBudget } from "./ai-spend";
+import { withModeration } from "./moderation";
 import { applyTopicContent } from "./topic-content";
 import { reviewLesson } from "./safety";
 import { selectHealCandidates, acceptRewrite, type HealCandidate } from "./self-heal";
@@ -94,7 +95,7 @@ async function healOne(c: HealCandidate, rewritesLeft: () => number): Promise<Ou
   await applyTopicContent(topic, content, {
     reason: `self-heal: ${triage.reason}`.slice(0, 1000),
     confidenceScore: newScore,
-    validationData: validation,
+    validationData: withModeration(validation, review),
   });
   return { kind: "rewritten", triage, oldScore, newScore };
 }

@@ -45,6 +45,7 @@ import { applyTopicContent } from "./topic-content";
 import { adviceKind } from "@shared/advice";
 import { refreshPriority } from "./refresh-priority";
 import { overBudget } from "./ai-spend";
+import { withModeration } from "./moderation";
 import { reviewLesson } from "./safety";
 import type { Topic } from "@shared/schema";
 import type { Level } from "@shared/levels";
@@ -100,7 +101,9 @@ async function regenerateOne(topic: Topic): Promise<Result> {
   await applyTopicContent(topic, content, {
     reason: "regenerate",
     confidenceScore,
-    validationData: validationResult,
+    // With the review record (incl. the accuracy check): Admin shows it, and
+    // refreshPriority counts a checked lesson as verified.
+    validationData: withModeration(validationResult, review),
   });
 
   const steps = content.practicalSteps?.length ? `, ${content.practicalSteps.length} practice steps` : "";
