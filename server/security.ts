@@ -59,10 +59,22 @@ export function setupSecurity(app: Express): void {
   );
 }
 
+/**
+ * The visitor's real IP. Every request to Render passes through Cloudflare,
+ * which sets CF-Connecting-IP to the connecting visitor (overwriting any value
+ * a client sends). req.ip (trust proxy) can instead be a Cloudflare hop when
+ * our own Cloudflare zone proxies in front of Render's, which would put every
+ * visitor behind one rate-limit key.
+ */
+export function clientIp(req: Request): string | undefined {
+  const cf = req.headers["cf-connecting-ip"];
+  return (typeof cf === "string" && cf) || req.ip;
+}
+
 /** Identify the client by authenticated user id when available, else by IP. */
 function clientKey(req: Request): string {
   const userId = (req as any).user?.claims?.sub;
-  return userId ? `user:${userId}` : `ip:${req.ip}`;
+  return userId ? `user:${userId}` : `ip:${clientIp(req)}`;
 }
 
 const sharedOptions: Partial<RateLimitOptions> = {

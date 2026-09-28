@@ -36,7 +36,7 @@ import { applySm2, nextMasteryScore, MASTERED_THRESHOLD } from "./spaced-repetit
 import { verifyUnsubscribe } from "./email-unsubscribe";
 import { buildTopicSlug } from "@shared/levels";
 import { config } from "./config";
-import { aiLimiter, quickSearchLimiter, formLimiter, tutorLimiter, feedbackLimiter, viewLimiter } from "./security";
+import { aiLimiter, quickSearchLimiter, formLimiter, tutorLimiter, feedbackLimiter, viewLimiter, clientIp } from "./security";
 import { publicBaseUrl, buildSitemap, buildLlmsTxt } from "./seo";
 import { INDEXNOW_KEY } from "./indexnow";
 import { computeMonthlyMasteryStats, currentMonthRange } from "./mastery";
@@ -434,7 +434,8 @@ export async function registerRoutes(
       if (!userId && !visitorId) return res.status(400).json({ message: "Missing visitor id" });
 
       const salt = process.env.SESSION_SECRET || 'basicstutor';
-      const ipHash = req.ip ? createHash('sha256').update(salt + req.ip).digest('hex').slice(0, 32) : null;
+      const ip = clientIp(req);
+      const ipHash = ip ? createHash('sha256').update(salt + ip).digest('hex').slice(0, 32) : null;
       const contentVersion = topic.contentVersion ?? 1;
       await storage.upsertTopicFeedback({
         topicId: topic.id,
