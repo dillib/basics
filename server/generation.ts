@@ -1,4 +1,6 @@
 import { notifyIndexNow } from "./indexnow";
+import { reviewLesson } from "./safety";
+import { withModeration } from "./moderation";
 import { invalidateLibrary } from "./intake";
 import { storage } from "./storage";
 import { generateTopicContent, validateTopicContent } from "./ai";
@@ -75,6 +77,15 @@ export async function processGenerationJob(jobId: string): Promise<void> {
     }
     await storage.updateGenerationJob(jobId, { progress: 75 });
 
+    // Publish gate (server/safety.ts): a lesson that fails is saved but held
+    // -- unlisted and noindexed, reviewed in Admin -> Feedback. Unsafe
+    // content ("blocked") isn't shown to anyone but admins.
+    const review = await reviewLesson({
+      title: canonicalTitle, level, description: content.description, shortAnswer: content.shortAnswer,
+      principles: content.principles, practicalSteps: content.practicalSteps, confidenceScore,
+    });
+    if (!review.publish) console.warn(`[Generation] Job ${jobId}: "${canonicalTitle}" held for review: ${review.reasons.join("; ")}`);
+
     const newTopic = await storage.createTopic({
       userId: userId || null,
       title: canonicalTitle,
@@ -86,10 +97,10 @@ export async function processGenerationJob(jobId: string): Promise<void> {
       practicalSteps: content.practicalSteps,
       shortAnswer: content.shortAnswer ?? null,
       estimatedMinutes: content.estimatedMinutes,
-      isPublic: true,
+      isPublic: review.publish,
       mindMapData: content.mindMap,
       confidenceScore,
-      validationData: validationResult,
+      validationData: withModeration(validationResult, review),
     });
 
     const principleData = content.principles.map((p: any, index: number) => ({
@@ -121,7 +132,7 @@ export async function processGenerationJob(jobId: string): Promise<void> {
     });
     console.log(`[Generation] Job ${jobId} completed -> topic ${newTopic.id}`);
     // New public lesson: let search engines know now (plus the library it's listed in).
-    notifyIndexNow([`/topic/${newTopic.slug}`, "/topics"]);
+    if (review.publish) notifyIndexNow([`/topic/${newTopic.slug}`, "/topics"]);
     invalidateLibrary();
   } catch (error) {
     console.error(`[Generation] Job ${jobId} failed:`, error);

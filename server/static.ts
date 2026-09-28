@@ -2,6 +2,7 @@ import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
 import { storage } from "./storage";
+import { isBlocked } from "./moderation";
 import {
   buildTopicMeta, buildPageMeta, injectMeta, injectContent, renderContentSnapshot,
   renderLibrarySnapshot, renderHomeSnapshot, renderAboutSnapshot, renderHelpSnapshot, renderWhySnapshot,
@@ -51,12 +52,16 @@ export function serveStatic(app: Express) {
       if (match) {
         const slug = decodeURIComponent(match[1]);
         const topic = await storage.getTopicBySlug(slug);
+        if (topic && isBlocked(topic)) {
+          return html(res, 404, injectMeta(indexHtml, { title: "Lesson under review | BasicsTutor", description: "This lesson is being reviewed.", url: `${base}${pathname}`, robots: "noindex" }));
+        }
         if (topic) {
           const [principles, related] = await Promise.all([
             storage.getPrinciplesByTopic(topic.id),
             storage.getRelatedTopics(topic.id, topic.category, 6),
           ]);
-          const meta = buildTopicMeta(topic, base, principles);
+          // Held (unlisted) lessons stay reachable by link but out of search.
+          const meta = { ...buildTopicMeta(topic, base, principles), ...(topic.isPublic ? {} : { robots: "noindex" }) };
           return html(res, 200, injectContent(injectMeta(indexHtml, meta), renderContentSnapshot(topic, principles, related)));
         }
         // /topic/:slug shape but no such topic -- a real 404, not a 200 with

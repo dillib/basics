@@ -2,6 +2,7 @@ import { choice, noul, score } from "@typesafe-ai/sdk";
 import { storage } from "./storage";
 import { ask, tier, THRESHOLDS, type Tier } from "./jev";
 import { suggestClarifications } from "./ai";
+import { lint } from "./safety";
 import type { Level } from "@shared/levels";
 
 /**
@@ -146,6 +147,10 @@ const norm = (q: string) => q.trim().toLowerCase().replace(/\s+/g, " ");
  * picked one of our follow-up options, so never ask a second time.
  */
 export async function decideIntake(query: string, opts: { clarified?: boolean } = {}): Promise<IntakeDecision> {
+  const words = lint(query);
+  if (words.explicit.length || words.profanity.length) {
+    return { action: "reject", reason: "harmful", message: "BasicsTutor can't help with that. Try a topic you'd like to understand." };
+  }
   const lessons = await getLibrary();
   const r = await ask("intake", { site: "BasicsTutor: free lessons that explain any topic from first principles", query },
     intakeQuestions(matchCriteria(lessons, query)), { timeoutMs: 2500, cacheKey: norm(query) });

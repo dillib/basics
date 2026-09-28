@@ -25,6 +25,8 @@ import {
   TopicIntakeSchema,
 } from "./validation";
 import { decideIntake, semanticSuggestions, findExistingLesson } from "./intake";
+import { checkRequest } from "./safety";
+import { moderationOf, isBlocked } from "./moderation";
 import { classifyVisit } from "./traffic";
 import { createHash } from "crypto";
 import { restoreTopicVersion } from "./topic-content";
@@ -119,6 +121,14 @@ const isAdmin = async (req: Request, res: Response, next: NextFunction) => {
     handleError(error, res, 'Admin Check');
   }
 };
+
+/** Is this request from a signed-in admin? (For admin-only views on public routes.) */
+async function isAdminRequest(req: Request): Promise<boolean> {
+  const userId = (req as AuthenticatedRequest).user?.claims?.sub;
+  if (!userId) return false;
+  const user = await storage.getUser(userId);
+  return !!user?.isAdmin;
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -381,6 +391,7 @@ export async function registerRoutes(
   app.get('/api/topics/:slug', async (req, res) => {
     const topic = await storage.getTopicBySlug(req.params.slug);
     if (!topic) return res.status(404).json({ message: "Topic not found" });
+    if (isBlocked(topic) && !(await isAdminRequest(req))) return res.status(404).json({ message: "This lesson is being reviewed." });
     res.json(topic);
   });
 
@@ -458,6 +469,8 @@ export async function registerRoutes(
   });
 
   app.get('/api/topics/:topicId/principles', async (req, res) => {
+    const owner = await storage.getTopic(req.params.topicId);
+    if (owner && isBlocked(owner) && !(await isAdminRequest(req))) return res.json([]);
     const principles = await storage.getPrinciplesByTopic(req.params.topicId);
     res.json(principles);
   });
@@ -486,6 +499,8 @@ export async function registerRoutes(
     try {
       const userId = req.user?.claims?.sub || null;
       const { title, level, framing } = req.body; // level validated + defaulted by TopicGenerateSchema
+      const gate = await checkRequest(title, { level });
+      if (!gate.allowed) return res.status(422).json({ message: gate.message, category: gate.category });
 
       // Each level is its own page/slug (Adults keeps the clean base slug).
       const slug = buildTopicSlug(title, level);
@@ -545,6 +560,8 @@ export async function registerRoutes(
       if (!title || typeof title !== 'string') {
         return res.status(400).json({ message: "Title is required" });
       }
+      const gate = await checkRequest(title);
+      if (!gate.allowed) return res.status(422).json({ message: gate.message, category: gate.category });
 
       // Check if topic already exists
       const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -906,7 +923,11 @@ export async function registerRoutes(
         }));
 
         await storage.createTutorMessage({ sessionId, role: 'user', content });
-        const replyText = await generateTutorResponse(topic.title, principleContext, history, content);
+        // Tutor chats are free text, often from kids: gate before Gemini.
+        const gate = await checkRequest(content, { kind: 'tutor', level: topic.level === 'kid' ? 'kid' : undefined });
+        const replyText = gate.allowed
+          ? await generateTutorResponse(topic.title, principleContext, history, content)
+          : "I can only help with learning questions about this topic. What would you like to understand better?";
         const assistantMessage = await storage.createTutorMessage({ sessionId, role: 'assistant', content: replyText });
 
         res.json({ message: assistantMessage });
@@ -1192,6 +1213,32 @@ export async function registerRoutes(
       res.json({ success: true });
   });
   
+  // Lessons held by the publish gate (server/safety.ts), for review.
+  app.get('/api/admin/held', isAuthenticated, isAdmin, async (_req: Request, res) => {
+    try {
+      const held = (await storage.getAllTopics(500, 0)).filter((t) => !t.isPublic && moderationOf(t)?.held);
+      res.json(held.map((t) => ({ id: t.id, title: t.title, slug: t.slug, level: t.level, createdAt: t.createdAt, confidenceScore: t.confidenceScore, moderation: moderationOf(t) })));
+    } catch (error) {
+      return handleError(error, res, 'Admin Held');
+    }
+  });
+
+  // Publish a held lesson after review (clears the hold).
+  app.post('/api/admin/held/:topicId/publish', isAuthenticated, isAdmin, async (req: Request, res) => {
+    try {
+      const topic = await storage.getTopic(req.params.topicId);
+      if (!topic) throw Errors.notFound('Topic');
+      const mod = moderationOf(topic);
+      await storage.updateTopic(topic.id, {
+        isPublic: true,
+        validationData: { ...((topic.validationData as object) ?? {}), moderation: { ...(mod ?? {}), held: false, status: 'approved', reviewedAt: new Date().toISOString() } },
+      } as any);
+      res.json({ success: true });
+    } catch (error) {
+      return handleError(error, res, 'Admin Publish');
+    }
+  });
+
   // Where lesson reads come from (Admin > Traffic).
   app.get('/api/admin/traffic', isAuthenticated, isAdmin, async (req: Request, res) => {
     try {

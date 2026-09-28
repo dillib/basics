@@ -40,6 +40,65 @@ interface VersionRow {
   createdAt: string;
 }
 
+interface HeldRow {
+  id: string;
+  title: string;
+  slug: string;
+  level: string | null;
+  createdAt: string;
+  confidenceScore: number | null;
+  moderation: { status: "blocked" | "held"; reasons: string[]; checkedWithJev: boolean };
+}
+
+/** Lessons the publish gate held (server/safety.ts): publish after review, or delete. */
+function HeldQueue() {
+  const { toast } = useToast();
+  const { data = [], isLoading } = useQuery<HeldRow[]>({ queryKey: ["/api/admin/held"] });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["/api/admin/held"] });
+  const publish = useMutation({
+    mutationFn: (id: string) => apiRequest("POST", `/api/admin/held/${id}/publish`),
+    onSuccess: () => { refresh(); toast({ title: "Lesson published" }); },
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/admin/topics/${id}`),
+    onSuccess: () => { refresh(); toast({ title: "Lesson deleted" }); },
+  });
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Held for review {data.length ? `(${data.length})` : ""}</CardTitle>
+        <CardDescription>
+          New lessons that failed the safety or accuracy check. <strong>Blocked</strong> (unsafe content) are hidden from everyone but you;
+          <strong> held</strong> (low fact-check score or may not suit kids) are unlisted but still open for the person who asked.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? <Skeleton className="h-16 w-full" /> : data.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nothing waiting. Every new lesson passed.</p>
+        ) : (
+          <Table>
+            <TableBody>
+              {data.map((t) => (
+                <TableRow key={t.id}>
+                  <TableCell>
+                    <a href={`/topic/${t.slug}`} target="_blank" rel="noreferrer" className="font-medium hover:underline">{t.title}</a>
+                    <Badge variant="outline" className={`ml-2 ${t.moderation.status === "blocked" ? "border-destructive text-destructive" : "border-brand-accent text-brand-accent-text"}`}>{t.moderation.status}</Badge>
+                    <div className="mt-1 text-xs text-muted-foreground">{t.moderation.reasons.join(" · ")}</div>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-right">
+                    <Button size="sm" variant="outline" disabled={publish.isPending} onClick={() => { if (window.confirm(`Publish "${t.title}"? Read it first.`)) publish.mutate(t.id); }}>Publish</Button>
+                    <Button size="sm" variant="ghost" className="ml-1 text-destructive" disabled={remove.isPending} onClick={() => { if (window.confirm(`Delete "${t.title}" permanently?`)) remove.mutate(t.id); }}>Delete</Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 interface CommentRow {
   vote: number;
   reasons: string[] | null;
@@ -94,6 +153,7 @@ export default function AdminFeedback() {
 
   return (
     <div className="space-y-6">
+      <HeldQueue />
       <Card>
         <CardHeader>
           <CardTitle>Reader feedback</CardTitle>

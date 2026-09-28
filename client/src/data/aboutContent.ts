@@ -31,6 +31,10 @@ export const HOW_LESSONS_ARE_MADE: { title: string; body: string }[] = [
     body: "A separate AI review checks every principle against the research and scores its confidence. That score is shown on the lesson.",
   },
   {
+    title: "It's checked before anyone sees it",
+    body: "Children use BasicsTutor, so every request and every new lesson is screened: nothing sexual, graphic, crude, dangerous or unsuitable for its age level, no slang, and no low-confidence facts. Anything that doesn't pass is held back for a person to review instead of being published.",
+  },
+  {
     title: "Readers keep it honest",
     body: "Every lesson has a “Was this helpful?” vote. Lessons readers flag as wrong, outdated or confusing are re-researched each night and rewritten only if the complaints hold up. The previous version is always kept.",
   },

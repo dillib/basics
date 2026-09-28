@@ -244,6 +244,13 @@ export default function ProgressiveSearch() {
         setStatus('error');
         return;
       }
+      // Declined by the safety gate: say so plainly, don't retry.
+      if (response.status === 422) {
+        const body = await response.json().catch(() => ({}));
+        setErrorMessage(body.message || "BasicsTutor can't help with that. Try another topic.");
+        setStatus('error');
+        return;
+      }
       if (!response.ok) throw new Error('Search failed');
 
       const data = await response.json();
@@ -324,6 +331,11 @@ export default function ProgressiveSearch() {
     } catch (err) {
       if (seq !== searchSeqRef.current) return; // superseded, not an error
       console.error('Generation error:', err);
+      // apiRequest errors read "422: {json}"; show the safety gate's message.
+      const m = err instanceof Error ? err.message.match(/^422: ([\s\S]*)$/) : null;
+      let msg = 'Something went wrong. Please try again.';
+      try { if (m) msg = JSON.parse(m[1]).message || msg; } catch { /* keep default */ }
+      setErrorMessage(msg);
       setStatus('error');
     }
   };

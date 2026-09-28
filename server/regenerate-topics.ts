@@ -32,6 +32,7 @@ import { storage } from "./storage";
 import { generateTopicContent, validateTopicContent } from "./ai";
 import { pool } from "./db";
 import { applyTopicContent } from "./topic-content";
+import { reviewLesson } from "./safety";
 import type { Topic } from "@shared/schema";
 import type { Level } from "@shared/levels";
 
@@ -68,6 +69,12 @@ async function regenerateOne(topic: Topic): Promise<Result> {
   if (!RUN_VALIDATION || !content.research) {
     const { sources: _old, ...rest } = validationResult ?? {};
     validationResult = content.research?.sources.length ? { ...rest, sources: content.research.sources } : rest;
+  }
+
+  // Same publish gate as a new lesson: never replace a lesson with one that fails it.
+  const review = await reviewLesson({ title: topic.title, level, description: content.description, shortAnswer: content.shortAnswer, principles: content.principles, practicalSteps: content.practicalSteps, confidenceScore });
+  if (!review.publish) {
+    return { title: topic.title, status: "failed", detail: `rewrite failed the publish gate: ${review.reasons.join("; ")} (kept the current version)` };
   }
 
   // Snapshot + in-place principle swap: learners' progress survives, and the

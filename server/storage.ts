@@ -307,7 +307,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTrendingTopics(): Promise<Topic[]> {
-    return db.select().from(topics).where(eq(topics.isTrending, true)).orderBy(asc(topics.trendingRank));
+    return db.select().from(topics).where(and(eq(topics.isTrending, true), eq(topics.isPublic, true))).orderBy(asc(topics.trendingRank));
   }
 
   async clearTrendingFlags(): Promise<void> {

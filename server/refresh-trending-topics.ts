@@ -25,6 +25,8 @@ import googleTrends from "google-trends-api";
 import { storage } from "./storage";
 import { generateTopicContent, validateTopicContent, filterTrendingTopics } from "./ai";
 import { pool } from "./db";
+import { checkRequest, reviewLesson } from "./safety";
+import { withModeration } from "./moderation";
 
 const MAX_TRENDING_TOPICS = 5;
 const TRENDS_GEO = process.env.TRENDS_GEO || "US";
@@ -55,11 +57,22 @@ async function upsertTrendingTopic(title: string, rank: number): Promise<void> {
   const existing = await storage.getTopicBySlug(slug);
 
   if (existing) {
-    await storage.updateTopic(existing.id, { isTrending: true, trendingRank: rank, isPublic: true });
+    // Never re-publish a lesson the publish gate is holding.
+    if (!existing.isPublic) {
+      console.log(`[Trending] "${title}" exists but is held for review — not featured.`);
+      return;
+    }
+    await storage.updateTopic(existing.id, { isTrending: true, trendingRank: rank });
     console.log(`[Trending] "${title}" already existed — re-flagged as trending (#${rank + 1}).`);
     return;
   }
 
+  // Trending subjects come from the open web: same request gate as a reader's search.
+  const gate = await checkRequest(title);
+  if (!gate.allowed) {
+    console.log(`[Trending] "${title}" skipped by the safety gate (${gate.category}).`);
+    return;
+  }
   console.log(`[Trending] Generating "${title}"...`);
   const content = await generateTopicContent(title);
   const canonicalTitle = content.title?.trim() || title;
@@ -72,6 +85,13 @@ async function upsertTrendingTopic(title: string, rank: number): Promise<void> {
     validationResult = validation;
   } catch (err) {
     console.warn(`[Trending] Validation failed for "${title}" (continuing without it):`, err);
+  }
+
+  const review = await reviewLesson({ title: canonicalTitle, level: "adult", description: content.description, shortAnswer: content.shortAnswer, principles: content.principles, practicalSteps: content.practicalSteps, confidenceScore });
+  if (!review.publish) {
+    // Don't feature (or even store) a trending lesson that fails the gate.
+    console.warn(`[Trending] "${canonicalTitle}" failed the publish gate (${review.reasons.join("; ")}) — skipped.`);
+    return;
   }
 
   const topic = await storage.createTopic({
@@ -87,7 +107,9 @@ async function upsertTrendingTopic(title: string, rank: number): Promise<void> {
     trendingRank: rank,
     mindMapData: content.mindMap,
     confidenceScore,
-    validationData: validationResult,
+    shortAnswer: content.shortAnswer ?? null,
+    practicalSteps: content.practicalSteps,
+    validationData: withModeration(validationResult, review),
   });
 
   await storage.createPrinciples(
