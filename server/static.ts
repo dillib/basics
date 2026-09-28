@@ -35,11 +35,24 @@ export function serveStatic(app: Express) {
 
   // Serve hashed assets etc., but let the catch-all own index.html so we can
   // inject per-page metadata for crawlers and social unfurlers.
-  app.use(express.static(distPath, { index: false }));
+  // Vite's /assets files have a content hash in their name, so they never
+  // change: browsers and Cloudflare keep them for a year. That also keeps a
+  // cached page (below) working after a deploy removes the old build.
+  app.use(express.static(distPath, {
+    index: false,
+    setHeaders: (res, filePath) => {
+      if (filePath.includes(`${path.sep}assets${path.sep}`)) res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    },
+  }));
 
   const indexHtml = fs.readFileSync(path.resolve(distPath, "index.html"), "utf-8");
   const html = (res: express.Response, status: number, body: string) =>
     res.status(status).set("Content-Type", "text/html").send(body);
+  // Public pages are the same for every visitor (sign-in happens in the
+  // browser), so Cloudflare may serve them for 2 minutes without asking the
+  // server: a traffic spike hits the edge, not the one Starter instance.
+  // Browsers always revalidate (max-age=0), so readers see updates quickly.
+  const cacheable = (res: express.Response) => res.set("Cache-Control", "public, max-age=0, s-maxage=120");
 
   // SPA fallback with server-side metadata (and a crawlable content snapshot)
   // for every public page -- so each has its own title/description/canonical
@@ -65,6 +78,7 @@ export function serveStatic(app: Express) {
           ]);
           // Held (unlisted) lessons stay reachable by link but out of search.
           const meta = { ...buildTopicMeta(topic, base, principles), ...(topic.isPublic ? {} : { robots: "noindex" }) };
+          if (topic.isPublic) cacheable(res);
           return html(res, 200, injectContent(injectMeta(indexHtml, meta), renderContentSnapshot(topic, principles, related)));
         }
         // /topic/:slug shape but no such topic -- a real 404, not a 200 with
@@ -80,6 +94,7 @@ export function serveStatic(app: Express) {
         if (pathname === "/") body = injectContent(body, renderHomeSnapshot((await publicLessons()).featured));
         const staticSnapshot = ({ "/about": renderAboutSnapshot, "/help": renderHelpSnapshot, "/why": renderWhySnapshot, "/contact": renderContactSnapshot } as Record<string, () => string>)[pathname];
         if (staticSnapshot) body = injectContent(body, staticSnapshot());
+        cacheable(res);
         return html(res, 200, body);
       }
 
