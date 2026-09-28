@@ -3,6 +3,7 @@ import type { Topic, Principle } from "@shared/schema";
 import { isLevel, LEVEL_LABELS } from "@shared/levels";
 import { canonicalCategory, CANONICAL_ORDER } from "../client/src/lib/categories";
 import { lessonTitleTag, cleanLessonTitle, lessonByline } from "@shared/lessonTitle";
+import { adviceKind, ADVICE_NOTE } from "@shared/advice";
 import { faqCategories } from "../client/src/data/helpFaqs";
 import { FOUNDER, HOW_LESSONS_ARE_MADE, LIMITS } from "../client/src/data/aboutContent";
 
@@ -290,6 +291,7 @@ export function renderContentSnapshot(topic: Topic, principles: Principle[], rel
       <h1 class="text-3xl sm:text-4xl font-bold mb-3">${escapeHtml(cleanLessonTitle(topic.title))}</h1>
       ${renderShortAnswer(topic, principles)}
       ${topic.description ? `<p class="text-lg text-muted-foreground leading-relaxed mb-3">${escapeHtml(plain(topic.description))}</p>` : ""}
+      ${adviceKind(topic.slug) ? `<p class="text-sm text-muted-foreground mb-3">${escapeHtml(ADVICE_NOTE[adviceKind(topic.slug)!])}</p>` : ""}
       <p class="text-sm text-muted-foreground mb-3">${escapeHtml(lessonByline(topic))} · <a href="/about#how-lessons-are-made">How we make lessons</a></p>
       <div class="flex flex-wrap items-center gap-3">${badges}</div>
     </header>

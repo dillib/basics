@@ -52,6 +52,9 @@ export function serveStatic(app: Express) {
       if (match) {
         const slug = decodeURIComponent(match[1]);
         const topic = await storage.getTopicBySlug(slug);
+        if (topic?.redirectTo) {
+          return res.redirect(301, `/topic/${encodeURIComponent(topic.redirectTo)}`);
+        }
         if (topic && isBlocked(topic)) {
           return html(res, 404, injectMeta(indexHtml, { title: "Lesson under review | BasicsTutor", description: "This lesson is being reviewed.", url: `${base}${pathname}`, robots: "noindex" }));
         }

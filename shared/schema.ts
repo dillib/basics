@@ -54,6 +54,8 @@ export const topics = pgTable("topics", {
   // (what search snippets and AI answers quote). Older lessons have none and
   // fall back to listing their principles.
   shortAnswer: text("short_answer"),
+  // Merged into another lesson: this slug 301-redirects to redirect_to.
+  redirectTo: text("redirect_to"),
   estimatedMinutes: integer("estimated_minutes").default(30),
   imageUrl: text("image_url"),
   isPublic: boolean("is_public").default(false),

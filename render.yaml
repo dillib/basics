@@ -155,6 +155,50 @@ services:
       - key: HEAL_MAX_REWRITES
         value: "5"
 
+  # Cron Job: weekly refresh of older lessons. Re-researches (sources) and
+  # rewrites the 15 lessons that need it most -- unsourced health/money first,
+  # then other unsourced, then least recently updated -- through the same
+  # safety + accuracy gates as a new lesson (a rewrite that fails keeps the
+  # current version). ~$0.04 per lesson, so ~$0.60 a week. See
+  # server/regenerate-topics.ts (REGEN_OLDEST).
+  - type: cron
+    name: refresh-old-lessons
+    runtime: node
+    plan: starter
+    schedule: "0 6 * * 0" # Sundays 6am UTC
+    buildCommand: npm install --include=dev
+    startCommand: npm run regenerate:topics
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: basicstutor-db
+          property: connectionString
+      - key: PUBLIC_URL
+        value: https://www.basicstutor.com
+      - key: REGEN_OLDEST
+        value: "15"
+      - key: REGEN_VALIDATE
+        value: "true"
+      - key: REGEN_CONCURRENCY
+        value: "2"
+      - key: GOOGLE_API_KEY
+        fromService:
+          type: web
+          name: basicstutor
+          envVarKey: GOOGLE_API_KEY
+      - key: PERPLEXITY_API_KEY
+        fromService:
+          type: web
+          name: basicstutor
+          envVarKey: PERPLEXITY_API_KEY
+      - key: TYPESAFE_API_KEY
+        fromService:
+          type: web
+          name: basicstutor
+          envVarKey: TYPESAFE_API_KEY
+
   # Cron Jobs: email a traction summary (new users, new topics with titles,
   # waitlist total) on three cadences. See server/send-report.ts -- one
   # script, a "daily"/"weekly"/"monthly" arg picks the lookback window.

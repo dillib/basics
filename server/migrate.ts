@@ -53,6 +53,21 @@ async function migrate() {
       -- Reader feedback + self-heal (server/self-heal-topics.ts)
       ALTER TABLE topics ADD COLUMN IF NOT EXISTS content_version INTEGER DEFAULT 1;
       ALTER TABLE topics ADD COLUMN IF NOT EXISTS short_answer TEXT;
+      ALTER TABLE topics ADD COLUMN IF NOT EXISTS redirect_to TEXT;
+
+      -- Near-duplicate lessons merged into one (SEO audit: they competed for
+      -- the same searches and taught the same principles). The old slug is
+      -- unlisted and 301-redirects to the kept lesson. Only applied while the
+      -- kept lesson exists and is public; re-running is a no-op.
+      UPDATE topics t SET redirect_to = m.keep, is_public = false, is_trending = false
+      FROM (VALUES
+        ('how-nuclear-reactors-work', 'how-nuclear-energy-works'),
+        ('how-compounding-works-in-math', 'how-compound-interest-works'),
+        ('how-combustion-engines-work', 'how-car-engines-work'),
+        ('how-the-justice-system-works', 'how-the-legal-system-works')
+      ) AS m(old, keep)
+      WHERE t.slug = m.old AND t.redirect_to IS NULL
+        AND EXISTS (SELECT 1 FROM topics k WHERE k.slug = m.keep AND k.is_public = true);
       ALTER TABLE generation_jobs ADD COLUMN IF NOT EXISTS framing TEXT;
 
       -- Search intake outcomes per day (server/intake.ts): the Jev before/after

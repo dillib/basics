@@ -24,7 +24,17 @@
  *   REGEN_SLUGS="how-the-meta-muse-works" REGEN_VALIDATE=true npm run regenerate:topics
  *
  * Env knobs:
+ *   # the health & money lessons (web research, sources, not-advice note):
+ *   REGEN_ADVICE=true REGEN_VALIDATE=true npm run regenerate:topics
+ *   # the weekly refresh (render.yaml cron): the 15 most in need of it
+ *   REGEN_OLDEST=15 REGEN_VALIDATE=true npm run regenerate:topics
+ *
  *   REGEN_SLUGS        comma-separated slugs to regenerate instead of the library
+ *   REGEN_ADVICE       "true": only health & money lessons (shared/advice.ts)
+ *   REGEN_OLDEST       N: pick the N lessons most in need of a refresh --
+ *                      unsourced health/money first, then other unsourced,
+ *                      then least recently updated -- skipping any updated in
+ *                      the last REGEN_MIN_AGE_DAYS (default 45)
  *   REGEN_CONCURRENCY  parallel generations (default 3)
  *   REGEN_VALIDATE     "true" to run the validation/confidence pass (default off)
  */
@@ -32,6 +42,8 @@ import { storage } from "./storage";
 import { generateTopicContent, validateTopicContent } from "./ai";
 import { pool } from "./db";
 import { applyTopicContent } from "./topic-content";
+import { adviceKind } from "@shared/advice";
+import { refreshPriority } from "./refresh-priority";
 import { reviewLesson } from "./safety";
 import type { Topic } from "@shared/schema";
 import type { Level } from "@shared/levels";
@@ -39,6 +51,11 @@ import type { Level } from "@shared/levels";
 const CONCURRENCY = Math.max(1, parseInt(process.env.REGEN_CONCURRENCY || "3", 10));
 const RUN_VALIDATION = process.env.REGEN_VALIDATE === "true";
 const SLUGS = (process.env.REGEN_SLUGS || "").split(",").map((s) => s.trim()).filter(Boolean);
+const ADVICE_ONLY = process.env.REGEN_ADVICE === "true";
+const OLDEST = Math.max(0, parseInt(process.env.REGEN_OLDEST || "0", 10));
+const MIN_AGE_DAYS = Math.max(0, parseInt(process.env.REGEN_MIN_AGE_DAYS || "45", 10));
+
+
 
 interface Result {
   title: string;
@@ -119,6 +136,10 @@ async function main() {
       if (topic) all.push(topic);
       else console.warn(`[Regen] No topic with slug "${slug}" — skipped.`);
     }
+  } else if (ADVICE_ONLY) {
+    all = (await storage.getPublicTopics()).filter((t) => adviceKind(t.slug)).reverse();
+  } else if (OLDEST > 0) {
+    all = refreshPriority(await storage.getPublicTopics(), OLDEST, { minAgeDays: MIN_AGE_DAYS });
   } else {
     all = [...(await storage.getPublicTopics())].reverse(); // oldest first — deterministic
   }
@@ -126,7 +147,7 @@ async function main() {
     Number.isFinite(limitArg) && limitArg > 0 ? all.slice(0, limitArg) : all;
 
   console.log(
-    `[Regen] Regenerating ${topics.length} of ${all.length} ${SLUGS.length ? "selected" : "public"} topics ` +
+    `[Regen] Regenerating ${topics.length} of ${all.length} ${SLUGS.length || ADVICE_ONLY || OLDEST ? "selected" : "public"} topics ` +
     `(concurrency=${CONCURRENCY}, validation=${RUN_VALIDATION ? "on" : "off"}, ` +
     `research=${process.env.PERPLEXITY_API_KEY ? "on" : "OFF, PERPLEXITY_API_KEY not set"})...\n`,
   );

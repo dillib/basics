@@ -1,3 +1,4 @@
+import { useLocation } from "wouter";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -46,6 +47,7 @@ import TopicCover from "./TopicCover";
 import QualityBadge from "./QualityBadge";
 import InlineText, { plainText } from "./InlineText";
 import { cleanLessonTitle, lessonTitleTag, lessonByline } from "@shared/lessonTitle";
+import { adviceKind, ADVICE_NOTE } from "@shared/advice";
 import { SnapshotOr, consumeSnapshot } from "@/lib/ssrSnapshot";
 import FoundableContent from "./FoundableContent";
 import ShortAnswer from "./ShortAnswer";
@@ -149,6 +151,12 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [slug]);
+
+  // A merged lesson's old URL loads the kept lesson: show its real URL.
+  const [, navigate] = useLocation();
+  useEffect(() => {
+    if (topic?.slug && slug && topic.slug !== slug) navigate(`/topic/${topic.slug}`, { replace: true });
+  }, [topic?.slug, slug, navigate]);
 
   // Open the first principle so the lesson starts reading, not as a list.
   const firstPrincipleId = principles[0]?.id;
@@ -486,6 +494,11 @@ export default function TopicLearningPage({ topicId: slug }: TopicLearningPagePr
               </div>
               <ShortAnswer answer={(topic as { shortAnswer?: string | null }).shortAnswer} principles={accessiblePrinciples} />
               <p className="text-lg text-muted-foreground mb-2"><InlineText text={topic.description} /></p>
+              {adviceKind(topic.slug) && (
+                <p className="mb-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground" data-testid="text-advice-note">
+                  {ADVICE_NOTE[adviceKind(topic.slug)!]}
+                </p>
+              )}
               <p className="text-sm text-muted-foreground mb-4" data-testid="text-lesson-byline">
                 {lessonByline(topic)} · <a href="/about#how-lessons-are-made" className="underline-offset-4 hover:text-foreground hover:underline">How we make lessons</a>
               </p>

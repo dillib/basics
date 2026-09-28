@@ -389,7 +389,8 @@ export async function registerRoutes(
   });
 
   app.get('/api/topics/:slug', async (req, res) => {
-    const topic = await storage.getTopicBySlug(req.params.slug);
+    let topic = await storage.getTopicBySlug(req.params.slug);
+    if (topic?.redirectTo) topic = await storage.getTopicBySlug(topic.redirectTo);
     if (!topic) return res.status(404).json({ message: "Topic not found" });
     if (isBlocked(topic) && !(await isAdminRequest(req))) return res.status(404).json({ message: "This lesson is being reviewed." });
     res.json(topic);
