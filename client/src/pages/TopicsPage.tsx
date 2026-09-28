@@ -405,7 +405,7 @@ export default function TopicsPage() {
                       <FileText className="h-3.5 w-3.5 text-primary" />
                       <span>Sheet</span>
                     </div>
-                    {(topic as any).confidenceScore != null && (topic as any).validationData != null && (
+                    {(topic as any).confidenceScore != null && (topic as any).hasValidation && (
                       <div className="flex items-center gap-1" title={`AI Confidence: ${(topic as any).confidenceScore}%`}>
                         {(topic as any).confidenceScore >= 90 ? (
                           <>

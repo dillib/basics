@@ -259,9 +259,15 @@ export async function registerRoutes(
     }
   });
 
+  // Library list (home hero + /topics): card fields only. The mind map,
+  // fact-check detail, steps and short answer are ~90% of the bytes and are
+  // loaded with the lesson itself (/api/topics/:slug).
   app.get('/api/topics', async (_req, res) => {
     const topics = await storage.getPublicTopics();
-    res.json(topics);
+    res.json(topics.map(({ mindMapData: _m, validationData, practicalSteps: _p, shortAnswer: _s, ...card }) => ({
+      ...card,
+      hasValidation: validationData != null,
+    })));
   });
 
   // -- SEO: robots + sitemap --
