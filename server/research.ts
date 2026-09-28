@@ -24,7 +24,9 @@ const client = process.env.PERPLEXITY_API_KEY
   ? new Perplexity({
       // A new JSON schema takes 10-30s to prepare on first use (per docs).
       timeout: 120_000,
-      maxRetries: 1,
+      // The SDK backs off between retries; batch jobs (concurrency 2-3) can
+      // hit Perplexity's rate limit (429), and one retry wasn't always enough.
+      maxRetries: 3,
     })
   : null;
 
