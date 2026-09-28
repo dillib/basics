@@ -21,14 +21,14 @@ interface TrafficSummary {
   /** Search intake outcomes (server/intake.ts, Jev). */
   intake?: Record<string, number>;
   /** AI spend ledger (server/ai-spend.ts). */
-  spend?: { rows: { task: string; provider: string; model: string; calls: number; inputTokens: number; outputTokens: number; costUsd: number }[]; totalUsd: number; todayUsd: number; budgetUsd: number };
+  spend?: { rows: { task: string; provider: string; model: string; calls: number; inputTokens: number; outputTokens: number; costUsd: number }[]; totalUsd: number; todayUsd: number; budgetUsd: number; hardLimitUsd: number };
 }
 
 const TASK_LABELS: Record<string, string> = {
   lesson_write: "Writing lessons", fact_check: "Fact-checking", research: "Web research", quick_preview: "Search previews",
   clarify: "Follow-up questions", tutor: "AI tutor", quiz: "Quizzes", visual_scene: "Concept animations",
   heal_triage: "Self-heal review", trending_filter: "Trending picks", jev_intake: "Search decisions (Jev)", jev_verify: "Match checks (Jev)",
-  jev_suggest: "Typing suggestions (Jev)", jev_dedupe: "Duplicate guard (Jev)", jev_safety: "Safety checks (Jev)", jev_review: "Lesson reviews (Jev)",
+  source_check: "Accuracy checks", jev_research_route: "Research routing (Jev)", jev_suggest: "Typing suggestions (Jev)", jev_dedupe: "Duplicate guard (Jev)", jev_safety: "Safety checks (Jev)", jev_review: "Lesson reviews (Jev)",
 };
 const usd = (n: number) => (n >= 1 ? `$${n.toFixed(2)}` : n >= 0.01 ? `$${n.toFixed(3)}` : n > 0 ? "<$0.01" : "$0");
 
@@ -111,7 +111,7 @@ export default function AdminTraffic() {
             <CardHeader>
               <CardTitle>AI spend</CardTitle>
               <CardDescription>
-                {data.spend ? <>Estimated from each call's token usage: <strong>{usd(data.spend.totalUsd)}</strong> this period, <strong>{usd(data.spend.todayUsd)}</strong> today of a {usd(data.spend.budgetUsd)} daily budget (past it, only optional concept animations pause).</> : "No AI calls recorded yet."}
+                {data.spend ? <>Estimated from each call's token usage: <strong>{usd(data.spend.totalUsd)}</strong> this period, <strong>{usd(data.spend.todayUsd)}</strong> today of a {usd(data.spend.budgetUsd)} daily budget. Readers never notice it: you get an email at 80% and 100% and background jobs pause; only past the {usd(data.spend.hardLimitUsd)} hard limit do new animations use Gemini instead of Claude.</> : "No AI calls recorded yet."}
               </CardDescription>
             </CardHeader>
             {!!data.spend?.rows.length && (

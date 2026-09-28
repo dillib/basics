@@ -1,6 +1,9 @@
 import { choice, noul } from "@typesafe-ai/sdk";
 import { ask, THRESHOLDS } from "./jev";
 import type { Level } from "@shared/levels";
+import { adviceKind } from "@shared/advice";
+import { generateJSON, type Provider } from "./llm";
+import { formatResearchForPrompt, type ResearchBrief } from "./research";
 
 /**
  * Content guardrails. Kids use BasicsTutor, so every lesson must be clean,
@@ -12,6 +15,10 @@ import type { Level } from "@shared/levels";
  *      prompts (server/ai.ts), stricter Gemini safety filters for Kids/Teens.
  *   3. Publish gate (reviewLesson)  -- before a lesson is listed: adult /
  *      graphic / crude / dangerous content, kid suitability, fact-check score.
+ *      Accuracy check (checkAccuracy): Mercury, a different company's model
+ *      than the writer, checks the lesson against its web research when it
+ *      has some (Perplexity), else against well-established knowledge, and
+ *      flags false claims and unsafe health/money advice.
  *      Failing lessons are HELD (unlisted + noindex, still reachable by the
  *      person who asked) for review in Admin -> Feedback, never silently shown.
  *
@@ -104,6 +111,8 @@ export interface LessonForReview {
   practicalSteps?: string[] | null;
   /** Fact-check score from validateTopicContent (0-100), if it ran. */
   confidenceScore?: number | null;
+  /** The web research the lesson was written from, if any (grounds the accuracy check). */
+  research?: ResearchBrief | null;
 }
 
 export interface LessonReview {
@@ -112,6 +121,14 @@ export interface LessonReview {
   reasons: string[];
   lint: LintResult;
   checkedWithJev: boolean;
+  /** Accuracy check result; absent when no model answered. */
+  sourceCheck?: { provider: Provider; grounded: boolean; issues: SourceIssue[] };
+}
+
+export interface SourceIssue {
+  claim: string;
+  problem: string;
+  severity: "major" | "minor";
 }
 
 /** Below this fact-check score a lesson is held rather than published. */
@@ -123,6 +140,69 @@ export function lessonText(l: LessonForReview): string {
     ...l.principles.flatMap((p) => [p.title, p.explanation, p.analogy ?? "", ...(p.keyTakeaways ?? [])]),
     ...(l.practicalSteps ?? []),
   ].filter(Boolean).join("\n");
+}
+
+const ACCURACY_SCHEMA = {
+  name: "accuracy_check",
+  schema: {
+    type: "object",
+    properties: {
+      issues: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            claim: { type: "string" },
+            problem: { type: "string" },
+            severity: { type: "string", enum: ["major", "minor"] },
+          },
+          required: ["claim", "problem", "severity"],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ["issues"],
+    additionalProperties: false,
+  },
+};
+
+export function parseIssues(v: unknown): SourceIssue[] | null {
+  const issues = (v as { issues?: unknown })?.issues;
+  if (!Array.isArray(issues)) return null;
+  return issues
+    .filter((i): i is SourceIssue => !!i && typeof i.claim === "string" && typeof i.problem === "string" && (i.severity === "major" || i.severity === "minor"))
+    .slice(0, 10)
+    .map((i) => ({ claim: i.claim.slice(0, 300), problem: i.problem.slice(0, 300), severity: i.severity }));
+}
+
+/**
+ * Independent accuracy check. With research, contradictions of it (or clearly
+ * false claims) count: the research is a short brief, so a claim it doesn't
+ * mention is fine. Without research, well-established knowledge is the
+ * reference. Null when no model answered.
+ */
+export async function checkAccuracy(l: LessonForReview): Promise<LessonReview["sourceCheck"] | null> {
+  const advice = adviceKind(l.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"));
+  const adviceRule = advice
+    ? `, or\n- gives unsafe ${advice} advice, or tells the reader what to do about their own ${advice === "health" ? "health instead of explaining how it works and to see a doctor" : "money instead of explaining how it works"}`
+    : "";
+  const result = await generateJSON("source_check", {
+    system: "You are a careful fact-checker for a learning site that children and adults use. You report only real problems.",
+    prompt: `${l.research ? `${formatResearchForPrompt(l.research)}\n\n` : ""}LESSON TO CHECK ("${l.title}"):
+${lessonText(l)}
+
+List every claim in the lesson that:
+${l.research ? "- contradicts the research above, or\n" : ""}- is clearly false by well-established knowledge${adviceRule}.
+Do NOT list a claim only because ${l.research ? "the research doesn't mention it" : "you are unsure of it"}, and do not list teaching choices (analogies and simplifications for the audience are fine unless they are false).
+severity "major": a reader would come away believing something false, or could be harmed. "minor": imprecise or slightly overstated.
+Return {"issues": []} if there are none.`,
+    schema: ACCURACY_SCHEMA,
+    maxTokens: 1200,
+    temperature: 0,
+    effort: "low",
+    timeoutMs: 30_000,
+  }, parseIssues);
+  return result ? { provider: result.provider, grounded: !!l.research, issues: result.data } : null;
 }
 
 export async function reviewLesson(l: LessonForReview): Promise<LessonReview> {
@@ -143,6 +223,7 @@ export async function reviewLesson(l: LessonForReview): Promise<LessonReview> {
     principles: l.principles.map((p) => ({ title: p.title, text: clip(p.explanation, 900), analogy: clip(p.analogy ?? "", 300) })),
     practical_steps: (l.practicalSteps ?? []).map((s) => clip(s, 200)),
   };
+  const accuracy = checkAccuracy(l).catch(() => null); // runs alongside Jev
   const r = await ask("review", state, {
     adult: noul("The lesson contains sexual content, nudity, or romantic or sexual detail beyond basic, factual biology."),
     graphic: noul("The lesson describes violence, injury, death or gore in graphic or frightening detail."),
@@ -150,6 +231,7 @@ export async function reviewLesson(l: LessonForReview): Promise<LessonReview> {
     dangerous: noul("The lesson tells the reader how to do something that could seriously hurt themselves or others (weapons, dangerous chemicals, risky stunts) without clear safety framing."),
     ...(l.level === "kid" ? { kid_ok: noul("Everything in this lesson is suitable, clear and not frightening for a 6-12-year-old reading it alone.") } : {}),
   }, { timeoutMs: 4000 });
+  const sourceCheck = await accuracy;
 
   if (r) {
     const a = r.answers as Record<string, { noul: number }>;
@@ -157,5 +239,6 @@ export async function reviewLesson(l: LessonForReview): Promise<LessonReview> {
     for (const [k, label] of Object.entries(labels)) if (a[k].noul >= THRESHOLDS.medium) reasons.push(`${label} (${a[k].noul.toFixed(2)})`);
     if (a.kid_ok && a.kid_ok.noul < THRESHOLDS.medium) reasons.push(`may not suit ages 6-12 (${a.kid_ok.noul.toFixed(2)})`);
   }
-  return { publish: reasons.length === 0, reasons, lint: found, checkedWithJev: !!r };
+  for (const i of sourceCheck?.issues ?? []) if (i.severity === "major") reasons.push(`accuracy: ${i.claim.slice(0, 120)} (${i.problem.slice(0, 160)})`);
+  return { publish: reasons.length === 0, reasons, lint: found, checkedWithJev: !!r, ...(sourceCheck ? { sourceCheck } : {}) };
 }

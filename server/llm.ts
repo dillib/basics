@@ -14,11 +14,14 @@ import { recordSpend } from "./ai-spend";
  */
 
 export type Provider = "mercury" | "gemini";
-export type LlmTask = "clarify" | "quick_preview";
+export type LlmTask = "clarify" | "quick_preview" | "source_check";
 
 const ROUTES: Record<LlmTask, Provider[]> = {
   clarify: ["mercury", "gemini"],
   quick_preview: ["mercury", "gemini"],
+  // A different company's model than the lesson writer (Gemini): an
+  // independent second opinion. Gemini only if Mercury is down.
+  source_check: ["mercury", "gemini"],
 };
 
 export const MERCURY_MODEL = process.env.INCEPTION_MODEL || "mercury-2.5";
@@ -48,6 +51,8 @@ interface Request {
   maxTokens?: number;
   temperature?: number;
   timeoutMs?: number;
+  /** Mercury reasoning effort; "instant" (default) for small, well-specified jobs. */
+  effort?: "instant" | "low" | "medium" | "high";
 }
 
 const available: Record<Provider, () => boolean> = {
@@ -63,8 +68,7 @@ async function callMercury(task: LlmTask, r: Request): Promise<string> {
       model: MERCURY_MODEL,
       messages: [{ role: "system", content: r.system }, { role: "user", content: r.prompt }],
       response_format: { type: "json_schema", json_schema: { name: r.schema.name, strict: true, schema: r.schema.schema } },
-      // "instant": lowest latency; these are small, well-specified JSON jobs.
-      reasoning_effort: "instant",
+      reasoning_effort: r.effort ?? "instant",
       max_tokens: r.maxTokens ?? 800,
       temperature: r.temperature ?? 0.5,
     }),

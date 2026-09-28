@@ -100,6 +100,51 @@ describe('generateJSON', () => {
   });
 });
 
+describe('checkAccuracy (publish gate)', () => {
+  const lesson = {
+    title: 'How Vaccines Work', level: 'adult' as const, description: 'd',
+    principles: [{ title: 'Memory cells', explanation: 'Vaccines train memory cells.' }],
+  };
+  const research = {
+    recognized: true, canonical_name: 'Vaccines', what_it_is: 'w', key_facts: ['Vaccines train the immune system'],
+    how_it_works: 'h', fundamentals: [], misconceptions: [], ambiguity_note: null, sources: [],
+  };
+
+  it('grounds the check in the research and applies the health rule', async () => {
+    reply = { status: 200, content: '{"issues":[]}' };
+    const { checkAccuracy } = await import('../safety');
+    const r = await checkAccuracy({ ...lesson, research });
+    expect(r).toEqual({ provider: 'mercury', grounded: true, issues: [] });
+    const prompt = requests[0].body.messages[1].content;
+    expect(prompt).toContain('VERIFIED RESEARCH');
+    expect(prompt).toContain('contradicts the research');
+    expect(prompt).toContain('unsafe health advice');
+    expect(requests[0].body.reasoning_effort).toBe('low');
+  });
+
+  it('checks stable subjects against established knowledge when there is no research', async () => {
+    reply = { status: 200, content: '{"issues":[]}' };
+    const { checkAccuracy } = await import('../safety');
+    const r = await checkAccuracy({ ...lesson, title: 'How Levers Work' });
+    expect(r?.grounded).toBe(false);
+    const prompt = requests[0].body.messages[1].content;
+    expect(prompt).not.toContain('VERIFIED RESEARCH');
+    expect(prompt).not.toContain('unsafe');
+  });
+
+  it('holds a lesson with a major issue, not a minor one', async () => {
+    const { reviewLesson } = await import('../safety');
+    reply = { status: 200, content: JSON.stringify({ issues: [{ claim: 'Vaccines contain live virus always', problem: 'Most do not', severity: 'major' }] }) };
+    const held = await reviewLesson({ ...lesson, research });
+    expect(held.publish).toBe(false);
+    expect(held.reasons[0]).toMatch(/^accuracy: Vaccines contain live virus always/);
+    reply = { status: 200, content: JSON.stringify({ issues: [{ claim: 'x', problem: 'slightly overstated', severity: 'minor' }] }) };
+    const ok = await reviewLesson({ ...lesson, research });
+    expect(ok.publish).toBe(true);
+    expect(ok.sourceCheck?.issues).toHaveLength(1);
+  });
+});
+
 describe('costOf', () => {
   it('prices Mercury and Gemini per 1M tokens', () => {
     expect(llm.costOf(llm.MERCURY_MODEL, 1_000_000, 1_000_000)).toBeCloseTo(0.95);

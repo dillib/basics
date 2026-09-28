@@ -87,7 +87,7 @@ async function upsertTrendingTopic(title: string, rank: number): Promise<void> {
     console.warn(`[Trending] Validation failed for "${title}" (continuing without it):`, err);
   }
 
-  const review = await reviewLesson({ title: canonicalTitle, level: "adult", description: content.description, shortAnswer: content.shortAnswer, principles: content.principles, practicalSteps: content.practicalSteps, confidenceScore });
+  const review = await reviewLesson({ title: canonicalTitle, level: "adult", description: content.description, shortAnswer: content.shortAnswer, principles: content.principles, practicalSteps: content.practicalSteps, confidenceScore, research: content.research });
   if (!review.publish) {
     // Don't feature (or even store) a trending lesson that fails the gate.
     console.warn(`[Trending] "${canonicalTitle}" failed the publish gate (${review.reasons.join("; ")}) — skipped.`);

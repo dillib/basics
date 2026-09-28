@@ -1,6 +1,9 @@
 import Perplexity from "@perplexity-ai/perplexity_ai";
 import { z } from "zod";
+import { choice } from "@typesafe-ai/sdk";
 import { recordSpend } from "./ai-spend";
+import { ask, THRESHOLDS } from "./jev";
+import { adviceKind } from "@shared/advice";
 
 /**
  * Web-grounded research step that runs before a lesson is written, via the
@@ -140,6 +143,34 @@ export async function researchTopic(topicTitle: string): Promise<ResearchBrief |
     }
     return null;
   }
+}
+
+const TOPIC_KINDS = {
+  stable: "Well-established knowledge that hasn't changed in years: science, maths, history, how everyday things work, classic ideas.",
+  current: "Depends on recent or changing facts: a named product, company, app, AI model, event, law, person in the news, statistics, prices, or anything from the last few years.",
+  advice: "Something a reader might act on for their own health, body, medicine, diet, money, investing, taxes or legal situation.",
+} as const;
+
+/**
+ * Web research only where it changes the lesson (Jev decides, ~$0.0001):
+ * stable subjects are written from established knowledge and still get the
+ * independent accuracy check (server/safety.ts); recent/changing subjects and
+ * health/money get Perplexity research. Research is the biggest per-lesson
+ * cost, so this roughly halves it. When unsure, or Jev is off, research.
+ */
+export async function researchIfNeeded(topicTitle: string): Promise<ResearchBrief | null> {
+  if (!client) return null;
+  if (!adviceKind(topicTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-"))) {
+    const r = await ask("research_route", { topic: topicTitle }, {
+      kind: choice("What kind of subject is this lesson about?", TOPIC_KINDS),
+    }, { timeoutMs: 2000, cacheKey: topicTitle.trim().toLowerCase() });
+    const kind = r?.answers.kind;
+    if (kind && kind.choice === "stable" && kind.confidence >= THRESHOLDS.high) {
+      console.log(`[Research] "${topicTitle}": stable subject (${kind.confidence.toFixed(2)}); skipping web research.`);
+      return null;
+    }
+  }
+  return researchTopic(topicTitle);
 }
 
 /** The brief as a prompt block for the lesson writer and the fact-checker. */

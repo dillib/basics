@@ -25,3 +25,7 @@ process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://test:test@l
 process.env.SESSION_SECRET = 'test-session-secret';
 process.env.GOOGLE_CLIENT_ID = 'test-client-id';
 process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
+// Never call real AI providers from tests (tests that need one point it at a local mock).
+delete process.env.INCEPTION_API_KEY;
+delete process.env.GOOGLE_API_KEY;
+delete process.env.AI_INTEGRATIONS_GEMINI_API_KEY;

@@ -50,8 +50,11 @@ INCEPTION_API_KEY=your_inception_api_key
 # MERCURY_DISABLED=true   # kill switch without removing the key
 
 ## AI spend (server/ai-spend.ts)
-# Daily budget in USD; past it only concept animations pause. Default 5.
+# Readers never notice the budget: at 80%/100% you get an email (REPORT_EMAIL,
+# else the first ADMIN_EMAILS; needs RESEND_API_KEY) and background jobs pause.
+# Past the hard limit, new concept animations use Gemini instead of Claude.
 # AI_DAILY_BUDGET_USD=5
+# AI_HARD_LIMIT_USD=20   # default 4x the daily budget
 
 ## Node Environment
 NODE_ENV=production

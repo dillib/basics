@@ -24,6 +24,7 @@
 import { storage } from "./storage";
 import { generateTopicContent, validateTopicContent, triageTopicFeedback, type FeedbackTriage } from "./ai";
 import { researchTopic } from "./research";
+import { overBudget } from "./ai-spend";
 import { applyTopicContent } from "./topic-content";
 import { reviewLesson } from "./safety";
 import { selectHealCandidates, acceptRewrite, type HealCandidate } from "./self-heal";
@@ -84,7 +85,7 @@ async function healOne(c: HealCandidate, rewritesLeft: () => number): Promise<Ou
   }
   // A rewrite must pass the same publish gate as a new lesson, or the
   // current version stays.
-  const review = await reviewLesson({ title: topic.title, level, description: content.description, shortAnswer: content.shortAnswer, principles: content.principles, practicalSteps: content.practicalSteps, confidenceScore: newScore });
+  const review = await reviewLesson({ title: topic.title, level, description: content.description, shortAnswer: content.shortAnswer, principles: content.principles, practicalSteps: content.practicalSteps, confidenceScore: newScore, research: content.research });
   if (!review.publish) {
     console.warn(`[Heal] "${topic.title}": rewrite failed the publish gate (${review.reasons.join("; ")}) -- kept the old version.`);
     return { kind: "kept-old", triage, oldScore, newScore };
@@ -140,6 +141,11 @@ async function main() {
   let rewrites = 0;
   const rows: { c: HealCandidate; o: Outcome }[] = [];
   for (const c of candidates.slice(0, MAX_TRIAGE)) {
+    // Background job: stop once today's AI budget is spent (server/ai-spend.ts).
+    if (await overBudget()) {
+      console.warn("[Heal] Daily AI budget reached; the rest waits for tomorrow's run.");
+      break;
+    }
     let o: Outcome;
     try {
       o = await healOne(c, () => MAX_REWRITES - rewrites);

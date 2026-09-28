@@ -36,6 +36,11 @@ describe('refreshPriority', () => {
     ], 5, { now });
     expect(picked.map((x) => x.slug)).toEqual(['how-mortgages-work', 'how-magnets-work', 'how-tides-work', 'how-the-heart-works', 'how-bridges-stay-up']);
   });
+  it('counts a stable lesson that passed the accuracy check as verified', () => {
+    const checked = { ...t('how-levers-work', 300), validationData: { moderation: { sourceCheck: { provider: 'mercury', grounded: false, issues: [] } } } };
+    const picked = refreshPriority([checked, t('how-tides-work', 60)], 2, { now });
+    expect(picked.map((x) => x.slug)).toEqual(['how-tides-work', 'how-levers-work']);
+  });
   it('respects the batch size', () => {
     expect(refreshPriority([t('a', 100), t('b', 100), t('c', 100)], 2, { now })).toHaveLength(2);
   });

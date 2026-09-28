@@ -44,6 +44,7 @@ import { pool } from "./db";
 import { applyTopicContent } from "./topic-content";
 import { adviceKind } from "@shared/advice";
 import { refreshPriority } from "./refresh-priority";
+import { overBudget } from "./ai-spend";
 import { reviewLesson } from "./safety";
 import type { Topic } from "@shared/schema";
 import type { Level } from "@shared/levels";
@@ -89,7 +90,7 @@ async function regenerateOne(topic: Topic): Promise<Result> {
   }
 
   // Same publish gate as a new lesson: never replace a lesson with one that fails it.
-  const review = await reviewLesson({ title: topic.title, level, description: content.description, shortAnswer: content.shortAnswer, principles: content.principles, practicalSteps: content.practicalSteps, confidenceScore });
+  const review = await reviewLesson({ title: topic.title, level, description: content.description, shortAnswer: content.shortAnswer, principles: content.principles, practicalSteps: content.practicalSteps, confidenceScore, research: content.research });
   if (!review.publish) {
     return { title: topic.title, status: "failed", detail: `rewrite failed the publish gate: ${review.reasons.join("; ")} (kept the current version)` };
   }
@@ -156,7 +157,10 @@ async function main() {
   const results = await mapWithConcurrency(topics, CONCURRENCY, async (topic) => {
     let result: Result;
     try {
-      result = await regenerateOne(topic);
+      // Background job: stop once today's AI budget is spent (server/ai-spend.ts).
+      result = await overBudget()
+        ? { title: topic.title, status: "failed", detail: "skipped: daily AI budget reached" }
+        : await regenerateOne(topic);
     } catch (err) {
       result = { title: topic.title, status: "failed", detail: err instanceof Error ? err.message : String(err) };
     }

@@ -84,11 +84,17 @@ services:
       - key: INCEPTION_API_KEY
         sync: false
 
-      # Daily AI budget (USD). Past it, only optional extras (concept
-      # animations) pause; search, lessons and the tutor keep working.
-      # Spend by task shows in Admin > Traffic.
+      # AI budgets (server/ai-spend.ts). Readers never notice the daily
+      # budget: it emails REPORT_EMAIL (else the first ADMIN_EMAILS) at 80%
+      # and 100% and pauses background jobs. Past the hard limit (runaway
+      # guard; default 4x the budget) new concept animations use Gemini
+      # instead of Claude until the next UTC day. Spend by task: Admin > Traffic.
       - key: AI_DAILY_BUDGET_USD
         value: "5"
+      - key: AI_HARD_LIMIT_USD
+        value: "20"
+      - key: REPORT_EMAIL
+        value: dillib@gmail.com
 
       # Abuse / cost protection (optional - defaults are sensible)
       - key: AI_RATE_LIMIT_PER_HOUR
@@ -123,6 +129,12 @@ services:
           type: web
           name: basicstutor
           envVarKey: PERPLEXITY_API_KEY
+      # Accuracy check before publishing (Mercury; server/safety.ts).
+      - key: INCEPTION_API_KEY
+        fromService:
+          type: web
+          name: basicstutor
+          envVarKey: INCEPTION_API_KEY
 
   # Cron Job: nightly self-heal. Lessons whose reader feedback crosses the
   # thresholds get fresh research + an AI check of the complaints; only valid
@@ -155,6 +167,11 @@ services:
           type: web
           name: basicstutor
           envVarKey: PERPLEXITY_API_KEY
+      - key: INCEPTION_API_KEY
+        fromService:
+          type: web
+          name: basicstutor
+          envVarKey: INCEPTION_API_KEY
       - key: RESEND_API_KEY
         fromService:
           type: web
@@ -210,6 +227,11 @@ services:
           type: web
           name: basicstutor
           envVarKey: TYPESAFE_API_KEY
+      - key: INCEPTION_API_KEY
+        fromService:
+          type: web
+          name: basicstutor
+          envVarKey: INCEPTION_API_KEY
 
   # Cron Jobs: email a traction summary (new users, new topics with titles,
   # waitlist total) on three cadences. See server/send-report.ts -- one

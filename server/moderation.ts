@@ -19,18 +19,22 @@ export interface Moderation {
   checkedWithJev: boolean;
   checkedAt: string;
   reviewedAt?: string;
+  /** Mercury's accuracy check (server/safety.ts), incl. minor issues that didn't hold it. */
+  sourceCheck?: LessonReview["sourceCheck"];
 }
 
 const UNSAFE = /adult content|graphic|crude|dangerous|explicit words|profanity/;
 
 export function moderationFromReview(review: LessonReview): Moderation {
-  const unsafe = review.reasons.some((r) => UNSAFE.test(r));
+  // Accuracy reasons quote the lesson's own claim, which may contain any word.
+  const unsafe = review.reasons.some((r) => !r.startsWith("accuracy:") && UNSAFE.test(r));
   return {
     held: !review.publish,
     status: review.publish ? "passed" : unsafe ? "blocked" : "held",
     reasons: review.reasons,
     checkedWithJev: review.checkedWithJev,
     checkedAt: new Date().toISOString(),
+    ...(review.sourceCheck ? { sourceCheck: review.sourceCheck } : {}),
   };
 }
 

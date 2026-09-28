@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, type SafetySetting } from "@google/generative-ai";
 import type { Principle } from "@shared/schema";
 import { type Level, LEVEL_LABELS } from "@shared/levels";
-import { researchTopic, formatResearchForPrompt, type ResearchBrief, type ResearchSource } from "./research";
+import { researchIfNeeded, formatResearchForPrompt, type ResearchBrief, type ResearchSource } from "./research";
 import { recordSpend } from "./ai-spend";
 import { generateJSON, costOf } from "./llm";
 
@@ -160,7 +160,7 @@ export async function generateTopicContent(
 
   // Research first (web-grounded, see server/research.ts); null = write from
   // memory as before.
-  const research = opts.research !== undefined ? opts.research : await researchTopic(topicTitle);
+  const research = opts.research !== undefined ? opts.research : await researchIfNeeded(topicTitle);
   const researchBlock = research
     ? `${formatResearchForPrompt(research)}
 

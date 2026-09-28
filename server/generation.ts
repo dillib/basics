@@ -82,7 +82,7 @@ export async function processGenerationJob(jobId: string): Promise<void> {
     // content ("blocked") isn't shown to anyone but admins.
     const review = await reviewLesson({
       title: canonicalTitle, level, description: content.description, shortAnswer: content.shortAnswer,
-      principles: content.principles, practicalSteps: content.practicalSteps, confidenceScore,
+      principles: content.principles, practicalSteps: content.practicalSteps, confidenceScore, research: content.research,
     });
     if (!review.publish) console.warn(`[Generation] Job ${jobId}: "${canonicalTitle}" held for review: ${review.reasons.join("; ")}`);
 

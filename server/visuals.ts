@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { recordSpend, overBudget } from "./ai-spend";
+import { recordSpend, spendLevel } from "./ai-spend";
 import { costOf } from "./llm";
 import { GoogleGenAI } from "@google/genai";
 import type { Principle } from "@shared/schema";
@@ -199,8 +199,9 @@ export function canAccessVisuals(
 async function generateScene(
   principle: Principle,
   ctx: SceneContext,
+  opts: { skipClaude?: boolean } = {},
 ): Promise<{ spec: VisualSpec; model: string; claudeFailed: boolean } | null> {
-  if (claude) {
+  if (claude && !opts.skipClaude) {
     try {
       // One Claude attempt only: structured output guarantees the JSON shape,
       // so a miss is a length-limit or refusal -- cheaper to hand to Gemini
@@ -212,7 +213,8 @@ async function generateScene(
     }
   }
   const spec = await generateWithGemini(principle, ctx);
-  return spec ? { spec, model: GEMINI_MODEL, claudeFailed: !!claude } : null;
+  // Skipped (hard limit) isn't failed: Claude still gets its shot later.
+  return spec ? { spec, model: GEMINI_MODEL, claudeFailed: !!claude && !opts.skipClaude } : null;
 }
 
 /**
@@ -259,13 +261,12 @@ export async function getOrCreateScene(principleId: string): Promise<VisualSpec 
   const pending = inFlight.get(principleId);
   if (pending) return pending;
 
-  // Animations are the optional extra: past today's AI budget, serve what we
-  // have (or nothing) instead of generating. Lessons, search and the tutor
-  // are never budget-limited. See server/ai-spend.ts.
-  if (await overBudget()) {
-    console.warn(`[Visuals] Daily AI budget reached; not generating a scene for ${principleId}.`);
-    return fallback;
-  }
+  // Runaway guard (server/ai-spend.ts): past the hard limit, keep any scene we
+  // already have and draw missing ones with Gemini instead of Claude. Those
+  // aren't "current", so they upgrade to Claude on a view after the reset.
+  const hardLimit = claude && (await spendLevel()) === "hard_limit";
+  if (hardLimit && fallback) return fallback;
+  if (hardLimit) console.warn(`[Visuals] AI hard limit reached; drawing ${principleId} with Gemini.`);
 
   const job = (async () => {
     try {
@@ -290,7 +291,7 @@ export async function getOrCreateScene(principleId: string): Promise<VisualSpec 
         brief,
         authorType,
         siblingKinds,
-      });
+      }, { skipClaude: !!hardLimit });
       if (!result) {
         recentFailures.set(principleId, Date.now());
         return fallback;
