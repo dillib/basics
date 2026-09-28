@@ -164,9 +164,14 @@ export async function decideIntake(query: string, opts: { clarified?: boolean } 
     return { action: "site_help", href: "/help" };
   }
 
-  // 2. An existing lesson that really covers it: send them there (don't make a duplicate).
+  // 2. An existing lesson that really covers it: send them there (don't make a
+  //    duplicate) -- unless it's written for a different audience than the
+  //    one the reader clearly asked for ("...to my 7 year old" + an adult
+  //    lesson): then build the right level instead.
+  const askedLevel = a.level.choice !== "unspecified" && tier(a.level.confidence) === "high" ? (a.level.choice as Level) : null;
   if (a.match.choice !== "none") {
-    const lesson = lessons.find((l) => l.slug === a.match.choice);
+    const matched = lessons.find((l) => l.slug === a.match.choice);
+    const lesson = matched && askedLevel && (matched.level || "adult") !== askedLevel ? undefined : matched;
     const verified = lesson ? await verifyMatch(query, lesson) : null;
     if (lesson && verified != null) {
       if (verified >= THRESHOLDS.high) return { action: "open_lesson", lesson, confidence: verified };

@@ -198,3 +198,17 @@ describe('duplicate guard + suggestions', () => {
     expect(c).toHaveProperty('t299');
   });
 });
+
+describe('audience beats a different-level match', () => {
+  it('builds the Kids version instead of opening the adult lesson when a child is clearly the audience', async () => {
+    process.env.TYPESAFE_API_KEY = 'test-key';
+    jev({ ...clearNew, level: ch('kid', 0.92), match: ch('how-airplanes-fly', 0.8) }, 0.95);
+    const { decideIntake } = await load();
+    expect(await decideIntake('explain how planes fly to my 7 year old')).toMatchObject({ action: 'create', source: 'jev', level: 'kid', levelTier: 'high' });
+  });
+  it('still opens an existing lesson written for that level', async () => {
+    jev({ ...clearNew, level: ch('kid', 0.92), match: ch('how-photosynthesis-works-kid', 0.8) }, 0.95);
+    const { decideIntake } = await load();
+    expect(await decideIntake('photosynthesis for my 7 year old')).toMatchObject({ action: 'open_lesson', lesson: { slug: 'how-photosynthesis-works-kid' } });
+  });
+});
