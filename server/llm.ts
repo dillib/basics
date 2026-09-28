@@ -75,7 +75,9 @@ async function callMercury(task: LlmTask, r: Request): Promise<string> {
     signal: AbortSignal.timeout(r.timeoutMs ?? 6000),
   });
   if (!res.ok) throw new Error(`Mercury ${res.status}`);
-  const body = (await res.json()) as { choices?: { message?: { content?: string } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number } };
+  const body = (await res.json()) as { choices?: { message?: { content?: string }; finish_reason?: string }[]; usage?: { prompt_tokens?: number; completion_tokens?: number } };
+  const finish = body.choices?.[0]?.finish_reason;
+  if (finish && finish !== "stop") console.warn(`[LLM] ${task}: mercury finish_reason=${finish}`);
   const u = body.usage ?? {};
   recordSpend(task, "mercury", MERCURY_MODEL, u.prompt_tokens ?? 0, u.completion_tokens ?? 0, costOf(MERCURY_MODEL, u.prompt_tokens ?? 0, u.completion_tokens ?? 0));
   return body.choices?.[0]?.message?.content ?? "";
@@ -117,7 +119,8 @@ export async function generateJSON<T>(task: LlmTask, r: Request, parse: (value: 
         console.log(`[LLM] ${task}: ${provider} ${Date.now() - started}ms`);
         return { data, provider, ms: Date.now() - started };
       }
-      console.warn(`[LLM] ${task}: ${provider} returned an unusable answer; trying next.`);
+      // Model output only (no secrets): enough to see what shape came back.
+      console.warn(`[LLM] ${task}: ${provider} returned an unusable answer (${text.length} chars: ${text.slice(0, 200)}); trying next.`);
     } catch (err) {
       console.warn(`[LLM] ${task}: ${provider} failed (${(err as Error)?.message}); trying next.`);
     }
