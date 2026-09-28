@@ -14,6 +14,7 @@
     "regenerate:topics": "tsx server/regenerate-topics.ts",
     "refresh:trending": "tsx server/refresh-trending-topics.ts",
     "heal:topics": "tsx server/self-heal-topics.ts",
+    "jev:eval": "tsx server/jev-eval.ts",
     "delete:topic": "tsx server/delete-topic-by-slug.ts",
     "rename:topic": "tsx server/rename-topic.ts",
     "report:daily": "tsx server/send-report.ts daily",
@@ -64,6 +65,7 @@
     "@radix-ui/react-tooltip": "^1.2.0",
     "@tanstack/react-query": "^5.60.5",
     "@types/memoizee": "^0.4.12",
+    "@typesafe-ai/sdk": "^0.6.0",
     "@xyflow/react": "^12.10.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -143,5 +145,8 @@
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

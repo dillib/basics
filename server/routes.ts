@@ -22,7 +22,9 @@ import {
   ProgressUpdateSchema,
   TopicFeedbackSchema,
   TopicViewSchema,
+  TopicIntakeSchema,
 } from "./validation";
+import { decideIntake, semanticSuggestions, findExistingLesson } from "./intake";
 import { classifyVisit } from "./traffic";
 import { createHash } from "crypto";
 import { restoreTopicVersion } from "./topic-content";
@@ -334,11 +336,33 @@ export async function registerRoutes(
   // MUST be registered before /api/topics/:slug, which would otherwise
   // swallow "search" as a slug and 404 (that's exactly why /trending is up
   // here too).
+  // Search intake (server/intake.ts): Jev decides open an existing lesson /
+  // ask a follow-up / create, with confidence. Without Jev: { action: "create" }.
+  app.post('/api/topics/intake', quickSearchLimiter, validate(TopicIntakeSchema), async (req: Request, res) => {
+    try {
+      const decision = await decideIntake(req.body.query, { clarified: req.body.clarified === true });
+      storage.recordIntake(decision.action === "create" ? `create_${decision.source}` : decision.action).catch(() => {});
+      res.json(decision);
+    } catch (error) {
+      console.error("[Intake] Error:", error);
+      res.json({ action: "create", source: "fallback" });
+    }
+  });
+
   app.get('/api/topics/search', async (req: Request, res) => {
     try {
       const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
       if (q.length < 2) return res.json([]);
-      const matches = await storage.searchPublicTopics(q, 6);
+      const [wordMatches, meaningMatches] = await Promise.all([
+        storage.searchPublicTopics(q, 6),
+        q.length >= 4 ? semanticSuggestions(q, 5).catch(() => []) : Promise.resolve([]),
+      ]);
+      const seen = new Set(wordMatches.map((t) => t.slug));
+      const extra = meaningMatches.length
+        ? (await storage.getPublicTopics()).filter((t) => meaningMatches.some((m) => m.slug === t.slug) && !seen.has(t.slug))
+          .sort((a, b) => meaningMatches.findIndex((m) => m.slug === a.slug) - meaningMatches.findIndex((m) => m.slug === b.slug))
+        : [];
+      const matches = [...wordMatches, ...extra].slice(0, 6);
       res.json(matches.map((t) => ({
         slug: t.slug,
         title: t.title,
@@ -461,7 +485,7 @@ export async function registerRoutes(
   app.post('/api/topics/generate', aiLimiter, validate(TopicGenerateSchema), async (req: Request, res) => {
     try {
       const userId = req.user?.claims?.sub || null;
-      const { title, level } = req.body; // level validated + defaulted by TopicGenerateSchema
+      const { title, level, framing } = req.body; // level validated + defaulted by TopicGenerateSchema
 
       // Each level is its own page/slug (Adults keeps the clean base slug).
       const slug = buildTopicSlug(title, level);
@@ -472,11 +496,18 @@ export async function registerRoutes(
       if (existingTopic) {
         return res.json({ existing: true, topic: existingTopic });
       }
+      // Same subject under another title (Jev): send them to that lesson
+      // instead of creating a near-duplicate page. No-op without Jev.
+      const sameSubject = await findExistingLesson(title, level).catch(() => null);
+      if (sameSubject) {
+        storage.recordIntake("dedupe_redirect").catch(() => {});
+        return res.json({ existing: true, topic: sameSubject });
+      }
 
       // No generation limits beyond rate limiting — paywall is on content
       // access, not generation. Generation runs in the background so the
       // request returns immediately and isn't subject to proxy timeouts.
-      const job = await storage.createGenerationJob({ userId, title, slug, level, status: "pending", progress: 0 });
+      const job = await storage.createGenerationJob({ userId, title, slug, level, framing: framing ?? null, status: "pending", progress: 0 });
 
       // Fire-and-forget: do not await. The client polls the status endpoint.
       void processGenerationJob(job.id);
@@ -1165,7 +1196,8 @@ export async function registerRoutes(
   app.get('/api/admin/traffic', isAuthenticated, isAdmin, async (req: Request, res) => {
     try {
       const days = Math.min(90, Math.max(1, parseInt(String(req.query.days || "7"), 10) || 7));
-      res.json(await storage.getTrafficSummary(days));
+      const [traffic, intake] = await Promise.all([storage.getTrafficSummary(days), storage.getIntakeSummary(days)]);
+      res.json({ ...traffic, intake });
     } catch (error) {
       return handleError(error, res, 'Admin Traffic');
     }

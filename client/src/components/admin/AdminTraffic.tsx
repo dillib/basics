@@ -18,7 +18,20 @@ interface TrafficSummary {
   bySource: Record<Source, number>;
   topSites: { host: string; source: Source; views: number }[];
   topLessons: { topicId: string; title: string; slug: string; total: number; bySource: Record<Source, number> }[];
+  /** Search intake outcomes (server/intake.ts, Jev). */
+  intake?: Record<string, number>;
 }
+
+const INTAKE_LABELS: [string, string][] = [
+  ["open_lesson", "Sent straight to an existing lesson"],
+  ["suggest_lesson", "Suggested an existing lesson"],
+  ["dedupe_redirect", "Duplicate lesson prevented"],
+  ["clarify", "Asked a follow-up question"],
+  ["create_jev", "New lesson (Jev checked it)"],
+  ["create_fallback", "New lesson (Jev off or failed)"],
+  ["site_help", "Pointed to the Help Center"],
+  ["reject", "Nothing to teach (gibberish / unsafe)"],
+];
 
 const SOURCES: { id: Source; label: string; hint: string; color: string }[] = [
   { id: "search", label: "Search", hint: "Google, Bing, DuckDuckGo…", color: "bg-primary" },
@@ -81,6 +94,29 @@ export default function AdminTraffic() {
                   </div>
                 );
               })}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Search outcomes</CardTitle>
+              <CardDescription>What happened after someone pressed Enter in the search box. "Jev off" means TYPESAFE_API_KEY isn't set or the call failed.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {Object.values(data.intake ?? {}).every((n) => !n) ? (
+                <p className="text-sm text-muted-foreground">No searches recorded in this period yet.</p>
+              ) : (
+                <Table>
+                  <TableBody>
+                    {INTAKE_LABELS.filter(([k]) => data.intake?.[k]).map(([k, label]) => (
+                      <TableRow key={k}>
+                        <TableCell>{label}</TableCell>
+                        <TableCell className="text-right tabular-nums">{data.intake![k]}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
 

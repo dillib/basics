@@ -121,6 +121,8 @@ export async function generateTopicContent(
     revisionNotes?: string;
     /** Reuse research already fetched (self-heal triage) instead of paying twice. */
     research?: ResearchBrief | null;
+    /** From search intake (Jev): the reader wants practical steps vs the why. */
+    framing?: "why_it_works" | "how_to";
   } = {},
 ): Promise<TopicContent> {
   if (!validateInput(topicTitle)) {
@@ -139,6 +141,12 @@ Build the lesson from this research. Every factual claim must agree with it; der
   const revisionBlock = opts.revisionNotes
     ? `THIS IS A REVISION. Readers flagged real problems in the previous version of this lesson; a reviewer confirmed them. Make sure the new lesson fixes them:
 ${opts.revisionNotes}
+
+`
+    : "";
+
+  const framingBlock = opts.framing === "how_to"
+    ? `THE READER WANTS TO DO THIS, NOT ONLY UNDERSTAND IT: still teach the principles first, but make every principle end in what it means in practice, and make "practicalSteps" concrete and complete.
 
 `
     : "";
@@ -173,7 +181,7 @@ Across the whole topic, include at least one genuinely counterintuitive insight 
 
 Also generate a mind map that visualizes the topic structure and relationships between concepts.
 
-${researchBlock}${revisionBlock}If "${topicTitle}" contains an obvious spelling mistake of a well-known term (e.g. "Quantim Computing"), correct it in the "title" field below. Do NOT change the subject, rephrase it, or "improve" a title that's already spelled correctly, even if unusual or niche -- only fix clear typos.
+${researchBlock}${revisionBlock}${framingBlock}If "${topicTitle}" contains an obvious spelling mistake of a well-known term (e.g. "Quantim Computing"), correct it in the "title" field below. Do NOT change the subject, rephrase it, or "improve" a title that's already spelled correctly, even if unusual or niche -- only fix clear typos.
 
 Return a JSON object with this structure:
 {
@@ -424,6 +432,38 @@ Return a JSON object with this structure:
   const parsed = JSON.parse(text || '{"topics": []}');
   const topics: TrendingCandidate[] = Array.isArray(parsed.topics) ? parsed.topics : [];
   return topics.slice(0, maxTopics);
+}
+
+/**
+ * Search intake follow-up (Jev decided the query is unclear; Jev can't write
+ * text, so Gemini writes the question and options). Returns null on failure
+ * and the search simply proceeds as typed.
+ */
+export async function suggestClarifications(query: string, kind: string): Promise<{ question: string; options: string[] } | null> {
+  if (!validateInput(query)) return null;
+  const guide: Record<string, string> = {
+    ambiguous_name: "The words name several different things. Offer the distinct meanings people most likely mean.",
+    too_broad: "It's a whole field. Offer the most commonly wanted, specific lessons within it.",
+    unclear_goal: "The subject is clear but the goal isn't. Offer different specific angles on it.",
+    underlying_concept: "It's a specific problem, not a subject. Offer the underlying concepts someone would need to understand to solve it themselves.",
+  };
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", safetySettings });
+    const prompt = `Someone typed "${query}" into a site that teaches any topic from first principles. ${guide[kind] ?? guide.too_broad}
+
+Return JSON: { "question": "one short, friendly question (max 10 words) asking which they mean", "options": ["3 or 4 lesson titles, each a specific teachable subject in plain words, max 7 words, e.g. 'How the Planet Mercury Formed'"] }`;
+    const result = await model.generateContent(prompt);
+    const text = (await result.response).text().replace(/^```json\s*/, "").replace(/\s*```$/, "");
+    const parsed = JSON.parse(text);
+    const options = Array.isArray(parsed?.options)
+      ? parsed.options.filter((o: unknown): o is string => typeof o === "string" && o.trim().length > 2).map((o: string) => o.trim().slice(0, 80)).slice(0, 4)
+      : [];
+    const question = typeof parsed?.question === "string" && parsed.question.trim() ? parsed.question.trim().slice(0, 100) : "Which one do you mean?";
+    return options.length >= 2 ? { question, options } : null;
+  } catch (err) {
+    console.warn("[Intake] clarification suggestions failed:", (err as Error)?.message);
+    return null;
+  }
 }
 
 export interface FeedbackTriageInput {

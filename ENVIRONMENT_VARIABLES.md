@@ -31,6 +31,17 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 AI_INTEGRATIONS_GEMINI_API_KEY=your_gemini_api_key
 AI_INTEGRATIONS_GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
 
+## Web research before writing (Perplexity) -- optional
+# Key from: https://console.perplexity.ai  (see server/research.ts)
+PERPLEXITY_API_KEY=your_perplexity_api_key
+
+## Decision layer (TypeSafe Jev) -- optional
+# Key from the TypeSafe dashboard (https://typesafe.ai). Powers search intake:
+# meaning-based matching, follow-up questions, duplicate guard. Unset = the
+# search box works exactly as before. See JEV.md.
+TYPESAFE_API_KEY=your_typesafe_api_key
+# JEV_DISABLED=true   # kill switch without removing the key
+
 ## Node Environment
 NODE_ENV=production
 PORT=5000

@@ -55,6 +55,8 @@ export interface IStorage {
   // Reader feedback, views, and content versions (self-heal)
   recordTopicView(topicId: string, visit?: { source: TrafficSource; refHost: string }): Promise<void>;
   getTrafficSummary(days: number): Promise<TrafficSummary>;
+  recordIntake(action: string): Promise<void>;
+  getIntakeSummary(days: number): Promise<Record<string, number>>;
   upsertTopicFeedback(entry: NewTopicFeedback): Promise<TopicFeedback>;
   getFeedbackStats(opts?: { topicIds?: string[] }): Promise<TopicFeedbackStats[]>;
   getFeedbackComments(topicId: string, contentVersion: number, limit?: number): Promise<Pick<TopicFeedback, "vote" | "reasons" | "comment" | "createdAt">[]>;
@@ -396,6 +398,19 @@ export class DatabaseStorage implements IStorage {
           set: { views: sql`${topicDailySources.views} + 1` },
         });
     }
+  }
+
+  async recordIntake(action: string): Promise<void> {
+    const day = new Date().toISOString().slice(0, 10);
+    await db.execute(sql`
+      INSERT INTO search_intake_daily (day, action, count) VALUES (${day}, ${action.slice(0, 32)}, 1)
+      ON CONFLICT (day, action) DO UPDATE SET count = search_intake_daily.count + 1`);
+  }
+
+  async getIntakeSummary(days: number): Promise<Record<string, number>> {
+    const since = new Date(Date.now() - (days - 1) * 86_400_000).toISOString().slice(0, 10);
+    const r = await db.execute(sql`SELECT action, SUM(count)::int AS n FROM search_intake_daily WHERE day >= ${since} GROUP BY action`);
+    return Object.fromEntries((r.rows as { action: string; n: number }[]).map((x) => [x.action, x.n]));
   }
 
   /** Lesson reads by source over the last `days` days (UTC, including today). */

@@ -281,6 +281,8 @@ export const generationJobs = pgTable("generation_jobs", {
   title: text("title").notNull(),
   slug: text("slug").notNull(),
   level: text("level").default("adult"), // audience level to generate for
+  // From search intake (Jev): "how_to" asks the writer for practical emphasis.
+  framing: text("framing"),
   status: varchar("status", { length: 50 }).notNull().default("pending"), // pending, processing, completed, failed
   progress: integer("progress").default(0), // 0-100
   topicId: varchar("topic_id", { length: 255 }).references(() => topics.id),

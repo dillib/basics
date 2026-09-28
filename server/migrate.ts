@@ -53,6 +53,16 @@ async function migrate() {
       -- Reader feedback + self-heal (server/self-heal-topics.ts)
       ALTER TABLE topics ADD COLUMN IF NOT EXISTS content_version INTEGER DEFAULT 1;
       ALTER TABLE topics ADD COLUMN IF NOT EXISTS short_answer TEXT;
+      ALTER TABLE generation_jobs ADD COLUMN IF NOT EXISTS framing TEXT;
+
+      -- Search intake outcomes per day (server/intake.ts): the Jev before/after
+      -- number -- how often a search ends on an existing lesson vs. new vs. clarified.
+      CREATE TABLE IF NOT EXISTS search_intake_daily (
+        day TEXT NOT NULL,
+        action VARCHAR(32) NOT NULL,
+        count INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS search_intake_daily_pk ON search_intake_daily(day, action);
 
       -- Reading time from the actual lesson length (~200 words/min plus a
       -- few minutes for the quiz), replacing the model's guesses (a

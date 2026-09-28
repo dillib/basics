@@ -1,4 +1,5 @@
 import { notifyIndexNow } from "./indexnow";
+import { invalidateLibrary } from "./intake";
 import { storage } from "./storage";
 import { generateTopicContent, validateTopicContent } from "./ai";
 import { buildTopicSlug, isLevel } from "@shared/levels";
@@ -38,7 +39,8 @@ export async function processGenerationJob(jobId: string): Promise<void> {
       return;
     }
 
-    const content = await generateTopicContent(title, level);
+    const framing = job.framing === "how_to" ? "how_to" : undefined;
+    const content = await generateTopicContent(title, level, { framing });
     await storage.updateGenerationJob(jobId, { progress: 55 });
 
     // The AI corrects obvious typos (e.g. "Quantim" -> "Quantum") rather than
@@ -120,6 +122,7 @@ export async function processGenerationJob(jobId: string): Promise<void> {
     console.log(`[Generation] Job ${jobId} completed -> topic ${newTopic.id}`);
     // New public lesson: let search engines know now (plus the library it's listed in).
     notifyIndexNow([`/topic/${newTopic.slug}`, "/topics"]);
+    invalidateLibrary();
   } catch (error) {
     console.error(`[Generation] Job ${jobId} failed:`, error);
     await storage

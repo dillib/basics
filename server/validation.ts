@@ -29,6 +29,14 @@ export const TopicGenerateSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters').max(200, 'Title too long'),
   // Audience level (see shared/levels.ts). Optional; defaults to adult.
   level: z.enum(['kid', 'teen', 'adult']).default('adult'),
+  // From search intake (Jev); optional hint for the writer.
+  framing: z.enum(['why_it_works', 'how_to']).optional(),
+});
+
+export const TopicIntakeSchema = z.object({
+  query: z.string().trim().min(2).max(200),
+  // The reader picked one of our follow-up options: never ask again.
+  clarified: z.boolean().optional(),
 });
 
 export const TopicUpdateSchema = z.object({

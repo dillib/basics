@@ -72,6 +72,12 @@ services:
       - key: RESEARCH_PRESET
         value: "low"
 
+      # Optional: TypeSafe Jev, the fast decision layer for search (meaning-
+      # based matching, follow-up questions, duplicate guard). Unset = search
+      # works exactly as before. See JEV.md. ~$0.0001 per search.
+      - key: TYPESAFE_API_KEY
+        sync: false
+
       # Abuse / cost protection (optional - defaults are sensible)
       - key: AI_RATE_LIMIT_PER_HOUR
         value: "20"

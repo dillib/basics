@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { LEVELS, LEVEL_LABELS, isLevel, type Level } from "@shared/levels";
 import { LEVEL_POINT } from "@/lib/levelColors";
 import { emitHeroSignal } from "@/lib/heroSignals";
+import { cleanLessonTitle } from "@shared/lessonTitle";
 
 interface QuickResult {
   title: string;
@@ -44,9 +45,19 @@ interface LibraryMatch {
   estimatedMinutes: number | null;
 }
 
+/** What search intake (server/intake.ts, Jev) decided about a submitted query. */
+type IntakeDecision =
+  | { action: 'open_lesson' | 'suggest_lesson'; lesson: { slug: string; title: string; description: string | null }; confidence: number }
+  | { action: 'clarify'; kind: string; question: string; options: string[]; confidence: number }
+  | { action: 'create'; level?: Level; levelTier?: 'high' | 'medium' | 'low'; framing?: 'why_it_works' | 'how_to'; source: string }
+  | { action: 'site_help'; href: string }
+  | { action: 'reject'; reason: string; message: string };
+
 // 'suggest' = typing, showing instant library matches (free, no AI).
 // The AI states (loading/ready/generating) only start on an explicit action.
-type SearchState = 'idle' | 'suggest' | 'loading' | 'ready' | 'generating' | 'error';
+// 'matched' / 'clarify' / 'notice' come from intake: an existing lesson, a
+// follow-up question when the query is unclear, or a friendly redirect.
+type SearchState = 'idle' | 'suggest' | 'loading' | 'ready' | 'generating' | 'error' | 'matched' | 'clarify' | 'notice';
 
 export default function ProgressiveSearch() {
   const [query, setQuery] = useState("");
@@ -62,6 +73,13 @@ export default function ProgressiveSearch() {
   // Audience level for the full lesson (Kids / Teens / Adults). Default adult.
   const [level, setLevel] = useState<Level>('adult');
   const [errorMessage, setErrorMessage] = useState('Something went wrong');
+  const [intake, setIntake] = useState<IntakeDecision | null>(null);
+  const [loadingText, setLoadingText] = useState('Building a quick preview…');
+  // Practical vs "why" emphasis Jev noticed; passed on to the lesson writer.
+  const [framing, setFraming] = useState<'why_it_works' | 'how_to' | undefined>(undefined);
+  // Choosing a follow-up option sets the input text; don't let that fire the
+  // typing search on top of the intake we're already running.
+  const skipSuggestRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   // Bumped on every new search so a slow/retried in-flight request can't
@@ -110,6 +128,10 @@ export default function ProgressiveSearch() {
   // on an explicit action (Enter or the "Create a lesson" row). Previously
   // every 400ms typing pause triggered a full AI generation.
   useEffect(() => {
+    if (skipSuggestRef.current) {
+      skipSuggestRef.current = false;
+      return;
+    }
     if (!query.trim() || query.trim().length < 2) {
       setIsOpen(false);
       setResult(null);
@@ -137,9 +159,65 @@ export default function ProgressiveSearch() {
     return () => clearTimeout(timer);
   }, [query]);
 
-  const performSearch = async (searchQuery: string) => {
+  // Submit: first ask intake what the reader means (fast, Jev), then either
+  // open an existing lesson, ask one follow-up question, or build a preview.
+  // Intake failing or off means "create" -- the pre-Jev behaviour.
+  const performSearch = async (searchQuery: string, opts: { clarified?: boolean } = {}) => {
     const seq = ++searchSeqRef.current;
+    setIntake(null);
+    setLoadingText('Understanding your question…');
+    setStatus('loading');
+    setIsOpen(true);
+    let decision: IntakeDecision = { action: 'create', source: 'fallback' };
+    try {
+      const res = await fetch('/api/topics/intake', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: searchQuery, clarified: opts.clarified === true }),
+        credentials: 'include',
+      });
+      if (res.ok) decision = await res.json();
+    } catch {
+      /* fall through to create */
+    }
+    if (seq !== searchSeqRef.current) return;
+
+    if (decision.action === 'open_lesson' || decision.action === 'suggest_lesson') {
+      setIntake(decision);
+      setStatus('matched');
+      return;
+    }
+    if (decision.action === 'clarify') {
+      setIntake(decision);
+      setStatus('clarify');
+      return;
+    }
+    if (decision.action === 'site_help' || decision.action === 'reject') {
+      setIntake(decision);
+      setStatus('notice');
+      return;
+    }
+    // Create: preselect the audience only when Jev is sure; carry framing on.
+    const create = decision as Extract<IntakeDecision, { action: 'create' }>;
+    if (create.level && create.levelTier === 'high') setLevel(create.level);
+    setFraming(create.framing === 'how_to' ? 'how_to' : undefined);
+    setLoadingText('Building a quick preview…');
     await runSearch(searchQuery, seq, 0);
+  };
+
+  /** The reader picked a follow-up option: search that, and don't ask again. */
+  const chooseClarification = (option: string) => {
+    skipSuggestRef.current = true;
+    setQuery(option);
+    performSearch(option, { clarified: true });
+  };
+
+  /** Skip the suggested lesson and build a new one from what they typed. */
+  const createAnyway = () => {
+    const seq = ++searchSeqRef.current;
+    setIntake(null);
+    setLoadingText('Building a quick preview…');
+    runSearch(query.trim(), seq, 0);
   };
 
   // `seq` guards against stale responses; `attempt` gives one automatic retry so
@@ -228,6 +306,7 @@ export default function ProgressiveSearch() {
       const response = await apiRequest('POST', '/api/topics/generate', {
         title: result.title,
         level,
+        ...(framing ? { framing } : {}),
       });
       const data = await response.json();
       if (seq !== searchSeqRef.current) return; // user moved on
@@ -251,7 +330,9 @@ export default function ProgressiveSearch() {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key !== 'Enter') return;
-    if (status === 'ready' && result) {
+    if (status === 'matched' && intake && 'lesson' in intake) {
+      setLocation(`/topic/${intake.lesson.slug}`);
+    } else if (status === 'ready' && result) {
       handleStartLearning();
     } else if (query.trim().length >= 2 && status !== 'loading' && status !== 'generating') {
       // Enter acts immediately -- no waiting out the debounce.
@@ -415,7 +496,7 @@ export default function ProgressiveSearch() {
               {status === 'loading' && (
                 <div className="p-6 text-center">
                   <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">Building a quick preview…</p>
+                  <p className="text-sm text-muted-foreground">{loadingText}</p>
                 </div>
               )}
 
@@ -480,6 +561,80 @@ export default function ProgressiveSearch() {
               )}
 
               {/* Error State */}
+              {/* Matched: we already have this lesson (Jev verified it). High
+                  confidence says so plainly; medium asks. */}
+              {status === 'matched' && intake && 'lesson' in intake && (
+                <div className="p-4" data-testid="search-matched">
+                  <p className="mb-2 text-xs font-medium uppercase text-muted-foreground">
+                    {intake.action === 'open_lesson' ? 'We already have this lesson' : 'Is this what you’re looking for?'}
+                  </p>
+                  <Link
+                    href={`/topic/${intake.lesson.slug}`}
+                    className="flex items-start gap-3 rounded-xl border border-border p-3 transition-colors hover:bg-muted/60"
+                    data-testid="link-intake-lesson"
+                  >
+                    <div className="mt-0.5 shrink-0 rounded-md bg-primary/10 p-1.5">
+                      <BookOpen className="h-3.5 w-3.5 text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="break-words text-sm font-medium">{cleanLessonTitle(intake.lesson.title)}</p>
+                      {intake.lesson.description && <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{intake.lesson.description}</p>}
+                    </div>
+                    <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+                  </Link>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <Button size="sm" onClick={() => setLocation(`/topic/${intake.lesson.slug}`)} data-testid="button-intake-open">
+                      {intake.action === 'open_lesson' ? 'Open lesson' : 'Yes, open it'}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={createAnyway} data-testid="button-intake-create">
+                      {intake.action === 'open_lesson' ? 'Create a different lesson' : `No, create “${query.trim()}”`}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Clarify: the query was unclear; one question, tappable answers. */}
+              {status === 'clarify' && intake?.action === 'clarify' && (
+                <div className="p-4" data-testid="search-clarify">
+                  <p className="mb-3 text-sm font-medium">{intake.question}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {intake.options.map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => chooseClarification(opt)}
+                        className="rounded-full border border-border bg-background px-3.5 py-2 text-sm transition-colors hover:border-primary/50 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        data-testid="button-clarify-option"
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => performSearch(query.trim(), { clarified: true })}
+                    className="mt-3 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                  >
+                    None of these, continue with “{query.trim()}”
+                  </button>
+                </div>
+              )}
+
+              {/* Notice: a site question or nothing to teach. */}
+              {status === 'notice' && intake && (intake.action === 'site_help' || intake.action === 'reject') && (
+                <div className="flex items-start gap-3 p-4" data-testid="search-notice">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                  {intake.action === 'site_help' ? (
+                    <p className="text-sm">
+                      Looking for help with BasicsTutor itself? <Link href={intake.href} className="font-medium underline underline-offset-4">Visit the Help Center</Link>, or{' '}
+                      <button type="button" onClick={createAnyway} className="font-medium underline underline-offset-4">make a lesson on it anyway</button>.
+                    </p>
+                  ) : (
+                    <p className="text-sm">{intake.message}</p>
+                  )}
+                </div>
+              )}
+
               {status === 'error' && (
                 <div className="p-6 text-center">
                   <AlertCircle className="h-6 w-6 text-destructive mx-auto mb-2" />
