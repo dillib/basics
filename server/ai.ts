@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, type SafetySetting } from "@google/generative-ai";
 import type { Principle } from "@shared/schema";
 import { type Level, LEVEL_LABELS } from "@shared/levels";
+import { adviceKind } from "@shared/advice";
 import { researchIfNeeded, formatResearchForPrompt, type ResearchBrief, type ResearchSource } from "./research";
 import { recordSpend } from "./ai-spend";
 import { generateJSON, costOf } from "./llm";
@@ -174,6 +175,10 @@ ${opts.revisionNotes}
 `
     : "";
 
+  // Health/money: practical steps are learning activities, never personal advice
+  // (the accuracy check in server/safety.ts flags personal advice).
+  const advice = adviceKind(topicTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-"));
+
   const framingBlock = opts.framing === "how_to"
     ? `THE READER WANTS TO DO THIS, NOT ONLY UNDERSTAND IT: still teach the principles first, but make every principle end in what it means in practice, and make "practicalSteps" concrete and complete.
 
@@ -247,7 +252,10 @@ Return a JSON object with this structure:
 PUT IT INTO PRACTICE ("practicalSteps"):
 - If this topic has genuine real-life application (money, health, relationships, parenting, productivity, habits, cooking, safety, career, studying, etc.), provide 3-5 concrete, specific actions the learner can actually DO this week to apply what they learned — written for the ${LEVEL_LABELS[level]} audience (a kid's actions should be things a kid can do; an adult's can involve real tools and money).
 - Make them specific and doable ("Set up an automatic $50 transfer to savings on payday"), never vague ("be more disciplined").
-- If the topic is purely conceptual or theoretical with no real-life action (e.g. entropy, the French Revolution, black holes), return "practicalSteps": [].
+- If the topic is purely conceptual or theoretical with no real-life action (e.g. entropy, the French Revolution, black holes), return "practicalSteps": [].${advice ? `
+- THIS IS A ${advice.toUpperCase()} TOPIC: the lesson explains how things work; it never tells the reader what to do about their own ${advice}. Every practical step must be a learning activity that lets the reader SEE the principles in action, not a personal instruction. ${advice === "health"
+    ? `Good: "Find your pulse at your wrist, count it for 15 seconds before and after climbing stairs, and notice how it changes." Bad: "Exercise 30 minutes a day", "Avoid caffeine after 2pm", "Ask your doctor about X".`
+    : `Good: "Find the APR, minimum payment and interest charged on a sample credit card statement." Bad: "Open an IRA", "Pay off your highest-interest debt first", "Get quotes from three lenders".`}` : ""}
 
 Include 4-6 principles, ordered from most fundamental to more advanced, each explicitly building on the previous. Quality bar: a smart, skeptical reader should finish feeling their understanding was rebuilt from the ground up — not merely informed. If any principle reads like a generic summary or a piece of advice, replace it with the deeper truth underneath it.
 
