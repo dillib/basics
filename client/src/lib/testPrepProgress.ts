@@ -30,6 +30,15 @@ export function saveProgress(setId: string, p: Progress): void {
   } catch {}
 }
 
+/** Test me results: right out of gradable (non-open) questions, per concept, for one test session. */
+export function scoreByConcept(set: ClientSet, session: Progress): { conceptId: string; title: string; right: number; total: number }[] {
+  const byId = new Map(set.questions.map((q) => [q.id, q]));
+  return set.concepts.map((c) => {
+    const graded = c.questionIds.filter((id) => byId.get(id) && byId.get(id)!.type !== "open" && !set.unavailable?.includes(id));
+    return { conceptId: c.id, title: c.title, right: graded.filter((id) => session[id]?.correct === true).length, total: graded.length };
+  });
+}
+
 /**
  * Ready on a concept = every own question answered correctly without
  * revealing it (open questions: attempted), and every practice question

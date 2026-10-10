@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readiness, type Progress } from '../../client/src/lib/testPrepProgress';
+import { readiness, scoreByConcept, type Progress } from '../../client/src/lib/testPrepProgress';
 import type { ClientSet } from '@shared/test-prep';
 
 const set: ClientSet = {
@@ -17,6 +17,18 @@ const set: ClientSet = {
 };
 const right = { tries: 1, correct: true, revealed: false, hintsUsed: 0 };
 const ready = (p: Progress) => Object.fromEntries(readiness(set, p).map((r) => [r.conceptId, r.ready]));
+
+describe('scoreByConcept (Test me)', () => {
+  it('scores only this test session, not Learn answers', () => {
+    const rows = scoreByConcept(set, { q1: right });
+    expect(rows.find((r) => r.conceptId === 'c1')).toMatchObject({ right: 1, total: 2 });
+    expect(scoreByConcept(set, {}).find((r) => r.conceptId === 'c1')).toMatchObject({ right: 0, total: 2 });
+  });
+
+  it('counts open-only concepts as written answers', () => {
+    expect(scoreByConcept(set, {}).find((r) => r.conceptId === 'c2')).toMatchObject({ total: 0 });
+  });
+});
 
 describe('readiness', () => {
   it('is ready when every own question is right without a reveal', () => {

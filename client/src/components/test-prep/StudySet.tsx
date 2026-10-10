@@ -104,7 +104,7 @@ export default function StudySet() {
           <LearnMode set={set} progress={progress} onUpdate={update} onFix={fix} />
         ) : (
           <TestMeMode
-            set={set} progress={progress} onUpdate={update}
+            set={set}
             onLearn={(cid) => { setMode("learn"); setTimeout(() => document.getElementById(`concept-${cid}`)?.scrollIntoView({ behavior: "smooth" }), 50); }}
           />
         )}
