@@ -38,6 +38,8 @@ export function toClient(s: StoredSet): ClientSet {
     concepts,
     images: s.images,
     flagged: Object.entries(keys).filter(([, k]) => !k.verified).map(([qid]) => qid),
+    // Once the set is ready, a readable question with no key couldn't be prepared.
+    unavailable: s.status === "ready" ? questions.filter((q) => !q.unreadable && !keys[q.id]).map((q) => q.id) : [],
     ...(error ? { error } : {}),
   };
 }

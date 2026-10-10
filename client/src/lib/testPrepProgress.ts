@@ -38,7 +38,7 @@ export function saveProgress(setId: string, p: Progress): void {
 export function readiness(set: ClientSet, p: Progress): { conceptId: string; title: string; ready: boolean }[] {
   const byId = new Map(set.questions.map((q) => [q.id, q]));
   return set.concepts.map((c) => {
-    const ownDone = c.questionIds.every((id) => {
+    const ownDone = c.questionIds.filter((id) => !set.unavailable?.includes(id)).every((id) => {
       const a = p[id];
       if (!a || a.tries < 1 || a.revealed) return false;
       return byId.get(id)?.type === "open" ? true : a.correct === true;

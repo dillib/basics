@@ -24,12 +24,13 @@ async function post<T>(url: string, body: unknown): Promise<T> {
  * result is shown on the results screen.
  */
 export default function QuestionCard({
-  setId, q, image, flagged, mode, entry = EMPTY, onUpdate, onFix,
+  setId, q, image, flagged, unavailable = false, mode, entry = EMPTY, onUpdate, onFix,
 }: {
   setId: string;
   q: PrepQuestion;
   image?: string;
   flagged: boolean;
+  unavailable?: boolean;
   mode: "learn" | "test";
   entry?: Entry;
   onUpdate(next: Entry): void;
@@ -70,6 +71,15 @@ export default function QuestionCard({
         <Textarea value={fix} onChange={(e) => setFix(e.target.value)} placeholder="Type the question here" />
         <Button size="sm" disabled={!fix.trim() || busy} onClick={() => onFix && run(() => onFix(fix))}>Save question</Button>
         {error && <p className="text-sm text-destructive">{error}</p>}
+      </div>
+    );
+  }
+
+  if (unavailable) {
+    return (
+      <div className="rounded-xl border bg-card p-4 space-y-2">
+        <p className="font-medium whitespace-pre-wrap">{q.practice ? "Practice: " : `${q.n}. `}{q.stem}</p>
+        <p className="text-sm text-muted-foreground">We couldn't prepare this one. Try pasting it again in a new set, or ask your teacher.</p>
       </div>
     );
   }

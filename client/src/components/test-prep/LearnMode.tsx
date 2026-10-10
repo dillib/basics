@@ -21,6 +21,7 @@ export default function LearnMode({ set, progress, onUpdate, onFix }: {
         key={q.id} setId={set.id} q={q} mode="learn"
         image={q.image !== undefined ? set.images[q.image] : undefined}
         flagged={set.flagged.includes(q.id)}
+        unavailable={set.unavailable?.includes(q.id)}
         entry={progress[q.id]}
         onUpdate={(next) => onUpdate(q.id, next)}
         onFix={(stem) => onFix(q.id, stem)}

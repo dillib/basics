@@ -198,6 +198,23 @@ describe('pipeline', () => {
     expect(prepareConcept).not.toHaveBeenCalled();
   });
 
+  it('retries a concept whose preparation failed once', async () => {
+    prepareConcept.mockResolvedValueOnce(null);
+    const { id } = await (await post('/api/test-prep', { text: '1. What is 3/4 as a decimal?', images: [] })).json();
+    await settle();
+    expect(prepareConcept).toHaveBeenCalledTimes(2);
+    expect(sets.get(id)!.data.keys.q1).toBeDefined();
+  });
+
+  it('marks questions unavailable instead of "still preparing" forever', async () => {
+    prepareConcept.mockResolvedValue(null);
+    const { id } = await (await post('/api/test-prep', { text: '1. What is 3/4 as a decimal?', images: [] })).json();
+    await settle();
+    expect(sets.get(id)!.status).toBe('ready');
+    const client = await (await fetch(`${base}/api/test-prep/${id}`)).json();
+    expect(client.unavailable).toEqual(['q1']);
+  });
+
   it('marks the set failed when a stage throws', async () => {
     sets.set('boom', readySet({ id: 'boom', status: 'grouping' }));
     groupConcepts.mockRejectedValue(new Error('down'));

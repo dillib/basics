@@ -69,6 +69,8 @@ export interface ClientSet {
   images: string[];
   /** Question ids whose key failed verification. */
   flagged: string[];
+  /** Question ids we couldn't prepare (no key): shown as unavailable, not "still preparing". */
+  unavailable: string[];
   error?: string;
 }
 

@@ -14,7 +14,7 @@ export default function TestMeMode({ set, progress, onUpdate, onLearn }: {
   onUpdate(qid: string, next: Progress[string]): void;
   onLearn(conceptId: string): void;
 }) {
-  const own = set.questions.filter((q) => !q.practice && !q.unreadable);
+  const own = set.questions.filter((q) => !q.practice && !q.unreadable && !set.unavailable?.includes(q.id));
   const [timed, setTimed] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [done, setDone] = useState(false);

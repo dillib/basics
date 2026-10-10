@@ -49,8 +49,11 @@ async function stage(s: StoredSet): Promise<StoredSet | null> {
     }
     case "preparing": {
       const own = data.questions.filter((q) => !q.practice);
-      const results = await Promise.all(data.concepts.map((c) =>
-        prepareConcept(c, own.filter((q) => c.questionIds.includes(q.id)), s.level, s.images).catch(() => null)));
+      // One retry per concept; a concept that still fails shows its questions as
+      // unavailable (toClient) rather than "still preparing" forever.
+      const prep = (c: (typeof data.concepts)[number]) =>
+        prepareConcept(c, own.filter((q) => c.questionIds.includes(q.id)), s.level, s.images).catch(() => null);
+      const results = await Promise.all(data.concepts.map(async (c) => (await prep(c)) ?? prep(c)));
       data.questions = own; // practice is (re)written below
       data.concepts.forEach((c, i) => {
         const r = results[i];

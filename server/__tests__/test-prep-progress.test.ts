@@ -3,7 +3,7 @@ import { readiness, type Progress } from '../../client/src/lib/testPrepProgress'
 import type { ClientSet } from '@shared/test-prep';
 
 const set: ClientSet = {
-  id: 's', status: 'ready', level: 'teen', images: [], flagged: [],
+  id: 's', status: 'ready', level: 'teen', images: [], flagged: [], unavailable: [],
   questions: [
     { id: 'q1', n: 1, stem: 'a', type: 'numeric', options: [], conceptId: 'c1' },
     { id: 'q2', n: 2, stem: 'b', type: 'mc', options: ['x', 'y'], conceptId: 'c1' },
@@ -37,6 +37,10 @@ describe('readiness', () => {
 
   it('counts an attempted open question as done', () => {
     expect(ready({ q3: { tries: 1, correct: null, revealed: false, hintsUsed: 0 } }).c2).toBe(true);
+  });
+
+  it('does not hold a concept back on a question we could not prepare', () => {
+    expect(Object.fromEntries(readiness({ ...set, unavailable: ['q2'] }, { q1: right }).map((r) => [r.conceptId, r.ready])).c1).toBe(true);
   });
 
   it('keeps concept titles in order', () => {
