@@ -6,7 +6,7 @@ import type { QType } from "@shared/test-prep";
  * about anything else; never for open questions.
  */
 
-const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}\s.-]/gu, " ").replace(/\s+/g, " ").trim().replace(/\.$/, "");
+const norm = (s: string) => s.toLowerCase().replace(/[^\w\s.-]/g, " ").replace(/\s+/g, " ").trim().replace(/\.$/, "");
 
 /** "3/4", ".75", "x = 4", "4 cm", "1,200", "50%" -> number; NaN when it isn't one. */
 export function toNumber(raw: string): number {
