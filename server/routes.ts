@@ -37,6 +37,7 @@ import { verifyUnsubscribe } from "./email-unsubscribe";
 import { buildTopicSlug } from "@shared/levels";
 import { config } from "./config";
 import { registerTestPrepRoutes } from "./test-prep/routes";
+import { testPrepSummary } from "./test-prep/store";
 import { aiLimiter, quickSearchLimiter, formLimiter, tutorLimiter, feedbackLimiter, viewLimiter, clientIp } from "./security";
 import { publicBaseUrl, buildSitemap, buildLlmsTxt } from "./seo";
 import { INDEXNOW_KEY } from "./indexnow";
@@ -303,7 +304,7 @@ export async function registerRoutes(
   app.get('/sitemap.xml', async (req, res) => {
     try {
       const base = publicBaseUrl(req);
-      const staticPaths = ['/', '/topics', '/why', '/about', '/help', '/pricing', '/support', '/contact', '/terms', '/privacy'];
+      const staticPaths = ['/', '/topics', '/test-prep', '/why', '/about', '/help', '/pricing', '/support', '/contact', '/terms', '/privacy'];
       const entries: { loc: string; lastmod?: Date | null }[] = staticPaths.map((p) => ({
         loc: `${base}${p}`,
       }));
@@ -1256,8 +1257,8 @@ export async function registerRoutes(
   app.get('/api/admin/traffic', isAuthenticated, isAdmin, async (req: Request, res) => {
     try {
       const days = Math.min(90, Math.max(1, parseInt(String(req.query.days || "7"), 10) || 7));
-      const [traffic, intake, spend] = await Promise.all([storage.getTrafficSummary(days), storage.getIntakeSummary(days), spendSummary(days)]);
-      res.json({ ...traffic, intake, spend });
+      const [traffic, intake, spend, testPrep] = await Promise.all([storage.getTrafficSummary(days), storage.getIntakeSummary(days), spendSummary(days), testPrepSummary(days)]);
+      res.json({ ...traffic, intake, spend, testPrep });
     } catch (error) {
       return handleError(error, res, 'Admin Traffic');
     }

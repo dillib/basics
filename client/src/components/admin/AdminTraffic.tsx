@@ -22,12 +22,16 @@ interface TrafficSummary {
   intake?: Record<string, number>;
   /** AI spend ledger (server/ai-spend.ts). */
   spend?: { rows: { task: string; provider: string; model: string; calls: number; inputTokens: number; outputTokens: number; costUsd: number }[]; totalUsd: number; todayUsd: number; budgetUsd: number; hardLimitUsd: number };
+  /** Test prep sets (server/test-prep/store.ts). */
+  testPrep?: { sets: number; avgQuestions: number; attemptedPct: number; revealedPct: number; readyPct: number };
 }
 
 const TASK_LABELS: Record<string, string> = {
   lesson_write: "Writing lessons", fact_check: "Fact-checking", research: "Web research", quick_preview: "Search previews",
   clarify: "Follow-up questions", tutor: "AI tutor", quiz: "Quizzes", visual_scene: "Concept animations",
   heal_triage: "Self-heal review", trending_filter: "Trending picks", jev_intake: "Search decisions (Jev)", jev_verify: "Match checks (Jev)",
+  test_prep_parse: "Test prep: reading questions", test_prep_group: "Test prep: grouping", test_prep_prepare: "Test prep: explanations & practice",
+  test_prep_verify: "Test prep: answer checks", test_prep_grade: "Test prep: grading answers",
   source_check: "Accuracy checks", jev_research_route: "Research routing (Jev)", jev_suggest: "Typing suggestions (Jev)", jev_dedupe: "Duplicate guard (Jev)", jev_safety: "Safety checks (Jev)", jev_review: "Lesson reviews (Jev)",
 };
 const usd = (n: number) => (n >= 1 ? `$${n.toFixed(2)}` : n >= 0.01 ? `$${n.toFixed(3)}` : n > 0 ? "<$0.01" : "$0");
@@ -138,6 +142,17 @@ export default function AdminTraffic() {
                 </Table>
               </CardContent>
             )}
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Test prep</CardTitle>
+              <CardDescription>
+                {data.testPrep?.sets
+                  ? <>{data.testPrep.sets} study sets this period, {data.testPrep.avgQuestions} questions each on average. Students tried {data.testPrep.attemptedPct}% of their questions and revealed {data.testPrep.revealedPct}% of those after trying; {data.testPrep.readyPct}% of concepts ended Ready.</>
+                  : "No study sets yet. Students paste questions at /test-prep."}
+              </CardDescription>
+            </CardHeader>
           </Card>
 
           <Card>

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  lessonTitleTag, clampDescription, buildPageMeta, isKnownPath, PAGE_META,
+  lessonTitleTag, clampDescription, buildPageMeta, isKnownPath, isNoindexPath, PAGE_META,
   renderLibrarySnapshot, renderHomeSnapshot, renderContentSnapshot, buildLlmsTxt, injectMeta,
 } from '../seo';
 import type { Topic } from '@shared/schema';
@@ -37,6 +37,16 @@ describe('page meta', () => {
     for (const t of titles) expect(t.length).toBeLessThanOrEqual(60);
     expect(buildPageMeta('/topics', 'https://www.basicstutor.com')?.url).toBe('https://www.basicstutor.com/topics');
     expect(buildPageMeta('/', 'https://www.basicstutor.com')?.image).toBe('https://www.basicstutor.com/og-default.png');
+  });
+  it('has a Test Prep page with a short, unique title', () => {
+    expect(isKnownPath('/test-prep')).toBe(true);
+    expect(PAGE_META['/test-prep'].title.length).toBeLessThanOrEqual(60);
+    expect(PAGE_META['/test-prep'].description.length).toBeLessThanOrEqual(160);
+  });
+  it('serves study sets as known but private pages', () => {
+    expect(isKnownPath('/test-prep/AbC123_-xyz')).toBe(true);
+    expect(isNoindexPath('/test-prep/AbC123_-xyz')).toBe(true);
+    expect(isNoindexPath('/test-prep')).toBe(false);
   });
   it('knows real routes and 404s the rest', () => {
     for (const p of ['/', '/topics', '/why', '/topic/how-tides-work', '/dashboard']) expect(isKnownPath(p)).toBe(true);

@@ -56,6 +56,10 @@ INCEPTION_API_KEY=your_inception_api_key
 # AI_DAILY_BUDGET_USD=5
 # AI_HARD_LIMIT_USD=20   # default 4x the daily budget
 
+## Test prep (server/test-prep)
+# New study sets per visitor per hour. Default 10.
+# TEST_PREP_RATE_LIMIT_PER_HOUR=10
+
 ## Node Environment
 NODE_ENV=production
 PORT=5000

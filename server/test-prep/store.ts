@@ -97,6 +97,44 @@ export function markRevealed(id: string, qid: string): Promise<void> {
   return patchAttempt(id, qid, (a) => ({ ...a, revealed: true }));
 }
 
+export interface TestPrepSummary {
+  sets: number;
+  avgQuestions: number;
+  /** % of pasted questions students tried. */
+  attemptedPct: number;
+  /** % of tried questions whose answer was then revealed. */
+  revealedPct: number;
+  /** % of concepts where every own question was right without a reveal. */
+  readyPct: number;
+}
+
+export function summarizeSets(rows: Pick<StoredSet, "data" | "attempts">[]): TestPrepSummary {
+  let questions = 0, attempted = 0, revealed = 0, concepts = 0, ready = 0;
+  for (const { data, attempts } of rows) {
+    const own = data.questions.filter((q) => !q.practice);
+    questions += own.length;
+    for (const q of own) {
+      const a = attempts[q.id];
+      if (a?.tries > 0) { attempted++; if (a.revealed) revealed++; }
+    }
+    for (const c of data.concepts) {
+      concepts++;
+      if (c.questionIds.length && c.questionIds.every((id) => attempts[id]?.tries > 0 && !attempts[id].revealed && attempts[id].correct !== false)) ready++;
+    }
+  }
+  const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
+  return { sets: rows.length, avgQuestions: rows.length ? Math.round(questions / rows.length) : 0, attemptedPct: pct(attempted, questions), revealedPct: pct(revealed, attempted), readyPct: pct(ready, concepts) };
+}
+
+export async function testPrepSummary(days: number): Promise<TestPrepSummary> {
+  const db = await getDb();
+  const r = await db.execute(sql`
+    SELECT data, attempts FROM test_prep_sets
+    WHERE created_at > now() - make_interval(days => ${days}) AND status = 'ready'
+    ORDER BY created_at DESC LIMIT 2000`);
+  return summarizeSets((r.rows as { data: SetData; attempts: Record<string, AttemptRecord> }[]).map((x) => ({ data: x.data, attempts: x.attempts ?? {} })));
+}
+
 export async function purgeExpired(): Promise<number> {
   const db = await getDb();
   const r = await db.execute(sql`DELETE FROM test_prep_sets WHERE created_at < now() - make_interval(days => ${SET_TTL_DAYS})`);

@@ -327,14 +327,25 @@ export const PAGE_META: Record<string, { title: string; description: string }> =
   "/pricing": { title: "Pricing: Free During Early Access | BasicsTutor", description: "BasicsTutor is free while it's early. No credit card needed to start learning." },
   "/terms": { title: "Terms of Service | BasicsTutor", description: "The plain-language terms for using BasicsTutor." },
   "/privacy": { title: "Privacy Policy | BasicsTutor", description: "What BasicsTutor collects, why, and the choices you have." },
+  "/test-prep": {
+    title: "Test Prep Help: Learn the Concepts | BasicsTutor",
+    description: "Paste your homework or test questions, images too. Learn the concepts behind them, try each one with hints, and see answers after you try.",
+  },
 };
 
 /** Signed-in or transactional pages: never index them. */
 export const NOINDEX_PATHS = ["/dashboard", "/account", "/admin", "/checkout/success", "/checkout/cancel"];
 
+/** A student's study set: private (unguessable link), never indexed. */
+const STUDY_SET = /^\/test-prep\/[A-Za-z0-9_-]+$/;
+
+export function isNoindexPath(path: string): boolean {
+  return NOINDEX_PATHS.includes(path) || STUDY_SET.test(path);
+}
+
 /** Every client route; anything else is a real 404 (not a soft-404 200). */
 export function isKnownPath(path: string): boolean {
-  return path in PAGE_META || NOINDEX_PATHS.includes(path) || /^\/topic\/[^/]+$/.test(path);
+  return path in PAGE_META || isNoindexPath(path) || /^\/topic\/[^/]+$/.test(path);
 }
 
 export function buildPageMeta(path: string, baseUrl: string): PageMeta | null {
@@ -451,6 +462,16 @@ export function renderWhySnapshot(): string {
 export function renderContactSnapshot(): string {
   return page("Talk to a human", "Questions, feedback, or something not working? Send a note. We reply within 24–48 hours.",
     `    <p><a href="/help">Help Center</a> · <a href="/support">Support &amp; feedback</a> · <a href="/about">About BasicsTutor</a></p>`);
+}
+
+export function renderTestPrepSnapshot(): string {
+  return page("Paste your questions. Learn what they're testing.",
+    "Copy your homework or practice test (images too) and paste it here. You'll learn the ideas behind each question, try them yourself with hints, and see the answers after you've had a go.",
+    `    <ul class="list-disc pl-5 space-y-1">
+      <li><strong>Learn the ideas.</strong> Your questions are grouped by the concepts they test, each with a short explanation and a worked example.</li>
+      <li><strong>Try it yourself.</strong> Answer each question, get hints when you're stuck, and see the answer after you've had a go.</li>
+      <li><strong>Know you're ready.</strong> Practice what you missed, take it as a test, and see which topics you've got.</li>
+    </ul>`);
 }
 
 /** llms.txt: a plain map of the site for AI assistants (llmstxt.org). */

@@ -6,7 +6,7 @@ import { isBlocked } from "./moderation";
 import {
   buildTopicMeta, buildPageMeta, injectMeta, injectContent, renderContentSnapshot,
   renderLibrarySnapshot, renderHomeSnapshot, renderAboutSnapshot, renderHelpSnapshot, renderWhySnapshot,
-  renderContactSnapshot, publicBaseUrl, isKnownPath, NOINDEX_PATHS,
+  renderContactSnapshot, renderTestPrepSnapshot, publicBaseUrl, isKnownPath, isNoindexPath,
   type LessonLink,
 } from "./seo";
 
@@ -92,14 +92,15 @@ export function serveStatic(app: Express) {
         let body = injectMeta(indexHtml, pageMeta);
         if (pathname === "/topics") body = injectContent(body, renderLibrarySnapshot((await publicLessons()).lessons));
         if (pathname === "/") body = injectContent(body, renderHomeSnapshot((await publicLessons()).featured));
-        const staticSnapshot = ({ "/about": renderAboutSnapshot, "/help": renderHelpSnapshot, "/why": renderWhySnapshot, "/contact": renderContactSnapshot } as Record<string, () => string>)[pathname];
+        const staticSnapshot = ({ "/about": renderAboutSnapshot, "/help": renderHelpSnapshot, "/why": renderWhySnapshot, "/contact": renderContactSnapshot, "/test-prep": renderTestPrepSnapshot } as Record<string, () => string>)[pathname];
         if (staticSnapshot) body = injectContent(body, staticSnapshot());
         cacheable(res);
         return html(res, 200, body);
       }
 
-      if (NOINDEX_PATHS.includes(pathname)) {
-        return html(res, 200, injectMeta(indexHtml, { title: "BasicsTutor", description: "", url: `${base}${pathname}`, robots: "noindex" }));
+      if (isNoindexPath(pathname)) {
+        const title = pathname.startsWith("/test-prep/") ? "Your study set | BasicsTutor" : "BasicsTutor";
+        return html(res, 200, injectMeta(indexHtml, { title, description: "", url: `${base}${pathname}`, robots: "noindex" }));
       }
 
       if (!isKnownPath(pathname)) {

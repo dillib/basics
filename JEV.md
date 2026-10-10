@@ -109,6 +109,8 @@ falls back on error, timeout or an answer that fails validation:
 | Accuracy check before publishing | Mercury → Gemini (server/safety.ts) | Different company than the writer; against the research, else established knowledge; a major issue holds the lesson |
 | Lesson writing, first fact-check, quiz, tutor | Gemini Flash (server/ai.ts) | Quality-tested; unchanged |
 | Concept animations | Claude, Gemini past the hard limit (server/visuals.ts) | Best visuals |
+| Test prep: read pasted questions and images, write cards/hints/practice | Gemini Flash (server/test-prep) | Reads images; strict safety for pasted images |
+| Test prep: group by concept, check answer keys, grade short answers | Mercury → Gemini (server/test-prep) | Fast; a different model checks the keys Gemini wrote |
 
 Jev's research routing (`research_route`): a `choice` between stable,
 current and advice. Research is skipped only for "stable" at high confidence
