@@ -364,7 +364,7 @@ export default function ProgressiveSearch() {
   };
 
   return (
-    <div className="w-full max-w-xl mx-auto relative" ref={dropdownRef}>
+    <div className="w-full max-w-2xl mx-auto relative" ref={dropdownRef}>
       {/* Search Input. data-hero-search: HeroGalaxy aims its threads here. */}
       <div data-hero-search className="group/search relative rounded-[18px] p-[2px] shadow-glow transition-shadow duration-300 focus-within:shadow-glow-lg">
         {/* Rotating light ring: appears on focus, races while the AI works. */}
