@@ -66,14 +66,15 @@ export async function getSet(id: string, opts: { images?: boolean } = {}): Promi
   const db = await getDb();
   const r = await db.execute(sql`
     SELECT id, status, level, subject, input_text, data, attempts, created_at, updated_at,
-      ${opts.images ? sql`images` : sql`(SELECT jsonb_agg('') FROM jsonb_array_elements(images)) AS images`}
+      jsonb_array_length(images) AS image_count${opts.images ? sql`, images` : sql``}
     FROM test_prep_sets
     WHERE id = ${id} AND created_at > now() - make_interval(days => ${SET_TTL_DAYS})`);
   const row = r.rows[0] as Record<string, any> | undefined;
   if (!row) return null;
   return {
     id: row.id, status: row.status, level: row.level, subject: row.subject ?? null,
-    inputText: row.input_text, images: row.images ?? [], data: row.data ?? EMPTY, attempts: row.attempts ?? {},
+    // Without images loaded, keep the count (toClient's imageCount) with empty placeholders.
+    inputText: row.input_text, images: row.images ?? Array(Number(row.image_count) || 0).fill(""), data: row.data ?? EMPTY, attempts: row.attempts ?? {},
     createdAt: new Date(row.created_at), updatedAt: new Date(row.updated_at),
   };
 }

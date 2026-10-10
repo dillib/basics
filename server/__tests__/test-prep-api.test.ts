@@ -137,6 +137,16 @@ describe('POST /api/test-prep', () => {
   });
 });
 
+describe('errors', () => {
+  it('answers 500 instead of hanging when the database fails', async () => {
+    const { getSet } = await import('../test-prep/store');
+    vi.mocked(getSet).mockRejectedValueOnce(new Error('db down'));
+    const r = await fetch(`${base}/api/test-prep/anything`, { signal: AbortSignal.timeout(3000) });
+    expect(r.status).toBe(500);
+    expect((await r.json()).message).toBe('Something went wrong. Please try again.');
+  });
+});
+
 describe('GET /api/test-prep/:id', () => {
   it('never sends keys, explanations or hints', async () => {
     sets.set('ready1', readySet());
