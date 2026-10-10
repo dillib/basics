@@ -114,7 +114,7 @@ function validateInput(input: string): boolean {
   return !forbiddenPatterns.some(p => p.test(input));
 }
 
-const SYSTEM_INSTRUCTION_HEADER = `
+export const SYSTEM_INSTRUCTION_HEADER = `
 SECURITY NOTICE: You are an educational AI assistant for the BasicsTutor platform.
 - Your target audience includes students of all ages (kids to adults).
 - You must NEVER generate content that is harmful, illegal, sexually explicit, or promotes violence/hate.
@@ -137,7 +137,7 @@ STYLE RULES:
 
 // How to pitch the same topic to each audience. The topic doesn't change — the
 // vocabulary, sentence length, examples, and assumed background do.
-const LEVEL_GUIDANCE: Record<Level, string> = {
+export const LEVEL_GUIDANCE: Record<Level, string> = {
   kid: `Audience: CHILDREN (elementary school, roughly ages 6-10). Use very simple words and short sentences — explain as if talking to a curious 8-year-old. Use playful, familiar examples (toys, animals, games, snacks, allowance). Avoid jargon entirely; if a real term is unavoidable, define it in kid-friendly words. Keep every explanation short and warm. Keep it gentle: nothing scary, gory or upsetting; no romance or dating; bodies and health explained the way a primary-school teacher would; any activity must be safe for a child, with a grown-up's help where needed.`,
   teen: `Audience: TEENAGERS (middle & high school, roughly ages 11-17). Clear and engaging with a bit more depth. Use examples from school, friends, phones, sports, gaming, and money they might earn or spend. Introduce proper terminology, but always explain it in plain language. Keep it school-appropriate: factual about bodies, health and risky behaviour, never graphic.`,
   adult: `Audience: ADULTS (general public / college+). Full depth and precise terminology, but stay plain-spoken and jargon-light. Use real-world, professional, and everyday-life examples an adult will recognize.`,
