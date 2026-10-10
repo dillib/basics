@@ -1,11 +1,14 @@
 import { generateJSON } from "../llm";
-import { sameAnswer } from "./answers";
+import { sameAnswer, toNumber } from "./answers";
 import type { PrepKey, PrepQuestion } from "@shared/test-prep";
 
 /** Right/wrong plus the explanation for one attempt. */
 export async function gradeAttempt(q: PrepQuestion, key: PrepKey, answer: string): Promise<{ correct: boolean | null; explanation: string }> {
   if (q.type === "open") return { correct: null, explanation: `A strong answer covers: ${key.answer}` };
-  if (q.type !== "short" || sameAnswer(q.type, answer, key.answer, q.options)) {
+  // Short answers, and maths answers that are expressions rather than numbers,
+  // can be right in other words: a model judges those when they don't match exactly.
+  const judgeable = q.type === "short" || (q.type === "numeric" && (Number.isNaN(toNumber(answer)) || Number.isNaN(toNumber(key.answer))));
+  if (!judgeable || sameAnswer(q.type, answer, key.answer, q.options)) {
     return { correct: sameAnswer(q.type, answer, key.answer, q.options), explanation: key.explanation };
   }
   const judged = await generateJSON("test_prep_grade", {

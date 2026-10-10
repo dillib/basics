@@ -13,6 +13,13 @@ describe('sameAnswer: numeric', () => {
   ])('%s equals %s', (a, b) => expect(sameAnswer('numeric', a, b)).toBe(true));
 
   it.each([['0.7', '0.75'], ['4', '-4'], ['', '0'], ['abc', '4']])('%s differs from %s', (a, b) => expect(sameAnswer('numeric', a, b)).toBe(false));
+
+  // Review finding: real 8th-grade answers that were marked wrong.
+  it.each([
+    ['$4.50', '$4.50'], ['$4.50', '4.5'], ['4 cm²', '4'], ['12 cm^2', '12'], ['1 1/2', '1.5'], ['−5', '-5'], ['€3', '3'],
+    ['2x+3', '2x + 3'], ['x = 3, y = 2', 'x=3, y=2'],
+  ])('%s equals %s', (a, b) => expect(sameAnswer('numeric', a, b)).toBe(true));
+  it('still tells different expressions apart', () => expect(sameAnswer('numeric', '2x+3', '2x+4')).toBe(false));
 });
 
 describe('sameAnswer: multiple choice', () => {
@@ -56,6 +63,13 @@ describe('gradeAttempt', () => {
   it('asks the model only when a short answer is not an exact match', async () => {
     generateJSON.mockImplementation(async (_t: unknown, _r: unknown, parse: (v: unknown) => unknown) => ({ data: parse({ correct: true, reason: 'Same idea.' }), provider: 'mercury', ms: 1 }));
     const r = await gradeAttempt(q('short'), key, 'the green pigment takes in light');
+    expect(r.correct).toBe(true);
+    expect(generateJSON.mock.calls[0][0]).toBe('test_prep_grade');
+  });
+
+  it('asks the model when a numeric answer is an expression that does not match exactly', async () => {
+    generateJSON.mockImplementation(async (_t: unknown, _r: unknown, parse: (v: unknown) => unknown) => ({ data: parse({ correct: true, reason: 'Same expression.' }), provider: 'mercury', ms: 1 }));
+    const r = await gradeAttempt(q('numeric'), { ...key, answer: '3 + 2x' }, '2x + 3');
     expect(r.correct).toBe(true);
     expect(generateJSON.mock.calls[0][0]).toBe('test_prep_grade');
   });

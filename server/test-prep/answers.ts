@@ -8,14 +8,23 @@ import type { QType } from "@shared/test-prep";
 
 const norm = (s: string) => s.toLowerCase().replace(/[^\w\s.-]/g, " ").replace(/\s+/g, " ").trim().replace(/\.$/, "");
 
-/** "3/4", ".75", "x = 4", "4 cm", "1,200", "50%" -> number; NaN when it isn't one. */
+/** Unicode minus/dashes (common from Docs and models) as "-". */
+const minus = (s: string) => s.replace(/[−–—]/g, "-");
+
+/** "3/4", ".75", "x = 4", "4 cm", "4 cm²", "1,200", "50%", "$4.50", "1 1/2", "−5" -> number; NaN when it isn't one. */
 export function toNumber(raw: string): number {
-  let s = raw.trim().replace(/^[a-z]\w*\s*=\s*/i, "").replace(/,/g, "").replace(/\s*%$/, "");
-  s = s.replace(/^(-?[\d.]+(?:\s*\/\s*-?[\d.]+)?)\s*[a-z°]*\.?$/i, "$1");
+  let s = minus(raw.trim()).replace(/^[a-z]\w*\s*=\s*/i, "").replace(/,/g, "").replace(/\s*%$/, "");
+  s = s.replace(/^(-?)\s*[$£€¥]\s*/, "$1");
+  s = s.replace(/^(-?[\d.]+(?:\s+\d+)?(?:\s*\/\s*-?[\d.]+)?)\s*[a-z°]*(?:[²³]|\^\d)?\.?$/i, "$1").trim();
+  const mixed = /^(-?)(\d+)\s+(\d+)\s*\/\s*(\d+)$/.exec(s);
+  if (mixed) return (mixed[1] ? -1 : 1) * (Number(mixed[2]) + Number(mixed[3]) / Number(mixed[4]));
   const frac = /^(-?[\d.]+)\s*\/\s*(-?[\d.]+)$/.exec(s);
   if (frac) return Number(frac[1]) / Number(frac[2]);
   return /^-?(\d+\.?\d*|\.\d+)$/.test(s) ? Number(s) : NaN;
 }
+
+/** An expression compared as written, ignoring spaces and case: "2x + 3" = "2x+3". */
+const compact = (s: string) => minus(s).toLowerCase().replace(/\s+/g, "");
 
 /** "b", "B)", "(b)", "b." -> 1. */
 function letterIndex(s: string): number {
@@ -47,7 +56,8 @@ export function sameAnswer(type: QType, given: string, expected: string, options
     }
     case "numeric": {
       const g = toNumber(given), e = toNumber(expected);
-      if (Number.isNaN(g) || Number.isNaN(e)) return false;
+      // Expressions ("2x+3", "x = 3, y = 2"): exact match here; grade.ts asks a model otherwise.
+      if (Number.isNaN(g) || Number.isNaN(e)) return compact(given) === compact(expected);
       return Math.abs(g - e) <= 1e-6 * Math.max(1, Math.abs(e));
     }
     case "short":

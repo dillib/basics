@@ -77,6 +77,21 @@ describe('verifyKeys', () => {
     expect(out.q2.verified).toBe(false);
   });
 
+  it('judges an expression key directly instead of failing to compare', async () => {
+    const exprQ: PrepQuestion = { id: 'q4', n: 4, stem: 'Simplify 2(x+1)+1', type: 'numeric', options: [] };
+    generateJSON.mockImplementation(answer({ answers: [{ id: 'q4', answer: '3 + 2x', keyCorrect: true }] }));
+    const out = await verifyKeys([exprQ], { q4: key('2x + 3') }, []);
+    expect(out.q4.verified).toBe(true);
+    expect(generateJSON.mock.calls[0][1].prompt).toContain('proposed key: 2x + 3');
+  });
+
+  it('leaves room for thinking in the output budget', async () => {
+    generateJSON.mockImplementation(answer({ answers: [{ id: 'q1', answer: '0.75', keyCorrect: true }] }));
+    await verifyKeys([numericQ], { q1: key('0.75') }, []);
+    expect(generateJSON.mock.calls[0][1].thinking).toBe(true);
+    expect(generateJSON.mock.calls[0][1].maxTokens).toBeGreaterThanOrEqual(6000);
+  });
+
   it('treats open questions as verified without a model call', async () => {
     const out = await verifyKeys([openQ], { q3: key('covers X') }, []);
     expect(out.q3.verified).toBe(true);

@@ -1,5 +1,5 @@
 import { generateJSON } from "../llm";
-import { sameAnswer } from "./answers";
+import { sameAnswer, toNumber } from "./answers";
 import type { PrepKey, PrepQuestion } from "@shared/test-prep";
 
 /**
@@ -35,18 +35,22 @@ function splitDataUrl(url: string): { mimeType: string; data: string } | null {
   return m ? { mimeType: m[1], data: m[2] } : null;
 }
 
+/** Keys that can't be compared mechanically: short answers and maths expressions. The checker judges these. */
+const judged = (q: PrepQuestion, key?: PrepKey) => q.type === "short" || (q.type === "numeric" && !!key && Number.isNaN(toNumber(key.answer)));
+
 async function verifyBatch(batch: PrepQuestion[], keys: Record<string, PrepKey>, images: string[]): Promise<Record<string, boolean>> {
   const used = Array.from(new Set(batch.map((q) => q.image).filter((i): i is number => i !== undefined)));
   const attached = used.map((i) => splitDataUrl(images[i] ?? "")).filter((x): x is { mimeType: string; data: string } => !!x);
   const result = await generateJSON("test_prep_verify", {
     system: "You are a careful teacher checking an answer key. Solve each question yourself.",
-    prompt: `For each question give "answer": your own answer (mc: the exact option text; tf: True or False; numeric: just the number). For SHORT questions only, also judge the proposed key and set "keyCorrect"; for other types set "keyCorrect" to true.
+    prompt: `For each question give "answer": your own answer (mc: the exact option text; tf: True or False; numeric: just the number). Where a proposed key is shown, also judge it and set "keyCorrect"; otherwise set "keyCorrect" to true.
 
-${batch.map((q) => `${q.id} [${q.type}]: ${q.stem}${q.options.length ? `\n  options: ${q.options.join(" | ")}` : ""}${q.image !== undefined ? `\n  (uses attached image ${used.indexOf(q.image)})` : ""}${q.type === "short" ? `\n  proposed key: ${keys[q.id]?.answer}` : ""}`).join("\n")}`,
+${batch.map((q) => `${q.id} [${q.type}]: ${q.stem}${q.options.length ? `\n  options: ${q.options.join(" | ")}` : ""}${q.image !== undefined ? `\n  (uses attached image ${used.indexOf(q.image)})` : ""}${judged(q, keys[q.id]) ? `\n  proposed key: ${keys[q.id]?.answer}` : ""}`).join("\n")}`,
     schema: SCHEMA,
     images: attached,
     thinking: batch.some((q) => q.type === "numeric"),
-    maxTokens: 2000,
+    // Gemini counts thinking tokens against the output budget.
+    maxTokens: batch.some((q) => q.type === "numeric") ? 8000 : 2000,
     temperature: 0,
     effort: "medium",
     timeoutMs: 45_000,
@@ -59,7 +63,7 @@ ${batch.map((q) => `${q.id} [${q.type}]: ${q.stem}${q.options.length ? `\n  opti
     const q = batch.find((x) => x.id === r.id);
     const key = q && keys[q.id];
     if (!q || !key || typeof r.answer !== "string") continue;
-    out[q.id] = q.type === "short" ? r.keyCorrect === true : sameAnswer(q.type, r.answer, key.answer, q.options);
+    out[q.id] = judged(q, key) ? r.keyCorrect === true : sameAnswer(q.type, r.answer, key.answer, q.options);
   }
   return out;
 }
