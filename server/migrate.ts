@@ -83,6 +83,22 @@ async function migrate() {
       );
       CREATE UNIQUE INDEX IF NOT EXISTS ai_spend_daily_pk ON ai_spend_daily(day, task, provider, model);
 
+      -- Test prep study sets (server/test-prep): no accounts; the random id is
+      -- the access key. Answer keys live in data and never go to the client.
+      CREATE TABLE IF NOT EXISTS test_prep_sets (
+        id TEXT PRIMARY KEY,
+        status VARCHAR(16) NOT NULL,
+        level VARCHAR(8) NOT NULL DEFAULT 'teen',
+        subject TEXT,
+        input_text TEXT NOT NULL DEFAULT '',
+        images JSONB NOT NULL DEFAULT '[]',
+        data JSONB NOT NULL DEFAULT '{}',
+        attempts JSONB NOT NULL DEFAULT '{}',
+        created_at TIMESTAMP NOT NULL DEFAULT now(),
+        updated_at TIMESTAMP NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS test_prep_sets_created ON test_prep_sets(created_at);
+
       -- Search intake outcomes per day (server/intake.ts): the Jev before/after
       -- number -- how often a search ends on an existing lesson vs. new vs. clarified.
       CREATE TABLE IF NOT EXISTS search_intake_daily (

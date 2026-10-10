@@ -123,6 +123,16 @@ app.use((req, res, next) => {
 
       // Register graceful shutdown handlers
       registerShutdownHandlers(httpServer);
+
+      // Test prep sets expire after 30 days (server/test-prep/store.ts).
+      if (process.env.DATABASE_URL) {
+        const purge = () => import("./test-prep/store")
+          .then(({ purgeExpired }) => purgeExpired())
+          .then((n) => { if (n) log(`[TestPrep] purged ${n} expired set(s)`); })
+          .catch((err) => console.warn("[TestPrep] purge failed:", err?.message));
+        purge();
+        setInterval(purge, 24 * 60 * 60 * 1000).unref();
+      }
     },
   );
 })();
