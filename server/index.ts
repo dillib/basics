@@ -17,6 +17,9 @@ setupSecurity(app);
 app.use((req, res, next) => {
   if (req.originalUrl === "/api/stripe/webhook") {
     express.raw({ type: "application/json" })(req, res, next);
+  } else if (req.method === "POST" && req.originalUrl === "/api/test-prep") {
+    // Pasted homework can include up to 10 shrunk images (server/test-prep/routes.ts).
+    express.json({ limit: "12mb" })(req, res, next);
   } else {
     express.json({ limit: "1mb" })(req, res, next);
   }

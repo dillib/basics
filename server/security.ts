@@ -143,6 +143,14 @@ export const formLimiter = rateLimit({
   ...sharedOptions,
 });
 
+/** New test-prep sets: each one is several model calls (server/test-prep). */
+export const testPrepLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: parseInt(process.env.TEST_PREP_RATE_LIMIT_PER_HOUR || "10", 10),
+  message: { message: "You've made a lot of study sets this hour. Please try again a bit later." },
+  ...sharedOptions,
+});
+
 /** Limiter for AI Tutor messages — each one is a Gemini call, so this is the
  * expensive endpoint; session lookup/creation itself is plain DB IO and
  * covered by the general apiLimiter instead. */

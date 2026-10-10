@@ -1,0 +1,111 @@
+import express, { type Express, type Request, type Response } from "express";
+import { checkRequest } from "../safety";
+import { testPrepLimiter } from "../security";
+import { createSet, getSet, markRevealed, recordAttempt, toClient, updateSet } from "./store";
+import { ensureRunning, runPipeline } from "./pipeline";
+import { gradeAttempt } from "./grade";
+import { prepareConcept } from "./prepare";
+import { verifyKeys } from "./verify";
+import { TEST_PREP_LIMITS, type PrepQuestion } from "@shared/test-prep";
+
+const EXPIRED = "This set has expired or doesn't exist";
+const IMAGE = /^data:image\/(png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$/;
+
+const str = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
+
+async function loadQuestion(req: Request, res: Response) {
+  const s = await getSet(req.params.id);
+  if (!s) { res.status(404).json({ message: EXPIRED }); return null; }
+  const qid = str(req.body?.qid ?? req.params.qid, 40);
+  const q = s.data.questions.find((x) => x.id === qid);
+  if (!q) { res.status(404).json({ message: "That question isn't in this set." }); return null; }
+  return { s, q, key: s.data.keys[q.id] };
+}
+
+export function registerTestPrepRoutes(app: Express): void {
+  // Pasted images make this the one large request (≤ 10 shrunk images).
+  app.post("/api/test-prep", express.json({ limit: "12mb" }), testPrepLimiter, async (req, res) => {
+    const text = typeof req.body?.text === "string" ? req.body.text : "";
+    const images: unknown[] = Array.isArray(req.body?.images) ? req.body.images : [];
+    if (text.length > TEST_PREP_LIMITS.chars) return res.status(422).json({ message: `That's too long. Paste up to ${TEST_PREP_LIMITS.chars.toLocaleString("en-US")} characters at a time.` });
+    if (images.length > TEST_PREP_LIMITS.images) return res.status(422).json({ message: `Add up to ${TEST_PREP_LIMITS.images} images at a time.` });
+    if (!images.every((i) => typeof i === "string" && IMAGE.test(i))) return res.status(422).json({ message: "One of the images couldn't be read. Try a PNG or JPG." });
+    if (!text.trim() && !images.length) return res.status(422).json({ message: "Paste some questions first." });
+    if (text.trim()) {
+      const verdict = await checkRequest(text.slice(0, 4000), { kind: "topic" });
+      if (!verdict.allowed) return res.status(422).json({ message: verdict.message });
+    }
+    const id = await createSet({ text, images: images as string[] });
+    void runPipeline(id);
+    res.json({ id });
+  });
+
+  app.get("/api/test-prep/:id", async (req, res) => {
+    const s = await getSet(req.params.id);
+    if (!s) return res.status(404).json({ message: EXPIRED });
+    ensureRunning(s);
+    res.json(toClient(s));
+  });
+
+  // Fix a question we read wrong; re-prepare and re-check its concept.
+  app.patch("/api/test-prep/:id/questions/:qid", async (req, res) => {
+    const found = await loadQuestion(req, res);
+    if (!found) return;
+    const { s, q } = found;
+    const stem = str(req.body?.stem, 2000).trim();
+    if (!stem) return res.status(422).json({ message: "Type the question first." });
+    const options = q.type === "mc" && Array.isArray(req.body?.options) ? (req.body.options as unknown[]).map((o) => str(o, 300)).filter(Boolean).slice(0, 8) : q.options;
+    const data = structuredClone(s.data);
+    const updated: PrepQuestion = { ...q, stem, options, unreadable: undefined };
+    data.questions = data.questions.map((x) => (x.id === q.id ? updated : x));
+    let concept = data.concepts.find((c) => c.id === updated.conceptId);
+    if (!concept) {
+      concept = data.concepts[0] ?? { id: "c1", title: data.subject || "Your questions", questionIds: [], practiceIds: [] };
+      if (!data.concepts.includes(concept)) data.concepts.push(concept);
+      if (!concept.questionIds.includes(q.id)) concept.questionIds.push(q.id);
+      updated.conceptId = concept.id;
+    }
+    delete data.keys[q.id];
+    await updateSet(s.id, { data });
+    res.json(updated);
+
+    // Background: new key for this question, checked like the rest.
+    const own = data.questions.filter((x) => concept!.questionIds.includes(x.id) && !x.practice);
+    const r = await prepareConcept(concept, own, s.level, s.images).catch(() => null);
+    if (!r?.keys[q.id]) return;
+    const checked = await verifyKeys([updated], { [q.id]: r.keys[q.id] }, s.images).catch(() => null);
+    const latest = await getSet(s.id);
+    if (!latest || !checked) return;
+    latest.data.keys[q.id] = checked[q.id];
+    await updateSet(s.id, { data: latest.data });
+  });
+
+  app.post("/api/test-prep/:id/attempt", async (req, res) => {
+    const found = await loadQuestion(req, res);
+    if (!found) return;
+    const { s, q, key } = found;
+    if (!key) return res.status(409).json({ message: "Still preparing this one. Try again in a moment." });
+    const answer = str(req.body?.answer, 2000);
+    if (!answer.trim()) return res.status(422).json({ message: "Type an answer first." });
+    const result = await gradeAttempt(q, key, answer);
+    await recordAttempt(s.id, q.id, result.correct);
+    res.json(result);
+  });
+
+  app.post("/api/test-prep/:id/hint", async (req, res) => {
+    const found = await loadQuestion(req, res);
+    if (!found) return;
+    if (!found.key) return res.status(409).json({ message: "Still preparing this one. Try again in a moment." });
+    res.json({ hint: found.key.hints[req.body?.level === 2 ? 1 : 0] });
+  });
+
+  app.post("/api/test-prep/:id/reveal", async (req, res) => {
+    const found = await loadQuestion(req, res);
+    if (!found) return;
+    const { s, q, key } = found;
+    if (!key) return res.status(409).json({ message: "Still preparing this one. Try again in a moment." });
+    if (!(s.attempts[q.id]?.tries > 0)) return res.status(409).json({ message: "Try it first, then you can see the answer." });
+    await markRevealed(s.id, q.id);
+    res.json({ answer: key.answer, explanation: key.explanation, verified: key.verified });
+  });
+}

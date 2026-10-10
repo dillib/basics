@@ -36,6 +36,7 @@ import { applySm2, nextMasteryScore, MASTERED_THRESHOLD } from "./spaced-repetit
 import { verifyUnsubscribe } from "./email-unsubscribe";
 import { buildTopicSlug } from "@shared/levels";
 import { config } from "./config";
+import { registerTestPrepRoutes } from "./test-prep/routes";
 import { aiLimiter, quickSearchLimiter, formLimiter, tutorLimiter, feedbackLimiter, viewLimiter, clientIp } from "./security";
 import { publicBaseUrl, buildSitemap, buildLlmsTxt } from "./seo";
 import { INDEXNOW_KEY } from "./indexnow";
@@ -136,6 +137,9 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   setupAuth(app);
+
+  // -- TEST PREP (server/test-prep): paste questions, learn the concepts --
+  registerTestPrepRoutes(app);
 
   // -- STRIPE WEBHOOK --
   app.post('/api/stripe/webhook', async (req: StripeWebhookRequest, res) => {
