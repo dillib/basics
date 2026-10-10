@@ -14,8 +14,8 @@ const IMAGE = /^data:image\/(png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$/;
 
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
 
-async function loadQuestion(req: Request, res: Response) {
-  const s = await getSet(req.params.id);
+async function loadQuestion(req: Request, res: Response, opts: { images?: boolean } = {}) {
+  const s = await getSet(req.params.id, opts);
   if (!s) { res.status(404).json({ message: EXPIRED }); return null; }
   const qid = str(req.body?.qid ?? req.params.qid, 40);
   const q = s.data.questions.find((x) => x.id === qid);
@@ -45,6 +45,14 @@ export function registerTestPrepRoutes(app: Express): void {
     res.json({ id });
   });
 
+  // Images load once by URL (cacheable), never in the 1.5 s poll.
+  app.get("/api/test-prep/:id/images/:n", async (req, res) => {
+    const s = await getSet(req.params.id, { images: true });
+    const m = /^data:([^;]+);base64,(.+)$/.exec(s?.images[Number(req.params.n)] ?? "");
+    if (!s || !m) return res.status(404).json({ message: "Image not found" });
+    res.set("Cache-Control", "private, max-age=86400").type(m[1]).send(Buffer.from(m[2], "base64"));
+  });
+
   app.get("/api/test-prep/:id", async (req, res) => {
     const s = await getSet(req.params.id);
     if (!s) return res.status(404).json({ message: EXPIRED });
@@ -54,7 +62,7 @@ export function registerTestPrepRoutes(app: Express): void {
 
   // Fix a question we read wrong; re-prepare and re-check its concept.
   app.patch("/api/test-prep/:id/questions/:qid", async (req, res) => {
-    const found = await loadQuestion(req, res);
+    const found = await loadQuestion(req, res, { images: true });
     if (!found) return;
     const { s, q } = found;
     const stem = str(req.body?.stem, 2000).trim();

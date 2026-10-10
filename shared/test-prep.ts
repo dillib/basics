@@ -66,7 +66,8 @@ export interface ClientSet {
   subject?: string;
   questions: PrepQuestion[];
   concepts: PrepConcept[];
-  images: string[];
+  /** Images are served from /api/test-prep/:id/images/:n (not in the polled payload). */
+  imageCount: number;
   /** Question ids whose key failed verification. */
   flagged: string[];
   /** Question ids we couldn't prepare (no key): shown as unavailable, not "still preparing". */

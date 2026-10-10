@@ -28,11 +28,12 @@ describe('toClient', () => {
     expect(toClient(stored).flagged).toEqual(['q2']);
   });
 
-  it('carries questions, concepts and images', () => {
+  it('carries questions and concepts, and an image count instead of image data', () => {
     const c = toClient(stored);
     expect(c.questions).toHaveLength(2);
     expect(c.concepts[0].title).toBe('Fractions');
-    expect(c.images).toEqual(['data:image/jpeg;base64,AAAA']);
+    expect(c.imageCount).toBe(1);
+    expect(JSON.stringify(c)).not.toContain('base64');
   });
 });
 

@@ -1,5 +1,20 @@
-import { describe, it, expect } from 'vitest';
-import { isAllowedImageUrl } from '../test-prep/images';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { isAllowedImageUrl, fetchImageAsDataUrl } from '../test-prep/images';
+
+describe('fetchImageAsDataUrl', () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+  const stub = (bytes: number, type = 'image/png') => vi.stubGlobal('fetch', vi.fn(async () => new Response(new Uint8Array(bytes), { headers: { 'content-type': type } })));
+
+  it('skips images over 1.5 MB (they would be re-sent and exceed model limits)', async () => {
+    stub(1_600_000);
+    expect(await fetchImageAsDataUrl('https://lh3.googleusercontent.com/x')).toBeNull();
+  });
+
+  it('keeps a normal-sized image', async () => {
+    stub(200_000);
+    expect(await fetchImageAsDataUrl('https://lh3.googleusercontent.com/x')).toMatch(/^data:image\/png;base64,/);
+  });
+});
 
 describe('isAllowedImageUrl', () => {
   it.each([

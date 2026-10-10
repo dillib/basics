@@ -143,6 +143,22 @@ describe('GET /api/test-prep/:id', () => {
   });
 });
 
+describe('GET /api/test-prep/:id/images/:n', () => {
+  it('serves an image once, by URL, with long caching', async () => {
+    sets.set('ready1', readySet({ images: ['data:image/png;base64,iVBORw0KGgo='] }));
+    const r = await fetch(`${base}/api/test-prep/ready1/images/0`);
+    expect(r.status).toBe(200);
+    expect(r.headers.get('content-type')).toBe('image/png');
+    expect(r.headers.get('cache-control')).toContain('max-age');
+    expect(Buffer.from(await r.arrayBuffer()).toString('base64')).toBe('iVBORw0KGgo=');
+  });
+
+  it('404s on an image that does not exist', async () => {
+    sets.set('ready1', readySet());
+    expect((await fetch(`${base}/api/test-prep/ready1/images/3`)).status).toBe(404);
+  });
+});
+
 describe('attempt, hint and reveal', () => {
   beforeEach(() => { sets.set('ready1', readySet()); });
 

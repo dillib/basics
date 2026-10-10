@@ -74,7 +74,7 @@ async function stage(s: StoredSet): Promise<StoredSet | null> {
     default:
       return null;
   }
-  return getSet(s.id);
+  return getSet(s.id, { images: true });
 }
 
 /** Never throws; any crash marks the set failed. */
@@ -82,7 +82,7 @@ export async function runPipeline(id: string): Promise<void> {
   if (inFlight.has(id)) return;
   inFlight.add(id);
   try {
-    let s = await getSet(id);
+    let s = await getSet(id, { images: true });
     while (s) s = await stage(s);
   } catch (err) {
     console.error(`[TestPrep] ${id} failed:`, (err as Error)?.message);

@@ -58,7 +58,7 @@ export default function TestMeMode({ set, onLearn }: { set: ClientSet; onLearn(c
       {own.map((q) => (
         <QuestionCard
           key={`${run}-${q.id}`} setId={set.id} q={q} mode="test"
-          image={q.image !== undefined ? set.images[q.image] : undefined}
+          image={q.image !== undefined ? `/api/test-prep/${set.id}/images/${q.image}` : undefined}
           flagged={false}
           entry={session[q.id]}
           onUpdate={(next) => setSession((s) => ({ ...s, [q.id]: next }))}

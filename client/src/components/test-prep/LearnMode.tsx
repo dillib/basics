@@ -19,7 +19,7 @@ export default function LearnMode({ set, progress, onUpdate, onFix }: {
     return (
       <QuestionCard
         key={q.id} setId={set.id} q={q} mode="learn"
-        image={q.image !== undefined ? set.images[q.image] : undefined}
+        image={q.image !== undefined ? `/api/test-prep/${set.id}/images/${q.image}` : undefined}
         flagged={set.flagged.includes(q.id)}
         unavailable={set.unavailable?.includes(q.id)}
         entry={progress[q.id]}

@@ -5,7 +5,9 @@
  * fetch internal addresses (SSRF).
  */
 
-const MAX_BYTES = 4 * 1024 * 1024;
+// Client-pasted images are shrunk in the browser; these can't be, so cap them
+// (10 big images would also exceed the model's inline request limit).
+const MAX_BYTES = 1.5 * 1024 * 1024;
 
 export function isAllowedImageUrl(raw: string): boolean {
   try {

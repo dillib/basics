@@ -36,7 +36,7 @@ export function toClient(s: StoredSet): ClientSet {
     ...(s.subject ? { subject: s.subject } : {}),
     questions,
     concepts,
-    images: s.images,
+    imageCount: s.images.length,
     flagged: Object.entries(keys).filter(([, k]) => !k.verified).map(([qid]) => qid),
     // Once the set is ready, a readable question with no key couldn't be prepared.
     unavailable: s.status === "ready" ? questions.filter((q) => !q.unreadable && !keys[q.id]).map((q) => q.id) : [],
@@ -55,10 +55,13 @@ export async function createSet(input: { text: string; images: string[] }): Prom
   return id;
 }
 
-export async function getSet(id: string): Promise<StoredSet | null> {
+/** Images are large: only load them when the caller needs them (pipeline, image route). */
+export async function getSet(id: string, opts: { images?: boolean } = {}): Promise<StoredSet | null> {
   const db = await getDb();
   const r = await db.execute(sql`
-    SELECT * FROM test_prep_sets
+    SELECT id, status, level, subject, input_text, data, attempts, created_at, updated_at,
+      ${opts.images ? sql`images` : sql`(SELECT jsonb_agg('') FROM jsonb_array_elements(images)) AS images`}
+    FROM test_prep_sets
     WHERE id = ${id} AND created_at > now() - make_interval(days => ${SET_TTL_DAYS})`);
   const row = r.rows[0] as Record<string, any> | undefined;
   if (!row) return null;
