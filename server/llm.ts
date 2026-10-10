@@ -1,4 +1,4 @@
-import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from "@google/genai";
+import { GoogleGenAI, type HarmCategory, type HarmBlockThreshold } from "@google/genai";
 import { recordSpend } from "./ai-spend";
 
 /**
@@ -98,12 +98,13 @@ async function callMercury(task: LlmTask, r: Request): Promise<string> {
   return body.choices?.[0]?.message?.content ?? "";
 }
 
+// String values of the SDK enums (type-only import: nothing extra loaded at runtime).
 const STRICT_SAFETY = [
-  HarmCategory.HARM_CATEGORY_HARASSMENT,
-  HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-  HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-  HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-].map((category) => ({ category, threshold: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE }));
+  "HARM_CATEGORY_HARASSMENT",
+  "HARM_CATEGORY_HATE_SPEECH",
+  "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+  "HARM_CATEGORY_DANGEROUS_CONTENT",
+].map((category) => ({ category: category as HarmCategory, threshold: "BLOCK_LOW_AND_ABOVE" as HarmBlockThreshold }));
 
 let gemini: GoogleGenAI | null = null;
 async function callGemini(task: LlmTask, r: Request): Promise<string> {
