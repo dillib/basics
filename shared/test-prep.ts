@@ -21,6 +21,8 @@ export interface PrepQuestion {
   conceptId?: string;
   /** A practice question we wrote (not one the student pasted). */
   practice?: boolean;
+  /** When the student last edited it (ms); its new key is being prepared. */
+  editedAt?: number;
 }
 
 export interface PrepKey {
@@ -72,6 +74,8 @@ export interface ClientSet {
   flagged: string[];
   /** Question ids we couldn't prepare (no key): shown as unavailable, not "still preparing". */
   unavailable: string[];
+  /** Question ids just edited whose new key is being prepared. */
+  pending: string[];
   error?: string;
 }
 

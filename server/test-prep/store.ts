@@ -1,7 +1,7 @@
 import { randomBytes } from "crypto";
 import { sql } from "drizzle-orm";
 import type { Level } from "@shared/levels";
-import type { AttemptRecord, ClientSet, SetData, SetStatus } from "@shared/test-prep";
+import type { AttemptRecord, ClientSet, PrepKey, SetData, SetStatus } from "@shared/test-prep";
 
 // Loaded lazily so the pure helpers (toClient, newSetId) work without a database.
 const getDb = async () => (await import("../db")).db;
@@ -27,6 +27,10 @@ export function newSetId(): string {
   return randomBytes(16).toString("base64url");
 }
 
+/** An edited question's new key is expected within this long. */
+const EDIT_PENDING_MS = 3 * 60_000;
+const isPending = (q: { editedAt?: number }) => !!q.editedAt && Date.now() - q.editedAt < EDIT_PENDING_MS;
+
 export function toClient(s: StoredSet): ClientSet {
   const { keys, questions, concepts, error } = s.data;
   return {
@@ -38,8 +42,10 @@ export function toClient(s: StoredSet): ClientSet {
     concepts,
     imageCount: s.images.length,
     flagged: Object.entries(keys).filter(([, k]) => !k.verified).map(([qid]) => qid),
-    // Once the set is ready, a readable question with no key couldn't be prepared.
-    unavailable: s.status === "ready" ? questions.filter((q) => !q.unreadable && !keys[q.id]).map((q) => q.id) : [],
+    // Once the set is ready, a readable question with no key couldn't be prepared,
+    // unless the student just edited it (its new key is on the way).
+    unavailable: s.status === "ready" ? questions.filter((q) => !q.unreadable && !keys[q.id] && !isPending(q)).map((q) => q.id) : [],
+    pending: questions.filter((q) => !keys[q.id] && isPending(q)).map((q) => q.id),
     ...(error ? { error } : {}),
   };
 }
@@ -92,6 +98,17 @@ async function patchAttempt(id: string, qid: string, f: (a: AttemptRecord) => At
   await db.execute(sql`
     UPDATE test_prep_sets SET attempts = attempts || jsonb_build_object(${qid}::text, ${JSON.stringify(next)}::jsonb)
     WHERE id = ${id}`);
+}
+
+/**
+ * Save one question's key, only if the question still has this wording: a
+ * slower re-prepare for an older edit must not overwrite a newer one.
+ */
+export async function setKey(id: string, qid: string, key: PrepKey, stem: string): Promise<void> {
+  const db = await getDb();
+  await db.execute(sql`
+    UPDATE test_prep_sets SET data = jsonb_set(data, ARRAY['keys', ${qid}::text], ${JSON.stringify(key)}::jsonb, true), updated_at = now()
+    WHERE id = ${id} AND data->'questions' @> jsonb_build_array(jsonb_build_object('id', ${qid}::text, 'stem', ${stem}::text))`);
 }
 
 export function recordAttempt(id: string, qid: string, correct: boolean | null): Promise<void> {

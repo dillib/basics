@@ -5,11 +5,12 @@ import type { ClientSet } from "@shared/test-prep";
 import type { Progress } from "@/lib/testPrepProgress";
 
 /** Concept by concept: the idea first, then the student's questions, then practice for anything missed. */
-export default function LearnMode({ set, progress, onUpdate, onFix }: {
+export default function LearnMode({ set, progress, onUpdate, onFix, onDelete }: {
   set: ClientSet;
   progress: Progress;
   onUpdate(qid: string, next: Progress[string]): void;
   onFix(qid: string, stem: string): Promise<void>;
+  onDelete(qid: string): Promise<void>;
 }) {
   const byId = new Map(set.questions.map((q) => [q.id, q]));
   const unassigned = set.questions.filter((q) => !q.practice && !set.concepts.some((c) => c.questionIds.includes(q.id)));
@@ -22,9 +23,11 @@ export default function LearnMode({ set, progress, onUpdate, onFix }: {
         image={q.image !== undefined ? `/api/test-prep/${set.id}/images/${q.image}` : undefined}
         flagged={set.flagged.includes(q.id)}
         unavailable={set.unavailable?.includes(q.id)}
+        pending={set.pending?.includes(q.id)}
         entry={progress[q.id]}
         onUpdate={(next) => onUpdate(q.id, next)}
-        onFix={(stem) => onFix(q.id, stem)}
+        onFix={set.status === "ready" || q.unreadable ? (stem) => onFix(q.id, stem) : undefined}
+        onDelete={set.status === "ready" ? () => onDelete(q.id) : undefined}
       />
     );
   };

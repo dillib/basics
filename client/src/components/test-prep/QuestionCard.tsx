@@ -24,13 +24,16 @@ async function post<T>(url: string, body: unknown): Promise<T> {
  * result is shown on the results screen.
  */
 export default function QuestionCard({
-  setId, q, image, flagged, unavailable = false, mode, entry = EMPTY, onUpdate, onFix,
+  setId, q, image, flagged, unavailable = false, pending = false, mode, entry = EMPTY, onUpdate, onFix, onDelete,
 }: {
   setId: string;
   q: PrepQuestion;
   image?: string;
   flagged: boolean;
   unavailable?: boolean;
+  /** Just edited: its new answer is being prepared. */
+  pending?: boolean;
+  onDelete?(): Promise<void>;
   mode: "learn" | "test";
   entry?: Entry;
   onUpdate(next: Entry): void;
@@ -41,6 +44,7 @@ export default function QuestionCard({
   const [hints, setHints] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [fix, setFix] = useState("");
+  const [editing, setEditing] = useState(false);
 
   const base = `/api/test-prep/${setId}`;
   const run = async (f: () => Promise<void>) => {
@@ -75,11 +79,41 @@ export default function QuestionCard({
     );
   }
 
+  // Own questions can be corrected or removed (misread, or not on the test).
+  const tools = !q.practice && mode === "learn" && (onFix || onDelete) && (
+    <div className="flex gap-1 text-xs">
+      {onFix && <button type="button" className="text-muted-foreground hover:text-foreground underline-offset-2 hover:underline" onClick={() => { setFix(q.stem); setEditing((v) => !v); }}>Edit</button>}
+      {onDelete && <button type="button" className="text-muted-foreground hover:text-destructive underline-offset-2 hover:underline" onClick={() => { if (window.confirm("Remove this question from your set?")) void run(onDelete); }}>Remove</button>}
+    </div>
+  );
+  const editor = editing && onFix && (
+    <div className="space-y-2">
+      <Textarea value={fix} onChange={(e) => setFix(e.target.value)} />
+      <div className="flex gap-2">
+        <Button size="sm" disabled={!fix.trim() || busy} onClick={() => run(async () => { await onFix(fix); setEditing(false); })}>Save question</Button>
+        <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
+      </div>
+    </div>
+  );
+
+  if (pending) {
+    return (
+      <div className="rounded-xl border bg-card p-4 space-y-2">
+        <p className="font-medium whitespace-pre-wrap">{q.n}. {q.stem}</p>
+        <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Preparing this question…</p>
+      </div>
+    );
+  }
+
   if (unavailable) {
     return (
       <div className="rounded-xl border bg-card p-4 space-y-2">
-        <p className="font-medium whitespace-pre-wrap">{q.practice ? "Practice: " : `${q.n}. `}{q.stem}</p>
-        <p className="text-sm text-muted-foreground">We couldn't prepare this one. Try pasting it again in a new set, or ask your teacher.</p>
+        <div className="flex items-start justify-between gap-3">
+          <p className="font-medium whitespace-pre-wrap">{q.practice ? "Practice: " : `${q.n}. `}{q.stem}</p>
+          {tools}
+        </div>
+        {editor}
+        <p className="text-sm text-muted-foreground">We couldn't prepare this one. Try editing the wording, or ask your teacher.</p>
       </div>
     );
   }
@@ -87,7 +121,11 @@ export default function QuestionCard({
   const answered = entry.tries > 0;
   return (
     <div className="rounded-xl border bg-card p-4 space-y-3" data-testid={`question-${q.id}`}>
-      <p className="font-medium whitespace-pre-wrap">{q.practice ? "Practice: " : `${q.n}. `}{q.stem}</p>
+      <div className="flex items-start justify-between gap-3">
+        <p className="font-medium whitespace-pre-wrap">{q.practice ? "Practice: " : `${q.n}. `}{q.stem}</p>
+        {tools}
+      </div>
+      {editor}
       {image && <img src={image} alt={`Image for question ${q.n}`} className="max-h-72 rounded-lg border" referrerPolicy="no-referrer" />}
 
       {q.type === "mc" || q.type === "tf" ? (

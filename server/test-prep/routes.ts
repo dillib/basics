@@ -1,7 +1,7 @@
 import express, { type Express, type Request, type Response } from "express";
-import { checkRequest } from "../safety";
-import { testPrepLimiter } from "../security";
-import { createSet, getSet, markRevealed, recordAttempt, toClient, updateSet } from "./store";
+import { checkRequest, lint } from "../safety";
+import { testPrepEditLimiter, testPrepLimiter } from "../security";
+import { createSet, getSet, markRevealed, recordAttempt, setKey, toClient, updateSet } from "./store";
 import { ensureRunning, runPipeline } from "./pipeline";
 import { gradeAttempt } from "./grade";
 import { prepareConcept } from "./prepare";
@@ -13,6 +13,17 @@ const EXPIRED = "This set has expired or doesn't exist";
 const IMAGE = /^data:image\/(png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$/;
 
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
+
+/**
+ * Pasted or edited text a child could end up reading: the word lists over the
+ * whole text, then the model check (Jev) on its start. A message when blocked.
+ */
+async function unsafe(text: string): Promise<string | null> {
+  const found = lint(text);
+  if (found.explicit.length || found.profanity.length) return "BasicsTutor can't help with that. Paste school questions you'd like to understand.";
+  const verdict = await checkRequest(text.slice(0, 4000), { kind: "topic" });
+  return verdict.allowed ? null : verdict.message;
+}
 
 async function loadQuestion(req: Request, res: Response, opts: { images?: boolean } = {}) {
   const s = await getSet(req.params.id, opts);
@@ -35,8 +46,8 @@ export function registerTestPrepRoutes(app: Express): void {
     if (!imageUrls.every((u) => typeof u === "string" && isAllowedImageUrl(u))) return res.status(422).json({ message: "One of the images couldn't be read. Try copying it as a screenshot." });
     if (!text.trim() && !images.length && !imageUrls.length) return res.status(422).json({ message: "Paste some questions first." });
     if (text.trim()) {
-      const verdict = await checkRequest(text.slice(0, 4000), { kind: "topic" });
-      if (!verdict.allowed) return res.status(422).json({ message: verdict.message });
+      const blocked = await unsafe(text);
+      if (blocked) return res.status(422).json({ message: blocked });
     }
     // Google Docs image links (server-side fetch; unreachable ones are skipped).
     const fetched = (await Promise.all((imageUrls as string[]).map(fetchImageAsDataUrl))).filter((x): x is string => !!x);
@@ -60,16 +71,21 @@ export function registerTestPrepRoutes(app: Express): void {
     res.json(toClient(s));
   });
 
-  // Fix a question we read wrong; re-prepare and re-check its concept.
-  app.patch("/api/test-prep/:id/questions/:qid", async (req, res) => {
+  // Fix a question we read wrong; re-prepare and re-check it.
+  app.patch("/api/test-prep/:id/questions/:qid", testPrepEditLimiter, async (req, res) => {
     const found = await loadQuestion(req, res, { images: true });
     if (!found) return;
     const { s, q } = found;
+    // Mid-build, the next stage would overwrite the edit.
+    if (s.status !== "ready") return res.status(409).json({ message: "Still building your set. You can edit questions in a moment." });
+    if (q.practice) return res.status(422).json({ message: "Only your own questions can be edited." });
     const stem = str(req.body?.stem, 2000).trim();
     if (!stem) return res.status(422).json({ message: "Type the question first." });
+    const blocked = await unsafe(stem);
+    if (blocked) return res.status(422).json({ message: blocked });
     const options = q.type === "mc" && Array.isArray(req.body?.options) ? (req.body.options as unknown[]).map((o) => str(o, 300)).filter(Boolean).slice(0, 8) : q.options;
     const data = structuredClone(s.data);
-    const updated: PrepQuestion = { ...q, stem, options, unreadable: undefined };
+    const updated: PrepQuestion = { ...q, stem, options, unreadable: undefined, editedAt: Date.now() };
     data.questions = data.questions.map((x) => (x.id === q.id ? updated : x));
     let concept = data.concepts.find((c) => c.id === updated.conceptId);
     if (!concept) {
@@ -82,15 +98,31 @@ export function registerTestPrepRoutes(app: Express): void {
     await updateSet(s.id, { data });
     res.json(updated);
 
-    // Background: new key for this question, checked like the rest.
+    // Background: new key for this question, checked like the rest. setKey
+    // drops it if the student has edited the question again since.
     const own = data.questions.filter((x) => concept!.questionIds.includes(x.id) && !x.practice);
     const r = await prepareConcept(concept, own, s.level, s.images).catch(() => null);
     if (!r?.keys[q.id]) return;
     const checked = await verifyKeys([updated], { [q.id]: r.keys[q.id] }, s.images).catch(() => null);
-    const latest = await getSet(s.id);
-    if (!latest || !checked) return;
-    latest.data.keys[q.id] = checked[q.id];
-    await updateSet(s.id, { data: latest.data });
+    if (checked?.[q.id]) await setKey(s.id, q.id, checked[q.id], stem).catch(() => {});
+  });
+
+  // Remove a question the student doesn't want (misread, or not on their test).
+  app.delete("/api/test-prep/:id/questions/:qid", async (req, res) => {
+    const found = await loadQuestion(req, res);
+    if (!found) return;
+    const { s, q } = found;
+    if (s.status !== "ready") return res.status(409).json({ message: "Still building your set. You can remove questions in a moment." });
+    if (q.practice) return res.status(422).json({ message: "Only your own questions can be removed." });
+    const data = structuredClone(s.data);
+    data.questions = data.questions.filter((x) => x.id !== q.id);
+    for (const c of data.concepts) c.questionIds = c.questionIds.filter((id) => id !== q.id);
+    const emptied = new Set(data.concepts.filter((c) => !c.questionIds.length).map((c) => c.id));
+    data.concepts = data.concepts.filter((c) => !emptied.has(c.id));
+    data.questions = data.questions.filter((x) => !(x.practice && x.conceptId && emptied.has(x.conceptId)));
+    delete data.keys[q.id];
+    await updateSet(s.id, { data });
+    res.json({ ok: true });
   });
 
   app.post("/api/test-prep/:id/attempt", async (req, res) => {

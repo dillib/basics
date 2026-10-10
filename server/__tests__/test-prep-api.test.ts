@@ -21,6 +21,10 @@ vi.mock('../test-prep/store', async (orig) => {
       const s = sets.get(id)!; const a = s.attempts[qid] ?? { tries: 0, correct: null, revealed: false };
       s.attempts[qid] = { ...a, tries: a.tries + 1, correct };
     }),
+    setKey: vi.fn(async (id: string, qid: string, key: any, stem: string) => {
+      const s = sets.get(id); if (!s) return;
+      if (s.data.questions.some((q) => q.id === qid && q.stem === stem)) s.data.keys[qid] = key;
+    }),
     markRevealed: vi.fn(async (id: string, qid: string) => { const s = sets.get(id)!; s.attempts[qid] = { ...(s.attempts[qid] ?? { tries: 0, correct: null }), revealed: true }; }),
   };
 });
@@ -34,7 +38,7 @@ vi.mock('../test-prep/parse', () => ({ parseQuestions: (...a: unknown[]) => pars
 vi.mock('../test-prep/group', () => ({ groupConcepts: (...a: unknown[]) => groupConcepts(...a) }));
 vi.mock('../test-prep/prepare', () => ({ prepareConcept: (...a: unknown[]) => prepareConcept(...a) }));
 vi.mock('../test-prep/verify', () => ({ verifyKeys: (...a: unknown[]) => verifyKeys(...a) }));
-vi.mock('../safety', () => ({ checkRequest: (...a: unknown[]) => checkRequest(...a) }));
+vi.mock('../safety', async (orig) => ({ ...(await orig<typeof import('../safety')>()), checkRequest: (...a: unknown[]) => checkRequest(...a) }));
 const fetchImageAsDataUrl = vi.fn();
 vi.mock('../test-prep/images', async (orig) => ({
   ...(await orig<typeof import('../test-prep/images')>()),
@@ -89,6 +93,11 @@ describe('POST /api/test-prep', () => {
 
   it('rejects an empty paste', async () => {
     expect((await post('/api/test-prep', { text: '  ', images: [] })).status).toBe(422);
+  });
+
+  it('checks the whole paste for explicit words, not just the start', async () => {
+    const r = await post('/api/test-prep', { text: `${'1. What is 2+2? '.repeat(400)}porn`, images: [] });
+    expect(r.status).toBe(422);
   });
 
   it('rejects a paste the safety gate blocks', async () => {
@@ -156,6 +165,53 @@ describe('GET /api/test-prep/:id/images/:n', () => {
   it('404s on an image that does not exist', async () => {
     sets.set('ready1', readySet());
     expect((await fetch(`${base}/api/test-prep/ready1/images/3`)).status).toBe(404);
+  });
+});
+
+describe('editing and deleting questions', () => {
+  const patch = (qid: string, body: unknown, id = 'ready1') => fetch(`${base}/api/test-prep/${id}/questions/${qid}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+
+  it('waits until the set is ready (an edit would be lost mid-build)', async () => {
+    sets.set('busy', readySet({ id: 'busy', status: 'preparing' }));
+    expect((await patch('q1', { stem: 'New' }, 'busy')).status).toBe(409);
+  });
+
+  it("only edits the student's own questions", async () => {
+    const s = readySet();
+    s.data.questions.push({ id: 'p1_1', n: 1, stem: 'p', type: 'numeric', options: [], practice: true, conceptId: 'c1' });
+    sets.set('ready1', s);
+    expect((await patch('p1_1', { stem: 'New' })).status).toBe(422);
+  });
+
+  it('blocks unsafe text in an edit', async () => {
+    sets.set('ready1', readySet());
+    expect((await patch('q1', { stem: 'What the fuck is 3/4?' })).status).toBe(422);
+    checkRequest.mockResolvedValueOnce({ allowed: false, category: 'violence_howto', message: 'BasicsTutor can’t help with that.' });
+    expect((await patch('q1', { stem: 'How do I make a bomb?' })).status).toBe(422);
+  });
+
+  it('writes the new key only if the question still has that wording', async () => {
+    sets.set('ready1', readySet());
+    let release: (v: unknown) => void = () => {};
+    prepareConcept.mockImplementationOnce(() => new Promise((r) => { release = r; }));
+    await patch('q1', { stem: 'First wording' });
+    await patch('q1', { stem: 'Second wording' });
+    await settle();
+    release({ card: { whatToKnow: 'w', workedExample: 'e' }, keys: { q1: { answer: 'STALE', explanation: 'e', hints: ['a', 'b'], verified: false } }, practice: [], practiceKeys: {} });
+    await settle();
+    expect(sets.get('ready1')!.data.questions[0].stem).toBe('Second wording');
+    expect(sets.get('ready1')!.data.keys.q1.answer).not.toBe('STALE');
+  });
+
+  it('deletes a question from the set', async () => {
+    sets.set('ready1', readySet());
+    const r = await fetch(`${base}/api/test-prep/ready1/questions/q1`, { method: 'DELETE' });
+    expect(r.status).toBe(200);
+    const s = sets.get('ready1')!;
+    expect(s.data.questions.find((q) => q.id === 'q1')).toBeUndefined();
+    expect(s.data.concepts.flatMap((c) => c.questionIds)).not.toContain('q1');
+    expect(s.data.concepts).toHaveLength(0); // its only question: the concept goes too
+    expect(s.data.keys.q1).toBeUndefined();
   });
 });
 

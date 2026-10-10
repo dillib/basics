@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "wouter";
+import { Link, useLocation, useParams } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,7 +10,8 @@ import TestMeMode from "./TestMeMode";
 import Readiness from "./Readiness";
 import type { ClientSet } from "@shared/test-prep";
 import { loadProgress, saveProgress, type Progress } from "@/lib/testPrepProgress";
-import { forgetSet } from "@/lib/testPrepSets";
+import { forgetSet, startStudySet } from "@/lib/testPrepSets";
+import PasteBox from "./PasteBox";
 
 const EXPIRED = "This set has expired or doesn't exist";
 const STAGE: Record<string, string> = {
@@ -27,6 +28,9 @@ export default function StudySet() {
   const { id = "" } = useParams<{ id: string }>();
   const qc = useQueryClient();
   const [mode, setMode] = useState<"learn" | "test">("learn");
+  const [, setLocation] = useLocation();
+  const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
   const [progress, setProgress] = useState<Progress>({});
   useEffect(() => setProgress(loadProgress(id)), [id]);
 
@@ -39,7 +43,13 @@ export default function StudySet() {
       return res.json();
     },
     retry: (n, e) => !(e instanceof NotFound) && n < 3,
-    refetchInterval: (q) => (q.state.data && (q.state.data.status === "ready" || q.state.data.status === "failed") ? false : 1500),
+    // Keep checking while the set builds, or while an edited question's new answer is prepared.
+    refetchInterval: (q) => {
+      const d = q.state.data;
+      if (!d) return 1500;
+      if (d.status === "failed") return false;
+      return d.status !== "ready" || d.pending?.length ? 1500 : false;
+    },
   });
 
   useEffect(() => { if (error instanceof NotFound) forgetSet(id); }, [error, id]);
@@ -51,18 +61,42 @@ export default function StudySet() {
       return out;
     });
   };
+  const remove = async (qid: string) => {
+    const res = await fetch(`/api/test-prep/${id}/questions/${qid}`, { method: "DELETE" });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Couldn't remove that.");
+    await qc.invalidateQueries({ queryKey: ["/api/test-prep", id] });
+  };
   const fix = async (qid: string, stem: string) => {
     const res = await fetch(`/api/test-prep/${id}/questions/${qid}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stem }) });
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).message || "Couldn't save that.");
+    // A reworded question is a new question: forget the old attempt.
+    setProgress((p) => {
+      const { [qid]: _old, ...rest } = p;
+      saveProgress(id, rest);
+      return rest;
+    });
     await qc.invalidateQueries({ queryKey: ["/api/test-prep", id] });
   };
 
   let body: React.ReactNode;
   if (error) {
     body = (
-      <div className="space-y-4 py-16 text-center">
-        <p className="text-lg">{(error as Error).message}</p>
-        <Button asChild><Link href="/test-prep">Paste your questions</Link></Button>
+      <div className="space-y-6 py-10">
+        <p className="text-lg text-center">{(error as Error).message}</p>
+        {error instanceof NotFound && (
+          <>
+            <PasteBox
+              busy={starting}
+              onSubmit={async (input) => {
+                setStarting(true);
+                setStartError(null);
+                try { setLocation(`/test-prep/${await startStudySet(input)}`); }
+                catch (e) { setStartError((e as Error).message); setStarting(false); }
+              }}
+            />
+            {startError && <p role="alert" className="text-sm text-destructive">{startError}</p>}
+          </>
+        )}
       </div>
     );
   } else if (!set) {
@@ -101,7 +135,7 @@ export default function StudySet() {
           </Tabs>
         )}
         {mode === "learn" ? (
-          <LearnMode set={set} progress={progress} onUpdate={update} onFix={fix} />
+          <LearnMode set={set} progress={progress} onUpdate={update} onFix={fix} onDelete={remove} />
         ) : (
           <TestMeMode
             set={set}

@@ -4,7 +4,7 @@ import { ClipboardList } from "lucide-react";
 import Footer from "@/components/Footer";
 import PageHero from "@/components/PageHero";
 import PasteBox, { type PasteInput } from "@/components/test-prep/PasteBox";
-import { loadSavedSets, saveSet, type SavedSet } from "@/lib/testPrepSets";
+import { loadSavedSets, startStudySet, type SavedSet } from "@/lib/testPrepSets";
 
 /** /test-prep: paste homework or test questions and turn them into a study set. */
 export default function TestPrepPage() {
@@ -26,12 +26,7 @@ export default function TestPrepPage() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/test-prep", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || "Something went wrong. Please try again.");
-      const firstLine = input.text.split(/\r?\n/).map((l) => l.trim()).find(Boolean) ?? "Study set from images";
-      saveSet({ id: body.id, title: firstLine.slice(0, 80), createdAt: new Date().toISOString() });
-      setLocation(`/test-prep/${body.id}`);
+      setLocation(`/test-prep/${await startStudySet(input)}`);
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);
