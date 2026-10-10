@@ -25,6 +25,7 @@ const SupportPage = lazy(() => import("@/pages/SupportPage"));
 const WhyPage = lazy(() => import("@/pages/WhyPage"));
 const AboutPage = lazy(() => import("@/pages/AboutPage"));
 const TestPrepPage = lazy(() => import("@/pages/TestPrepPage"));
+const StudySet = lazy(() => import("@/components/test-prep/StudySet"));
 import NotFound from "@/pages/not-found";
 import { SnapshotOr, consumeSnapshot } from "@/lib/ssrSnapshot";
 
@@ -52,6 +53,7 @@ function Router() {
       <Route path="/why" component={WhyPage} />
       <Route path="/about" component={AboutPage} />
       <Route path="/test-prep" component={TestPrepPage} />
+      <Route path="/test-prep/:id" component={StudySet} />
       <Route component={NotFound} />
     </Switch>
     </Suspense>
