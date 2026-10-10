@@ -6,6 +6,7 @@ import { ensureRunning, runPipeline } from "./pipeline";
 import { gradeAttempt } from "./grade";
 import { prepareConcept } from "./prepare";
 import { verifyKeys } from "./verify";
+import { fetchImageAsDataUrl, isAllowedImageUrl } from "./images";
 import { TEST_PREP_LIMITS, type PrepQuestion } from "@shared/test-prep";
 
 const EXPIRED = "This set has expired or doesn't exist";
@@ -27,15 +28,19 @@ export function registerTestPrepRoutes(app: Express): void {
   app.post("/api/test-prep", express.json({ limit: "12mb" }), testPrepLimiter, async (req, res) => {
     const text = typeof req.body?.text === "string" ? req.body.text : "";
     const images: unknown[] = Array.isArray(req.body?.images) ? req.body.images : [];
+    const imageUrls: unknown[] = Array.isArray(req.body?.imageUrls) ? req.body.imageUrls : [];
     if (text.length > TEST_PREP_LIMITS.chars) return res.status(422).json({ message: `That's too long. Paste up to ${TEST_PREP_LIMITS.chars.toLocaleString("en-US")} characters at a time.` });
-    if (images.length > TEST_PREP_LIMITS.images) return res.status(422).json({ message: `Add up to ${TEST_PREP_LIMITS.images} images at a time.` });
+    if (images.length + imageUrls.length > TEST_PREP_LIMITS.images) return res.status(422).json({ message: `Add up to ${TEST_PREP_LIMITS.images} images at a time.` });
     if (!images.every((i) => typeof i === "string" && IMAGE.test(i))) return res.status(422).json({ message: "One of the images couldn't be read. Try a PNG or JPG." });
-    if (!text.trim() && !images.length) return res.status(422).json({ message: "Paste some questions first." });
+    if (!imageUrls.every((u) => typeof u === "string" && isAllowedImageUrl(u))) return res.status(422).json({ message: "One of the images couldn't be read. Try copying it as a screenshot." });
+    if (!text.trim() && !images.length && !imageUrls.length) return res.status(422).json({ message: "Paste some questions first." });
     if (text.trim()) {
       const verdict = await checkRequest(text.slice(0, 4000), { kind: "topic" });
       if (!verdict.allowed) return res.status(422).json({ message: verdict.message });
     }
-    const id = await createSet({ text, images: images as string[] });
+    // Google Docs image links (server-side fetch; unreachable ones are skipped).
+    const fetched = (await Promise.all((imageUrls as string[]).map(fetchImageAsDataUrl))).filter((x): x is string => !!x);
+    const id = await createSet({ text, images: [...(images as string[]), ...fetched] });
     void runPipeline(id);
     res.json({ id });
   });

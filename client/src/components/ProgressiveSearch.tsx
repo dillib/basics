@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
+import { looksLikeQuestionSet } from "@/lib/pasteContent";
 import { LEVELS, LEVEL_LABELS, isLevel, type Level } from "@shared/levels";
 import { LEVEL_POINT } from "@/lib/levelColors";
 import { emitHeroSignal } from "@/lib/heroSignals";
@@ -61,6 +62,7 @@ type SearchState = 'idle' | 'suggest' | 'loading' | 'ready' | 'generating' | 'er
 
 export default function ProgressiveSearch() {
   const [query, setQuery] = useState("");
+  const [pastedSet, setPastedSet] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [result, setResult] = useState<QuickResult | null>(null);
   const [libraryResults, setLibraryResults] = useState<LibraryMatch[]>([]);
@@ -387,7 +389,15 @@ export default function ProgressiveSearch() {
           type="text"
           placeholder="What do you want to learn?"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => { setQuery(e.target.value); setPastedSet(null); }}
+          onPaste={(e) => {
+            // A one-line box would flatten pasted homework; offer Test Prep instead.
+            const text = e.clipboardData.getData("text/plain");
+            if (looksLikeQuestionSet(text)) {
+              e.preventDefault();
+              setPastedSet(text);
+            }
+          }}
           onKeyDown={handleKeyDown}
           role="combobox"
           aria-expanded={isOpen}
@@ -422,6 +432,24 @@ export default function ProgressiveSearch() {
         ) : null}
       </div>
       </div>
+
+      {pastedSet && (
+        <div role="status" className="mt-3 flex flex-wrap items-center justify-center gap-3 rounded-xl border bg-card px-4 py-3 text-sm text-left">
+          <span>This looks like a set of questions. Prep for a test instead?</span>
+          <Button
+            size="sm"
+            onClick={() => {
+              try { sessionStorage.setItem("testprep:prefill", pastedSet); } catch {}
+              setLocation("/test-prep");
+            }}
+          >
+            Prep for a test
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => { setQuery(pastedSet.replace(/\s+/g, " ").trim()); setPastedSet(null); }}>
+            Search it anyway
+          </Button>
+        </div>
+      )}
 
       {/* Results Dropdown */}
       <AnimatePresence>

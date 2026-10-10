@@ -35,6 +35,11 @@ vi.mock('../test-prep/group', () => ({ groupConcepts: (...a: unknown[]) => group
 vi.mock('../test-prep/prepare', () => ({ prepareConcept: (...a: unknown[]) => prepareConcept(...a) }));
 vi.mock('../test-prep/verify', () => ({ verifyKeys: (...a: unknown[]) => verifyKeys(...a) }));
 vi.mock('../safety', () => ({ checkRequest: (...a: unknown[]) => checkRequest(...a) }));
+const fetchImageAsDataUrl = vi.fn();
+vi.mock('../test-prep/images', async (orig) => ({
+  ...(await orig<typeof import('../test-prep/images')>()),
+  fetchImageAsDataUrl: (...a: unknown[]) => fetchImageAsDataUrl(...a),
+}));
 
 import { registerTestPrepRoutes } from '../test-prep/routes';
 import { runPipeline, ensureRunning } from '../test-prep/pipeline';
@@ -63,7 +68,7 @@ const readySet = (over: Partial<StoredSet> = {}): StoredSet => ({
 
 beforeEach(() => {
   sets.clear();
-  for (const f of [parseQuestions, groupConcepts, prepareConcept, verifyKeys, checkRequest]) f.mockReset();
+  for (const f of [parseQuestions, groupConcepts, prepareConcept, verifyKeys, checkRequest, fetchImageAsDataUrl]) f.mockReset();
   checkRequest.mockResolvedValue({ allowed: true });
   parseQuestions.mockResolvedValue({ questions: [Q], grade: 8, subject: 'math' });
   groupConcepts.mockResolvedValue([{ id: 'c1', title: 'Fractions', questionIds: ['q1'], practiceIds: [] }]);
@@ -91,6 +96,24 @@ describe('POST /api/test-prep', () => {
     const r = await post('/api/test-prep', { text: 'bad', images: [] });
     expect(r.status).toBe(422);
     expect((await r.json()).message).toContain('can’t help');
+  });
+
+  it('rejects image links that are not Google Docs images', async () => {
+    const r = await post('/api/test-prep', { text: 'q', images: [], imageUrls: ['https://169.254.169.254/latest'] });
+    expect(r.status).toBe(422);
+    expect(fetchImageAsDataUrl).not.toHaveBeenCalled();
+  });
+
+  it('downloads Google Docs image links into the set', async () => {
+    fetchImageAsDataUrl.mockResolvedValue('data:image/png;base64,FETCHED');
+    const r = await post('/api/test-prep', { text: '1. Look at the graph.', images: ['data:image/jpeg;base64,AAAA'], imageUrls: ['https://lh7-rt.googleusercontent.com/docsz/x'] });
+    const { id } = await r.json();
+    expect(sets.get(id)!.images).toEqual(['data:image/jpeg;base64,AAAA', 'data:image/png;base64,FETCHED']);
+  });
+
+  it('counts image links toward the 10-image limit', async () => {
+    const r = await post('/api/test-prep', { text: 'q', images: Array(6).fill('data:image/jpeg;base64,AAAA'), imageUrls: Array(5).fill('https://lh3.googleusercontent.com/x') });
+    expect(r.status).toBe(422);
   });
 
   it('creates a set and runs the pipeline to ready', async () => {

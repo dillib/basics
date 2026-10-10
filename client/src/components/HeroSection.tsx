@@ -3,6 +3,7 @@ import { Sparkles, Users, BookOpen, Zap, Bot, Coins, Wallet, Leaf, type LucideIc
 import { motion } from "framer-motion";
 import GenerationProgress from "./GenerationProgress";
 import ProgressiveSearch from "./ProgressiveSearch";
+import { Link } from "wouter";
 import HeroGalaxy from "./HeroGalaxy";
 
 interface HeroSectionProps {
@@ -107,6 +108,10 @@ export default function HeroSection({
             custom={0.3}
             className="max-w-2xl mx-auto mb-8"
           >
+            <div role="tablist" aria-label="What do you want to do?" className="mb-3 inline-flex rounded-full border bg-card/80 p-1 text-sm">
+              <span role="tab" aria-selected="true" className="rounded-full bg-primary px-4 py-1.5 font-medium text-primary-foreground">Learn a topic</span>
+              <Link href="/test-prep" role="tab" aria-selected="false" className="rounded-full px-4 py-1.5 font-medium text-foreground/70 hover:text-foreground">Prep for a test</Link>
+            </div>
             <ProgressiveSearch />
           </motion.div>
 
