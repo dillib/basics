@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { recordSpend } from "./ai-spend";
 
 /**
@@ -14,7 +14,9 @@ import { recordSpend } from "./ai-spend";
  */
 
 export type Provider = "mercury" | "gemini";
-export type LlmTask = "clarify" | "quick_preview" | "source_check";
+export type LlmTask =
+  | "clarify" | "quick_preview" | "source_check"
+  | "test_prep_parse" | "test_prep_group" | "test_prep_prepare" | "test_prep_verify" | "test_prep_grade";
 
 const ROUTES: Record<LlmTask, Provider[]> = {
   clarify: ["mercury", "gemini"],
@@ -22,6 +24,13 @@ const ROUTES: Record<LlmTask, Provider[]> = {
   // A different company's model than the lesson writer (Gemini): an
   // independent second opinion. Gemini only if Mercury is down.
   source_check: ["mercury", "gemini"],
+  // Test prep (server/test-prep): Gemini reads images and writes the study
+  // material; Mercury does the fast checks and grading.
+  test_prep_parse: ["gemini"],
+  test_prep_prepare: ["gemini"],
+  test_prep_group: ["mercury", "gemini"],
+  test_prep_verify: ["mercury", "gemini"],
+  test_prep_grade: ["mercury", "gemini"],
 };
 
 export const MERCURY_MODEL = process.env.INCEPTION_MODEL || "mercury-2.5";
@@ -53,6 +62,12 @@ interface Request {
   timeoutMs?: number;
   /** Mercury reasoning effort; "instant" (default) for small, well-specified jobs. */
   effort?: "instant" | "low" | "medium" | "high";
+  /** Images sent with the prompt (base64, no data-URL prefix). Mercury is text-only, so it's skipped. */
+  images?: { mimeType: string; data: string }[];
+  /** Gemini: allow thinking (e.g. maths); off by default for speed. */
+  thinking?: boolean;
+  /** Gemini: block at LOW and above (kid-facing input such as pasted images). */
+  strictSafety?: boolean;
 }
 
 const available: Record<Provider, () => boolean> = {
@@ -83,17 +98,29 @@ async function callMercury(task: LlmTask, r: Request): Promise<string> {
   return body.choices?.[0]?.message?.content ?? "";
 }
 
+const STRICT_SAFETY = [
+  HarmCategory.HARM_CATEGORY_HARASSMENT,
+  HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+  HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+  HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+].map((category) => ({ category, threshold: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE }));
+
 let gemini: GoogleGenAI | null = null;
 async function callGemini(task: LlmTask, r: Request): Promise<string> {
   gemini ??= new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY || process.env.AI_INTEGRATIONS_GEMINI_API_KEY || "" });
+  const text = `${r.system}\n\n${r.prompt}\n\nReturn JSON matching this schema:\n${JSON.stringify(r.schema.schema)}`;
   const response = await gemini.models.generateContent({
     model: GEMINI_MODEL,
-    contents: `${r.system}\n\n${r.prompt}\n\nReturn JSON matching this schema:\n${JSON.stringify(r.schema.schema)}`,
+    contents: r.images?.length
+      ? [{ role: "user", parts: [{ text }, ...r.images.map((inlineData) => ({ inlineData }))] }]
+      : text,
     config: {
       temperature: r.temperature ?? 0.5,
       maxOutputTokens: r.maxTokens ?? 800,
       responseMimeType: "application/json",
-      thinkingConfig: { thinkingBudget: 0 }, // structured JSON: thinking only adds latency
+      // Structured JSON: thinking only adds latency, except where asked (maths).
+      thinkingConfig: { thinkingBudget: r.thinking ? 2048 : 0 },
+      ...(r.strictSafety ? { safetySettings: STRICT_SAFETY } : {}),
       abortSignal: AbortSignal.timeout(r.timeoutMs ?? 8000),
     },
   });
@@ -111,6 +138,7 @@ const CALL: Record<Provider, (task: LlmTask, r: Request) => Promise<string>> = {
 export async function generateJSON<T>(task: LlmTask, r: Request, parse: (value: unknown) => T | null): Promise<{ data: T; provider: Provider; ms: number } | null> {
   for (const provider of ROUTES[task]) {
     if (!available[provider]()) continue;
+    if (provider === "mercury" && r.images?.length) continue; // text-only model
     const started = Date.now();
     try {
       const text = (await CALL[provider](task, r)).trim().replace(/^```json\s*/, "").replace(/\s*```$/, "");

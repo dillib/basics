@@ -16,3 +16,4 @@ coverage
 
 # Assets (not needed in production)
 attached_assets/
+.superpowers/

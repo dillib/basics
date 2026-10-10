@@ -100,6 +100,30 @@ describe('generateJSON', () => {
   });
 });
 
+describe('test prep routing', () => {
+  it('skips Mercury when the request has images', async () => {
+    const saved = [process.env.GOOGLE_API_KEY, process.env.AI_INTEGRATIONS_GEMINI_API_KEY];
+    delete process.env.GOOGLE_API_KEY;
+    delete process.env.AI_INTEGRATIONS_GEMINI_API_KEY;
+    try {
+      reply = { status: 200, content: '{"question":"x"}' };
+      const r = await llm.generateJSON('test_prep_group', { ...req, images: [{ mimeType: 'image/png', data: 'AAAA' }] }, parseQ);
+      expect(r).toBeNull();
+      expect(requests).toHaveLength(0);
+    } finally {
+      if (saved[0]) process.env.GOOGLE_API_KEY = saved[0];
+      if (saved[1]) process.env.AI_INTEGRATIONS_GEMINI_API_KEY = saved[1];
+    }
+  });
+
+  it('routes test_prep_verify to Mercury first', async () => {
+    reply = { status: 200, content: '{"question":"Checked"}' };
+    const r = await llm.generateJSON('test_prep_verify', req, parseQ);
+    expect(r?.provider).toBe('mercury');
+    expect(requests).toHaveLength(1);
+  });
+});
+
 describe('checkAccuracy (publish gate)', () => {
   const lesson = {
     title: 'How Vaccines Work', level: 'adult' as const, description: 'd',
