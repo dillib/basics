@@ -7,7 +7,7 @@
  * you've verified a real sending domain in Resend (set RESEND_FROM_EMAIL) --
  * blasting user email from the shared onboarding@resend.dev sandbox sender will
  * land in spam and can get that shared sender throttled. Every email includes a
- * one-click unsubscribe link.
+ * one-click unsubscribe link and the postal address (MAILING_ADDRESS, required).
  *
  * Usage (once you're ready):
  *   REVIEW_REMINDERS_ENABLED=true DATABASE_URL="..." RESEND_API_KEY="..." \
@@ -17,6 +17,7 @@
 import { storage } from "./storage";
 import { sendEmail } from "./email";
 import { unsubscribeUrl } from "./email-unsubscribe";
+import { emailFooter, marketingEmailBlocker } from "./email-footer";
 import { pool } from "./db";
 
 const SITE_URL = (process.env.PUBLIC_URL || "https://basicstutor.com").replace(/\/$/, "");
@@ -36,10 +37,7 @@ function reminderHtml(firstName: string | null, dueCount: number, unsubUrl: stri
                 padding:12px 22px;border-radius:8px;font-weight:600;">
         Review ${dueCount} now →
       </a>
-      <p style="color:#999;font-size:12px;margin-top:28px;border-top:1px solid #eee;padding-top:12px;">
-        You're getting this because you're learning on BasicsTutor.
-        <a href="${unsubUrl}" style="color:#999;">Unsubscribe from review reminders</a>.
-      </p>
+      ${emailFooter({ unsubscribeUrl: unsubUrl, reason: "learning on BasicsTutor", unsubscribeLabel: "Unsubscribe from review reminders" })}
     </div>
   `;
 }
@@ -47,6 +45,13 @@ function reminderHtml(firstName: string | null, dueCount: number, unsubUrl: stri
 async function main() {
   if (process.env.REVIEW_REMINDERS_ENABLED !== "true") {
     console.log("[Reminders] REVIEW_REMINDERS_ENABLED is not 'true'. Skipping (see file header).");
+    return;
+  }
+  // CAN-SPAM: no postal address, no marketing email.
+  const blocked = marketingEmailBlocker();
+  if (blocked) {
+    console.error(`[Reminders] Not sending: ${blocked}`);
+    process.exitCode = 1;
     return;
   }
 

@@ -39,8 +39,9 @@ export function setupSecurity(app: Express): void {
               // real <script> tag that needs an explicit CSP allowance.
               scriptSrc: ["'self'", "https://static.cloudflareinsights.com"],
               // Tailwind + framer-motion apply inline style attributes.
-              styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-              fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
+              styleSrc: ["'self'", "'unsafe-inline'"],
+              // Fonts are bundled (client/src/main.tsx), never loaded from Google.
+              fontSrc: ["'self'", "data:"],
               imgSrc: ["'self'", "data:", "https:"],
               connectSrc: ["'self'", "https://api.stripe.com", "https://cloudflareinsights.com", "https://static.cloudflareinsights.com"],
               frameSrc: ["'self'", "https://js.stripe.com", "https://hooks.stripe.com"],

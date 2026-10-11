@@ -59,9 +59,9 @@
   --success-foreground: 0 0% 100%;
   --warning: 38 92% 50%;
   --warning-foreground: 0 0% 100%;
-  --font-sans: Jost, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-serif: Fraunces, Georgia, 'Times New Roman', serif;
-  --font-mono: JetBrains Mono, monospace;
+  --font-sans: 'Jost Variable', Jost, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: 'Fraunces Variable', Fraunces, Georgia, 'Times New Roman', serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;
   --radius: .625rem;
   --shadow-2xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.00);
   --shadow-xs: 0px 2px 0px 0px hsl(0 0% 0% / 0.00);

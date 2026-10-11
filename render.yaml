@@ -325,6 +325,10 @@ services:
         sync: false
       - key: REVIEW_REMINDERS_ENABLED
         value: "false"
+      # Postal address for the email footer (CAN-SPAM; a PO box is fine).
+      # Reminders refuse to send without it. See server/email-footer.ts.
+      - key: MAILING_ADDRESS
+        sync: false
 
 # PostgreSQL Database (the only datastore this app needs)
 databases:
