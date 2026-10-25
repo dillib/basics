@@ -17,7 +17,7 @@ const briefJson = {
 };
 
 let server: http.Server;
-let requests: { url?: string; body: any; auth?: string }[] = [];
+let requests: { url?: string; body: any; auth?: string; integration?: string | string[] }[] = [];
 let reply: { status: number; body: any } = { status: 200, body: {} };
 
 const okResponse = (outputText: string) => ({
@@ -39,7 +39,7 @@ beforeAll(async () => {
     let body = '';
     req.on('data', (c) => (body += c));
     req.on('end', () => {
-      requests.push({ url: req.url, body: body ? JSON.parse(body) : null, auth: req.headers.authorization });
+      requests.push({ url: req.url, body: body ? JSON.parse(body) : null, auth: req.headers.authorization, integration: req.headers['x-pplx-integration'] });
       res.writeHead(reply.status, { 'content-type': 'application/json' });
       res.end(JSON.stringify(reply.body));
     });
@@ -85,6 +85,8 @@ describe('researchTopic (Perplexity Agent API)', () => {
     expect(brief?.fundamentals).toHaveLength(3);
     expect(brief?.sources.map((s) => s.url)).toEqual(['https://about.fb.com/news/muse', 'https://techcrunch.com/muse']);
     expect(brief?.sources[0].date).toBe('2026-09-08');
+    // A custom (non-Perplexity) base URL keeps the SDK's own value, not ours.
+    expect(requests[0].integration).not.toBe('basics');
   });
 
   it('returns null (generation continues ungrounded) on a 401', async () => {
@@ -110,6 +112,15 @@ describe('researchTopic (Perplexity Agent API)', () => {
 });
 
 describe('research helpers', () => {
+  it('adds the attribution header only for the official Perplexity API host', async () => {
+    const { attributionHeaders } = await freshModule();
+    expect(attributionHeaders()).toEqual({ 'X-Pplx-Integration': 'basics' });
+    expect(attributionHeaders('https://api.perplexity.ai/')).toEqual({ 'X-Pplx-Integration': 'basics' });
+    expect(attributionHeaders('https://api.perplexity.ai.example.com')).toEqual({});
+    expect(attributionHeaders('http://127.0.0.1:8080')).toEqual({});
+    expect(attributionHeaders('not a url')).toEqual({});
+  });
+
   it('formats the brief as a prompt block flagging unrecognized subjects', async () => {
     const { formatResearchForPrompt } = await freshModule();
     const text = formatResearchForPrompt({ ...briefJson, recognized: false, misconceptions: [], ambiguity_note: 'Several products share this name', sources: [] });
