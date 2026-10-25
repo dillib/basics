@@ -19,9 +19,19 @@ import { adviceKind } from "@shared/advice";
  * generation continues ungrounded, exactly as before.
  */
 
+/** Identifies BasicsTutor traffic to Perplexity; sent only to the official API host. */
+export function attributionHeaders(baseURL = "https://api.perplexity.ai"): Record<string, string> {
+  try {
+    return new URL(baseURL).hostname === "api.perplexity.ai" ? { "X-Pplx-Integration": "basics" } : {};
+  } catch {
+    return {};
+  }
+}
+
 // The SDK reads PERPLEXITY_API_KEY itself; we only check presence.
 const client = process.env.PERPLEXITY_API_KEY
   ? new Perplexity({
+      defaultHeaders: attributionHeaders(process.env.PERPLEXITY_BASE_URL || undefined),
       // A new JSON schema takes 10-30s to prepare on first use (per docs).
       timeout: 120_000,
       // The SDK backs off between retries; batch jobs (concurrency 2-3) can
